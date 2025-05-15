@@ -26,7 +26,8 @@ The server can run using different communication transports, configured via envi
 
 ### Running the Server
 
-- **Stdio**: `npm run start:stdio'
+- **Format Code**: `npm run format`
+- **Stdio**: `npm run start:stdio`
 - **HTTP**: `npm run start:http` (optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`, `MCP_AUTH_SECRET_KEY`).
 
 ## Model Context Protocol (MCP) Overview (Spec: 2025-03-26)
@@ -143,6 +144,23 @@ Servers expose functionality via:
 - **Dependency Security:** Keep dependencies updated (`npm audit`).
 - **Rate Limiting:** Protect against abuse.
 
+## JSDoc and Code Documentation
+
+Comprehensive code documentation is crucial for maintainability and collaboration. This project utilizes JSDoc for documenting JavaScript and TypeScript code.
+
+- **Purpose**: JSDoc comments are used to describe the purpose, parameters, return values, and other relevant details of functions, classes, methods, and variables.
+- **Standard Tags**: A consistent set of JSDoc tags should be used to ensure clarity and compatibility with documentation generation tools. For this project, key tags like `@fileoverview`, `@module`, `@type`, `@typedef`, `@function`, `@template`, `@property`, `@class`, `@static`, `@private`, and `@constant` are explicitly defined in `tsdoc.json`. This configuration ensures they are recognized by TypeDoc (our documentation generator) and helps maintain consistency.
+- **File-Level Documentation**: Each file should begin with a JSDoc block providing an overview of its contents, using tags like `@fileoverview` and `@module` as defined in `tsdoc.json`.
+- **Detailed Reference**: For a comprehensive list of standard JSDoc tags (including those configured in `tsdoc.json`) and their usage, refer to the [JSDoc Standard Tags Reference](./docs/api-references/jsdoc-standard-tags.md).
+- **Code Formatting**: This project uses Prettier for consistent code formatting. Run `npm run format` to format the codebase.
+- **Best Practices**:
+    - Document all public APIs (functions, classes, methods).
+    - Clearly describe parameters, including their types and purpose.
+    - Specify return types and what the function returns.
+    - Document any thrown exceptions using `@throws`.
+    - Use `@example` to provide usage scenarios.
+    - Keep documentation synchronized with code changes.
+
 ## Core Utilities Integration
 
 ### 1. Logging (`src/utils/internal/logger.ts`)
@@ -176,8 +194,8 @@ logger.setLevel('debug' as McpLogLevel);
 ```
 
 - **Key Files**:
-  - `src/utils/internal/logger.ts`: Logger implementation.
-  - `logs/`: Directory where JSON log files are stored (`combined.log`, `error.log`, etc.).
+  - `src/utils/internal/logger.ts`: Logger implementation (includes file rotation).
+  - `logs/`: Directory where JSON log files are stored (e.g., `combined.log`, `error.log`), managed with rotation.
 
 ### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/internal/errorHandler.ts`)
 

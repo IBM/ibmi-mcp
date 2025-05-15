@@ -23,12 +23,12 @@
  *   - Often used as a postbuild script to ensure the built output is executable
  */
 
-import fs from 'fs/promises';
-import os from 'os';
-import path from 'path';
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 
 // Get platform information
-const isUnix = os.platform() !== 'win32';
+const isUnix = os.platform() !== "win32";
 const projectRoot = process.cwd(); // Define project root
 
 // File permissions
@@ -39,7 +39,7 @@ const EXECUTABLE_MODE = 0o755; // rwxr-xr-x
  */
 interface ExecutableResult {
   file: string;
-  status: 'success' | 'error' | 'skipped'; // Added 'skipped' status
+  status: "success" | "error" | "skipped"; // Added 'skipped' status
   reason?: string;
 }
 
@@ -49,25 +49,37 @@ interface ExecutableResult {
 const makeExecutable = async (): Promise<void> => {
   try {
     // Get target files from command line arguments or use default
-    const targetFiles: string[] = process.argv.slice(2).length > 0
-      ? process.argv.slice(2)
-      : ['dist/index.js']; // Default relative to project root
+    const targetFiles: string[] =
+      process.argv.slice(2).length > 0
+        ? process.argv.slice(2)
+        : ["dist/index.js"]; // Default relative to project root
 
     if (!isUnix) {
-      console.log('Windows detected. Skipping chmod operation (not applicable).');
-      console.log('Note: On Windows, executable permissions are not required to run scripts.');
+      console.log(
+        "Windows detected. Skipping chmod operation (not applicable).",
+      );
+      console.log(
+        "Note: On Windows, executable permissions are not required to run scripts.",
+      );
       return;
     }
 
-    console.log('Making files executable...');
+    console.log("Making files executable...");
 
     const results = await Promise.allSettled(
       targetFiles.map(async (targetFile): Promise<ExecutableResult> => {
         const normalizedPath = path.resolve(projectRoot, targetFile); // Resolve against project root
 
         // --- Security Check: Ensure path is within project root ---
-        if (!normalizedPath.startsWith(projectRoot + path.sep) && normalizedPath !== projectRoot) {
-            return { file: targetFile, status: 'error', reason: `Path resolves outside project boundary: ${normalizedPath}` };
+        if (
+          !normalizedPath.startsWith(projectRoot + path.sep) &&
+          normalizedPath !== projectRoot
+        ) {
+          return {
+            file: targetFile,
+            status: "error",
+            reason: `Path resolves outside project boundary: ${normalizedPath}`,
+          };
         }
         // --- End Security Check ---
 
@@ -77,30 +89,34 @@ const makeExecutable = async (): Promise<void> => {
 
           // Make file executable using the validated path
           await fs.chmod(normalizedPath, EXECUTABLE_MODE);
-          return { file: targetFile, status: 'success' };
+          return { file: targetFile, status: "success" };
         } catch (error) {
           const err = error as NodeJS.ErrnoException; // Type assertion for NodeJS errors
-          if (err.code === 'ENOENT') {
-            return { file: targetFile, status: 'error', reason: 'File not found' };
+          if (err.code === "ENOENT") {
+            return {
+              file: targetFile,
+              status: "error",
+              reason: "File not found",
+            };
           }
           // Log other errors but return an error status
           console.error(`Error processing ${targetFile}: ${err.message}`);
-          return { file: targetFile, status: 'error', reason: err.message };
+          return { file: targetFile, status: "error", reason: err.message };
         }
-      })
+      }),
     );
 
     // Report results
     let hasErrors = false;
     for (const result of results) {
-      if (result.status === 'fulfilled') {
+      if (result.status === "fulfilled") {
         const { file, status, reason } = result.value;
-        if (status === 'success') {
+        if (status === "success") {
           console.log(`✓ Made executable: ${file}`);
-        } else if (status === 'error') {
+        } else if (status === "error") {
           console.error(`× ${file}: ${reason}`);
           hasErrors = true;
-        } else if (status === 'skipped') {
+        } else if (status === "skipped") {
           console.warn(`! Skipped: ${file} (${reason})`);
         }
       } else {
@@ -111,13 +127,15 @@ const makeExecutable = async (): Promise<void> => {
     }
 
     if (hasErrors) {
-        console.error("Some files could not be processed. See errors above.");
-        // Optionally exit with error code if any file failed
-        // process.exit(1);
+      console.error("Some files could not be processed. See errors above.");
+      // Optionally exit with error code if any file failed
+      // process.exit(1);
     }
-
   } catch (error) {
-    console.error('× Fatal error during script execution:', error instanceof Error ? error.message : error);
+    console.error(
+      "× Fatal error during script execution:",
+      error instanceof Error ? error.message : error,
+    );
     process.exit(1);
   }
 };

@@ -1,53 +1,98 @@
-import { z } from 'zod'; // Import z here
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
+ * This module includes input validation using Zod, type definitions for input and output,
+ * and the main processing function that handles message formatting and repetition.
+ * @module mcp-server/tools/echoTool/echoToolLogic
+ */
+
+import { z } from "zod"; // Import z here
 // Import utils from the main barrel file (logger from ../../../utils/internal/logger.js, RequestContext from ../../../utils/internal/requestContext.js)
 import { logger, type RequestContext } from "../../../utils/index.js";
 
-// --- Schema and Type Definitions (Moved from types.ts) ---
+// --- Schema and Type Definitions ---
 
 /**
  * Defines the valid formatting modes for the echo tool operation.
  * - `standard`: Echo the message as is.
  * - `uppercase`: Convert the message to uppercase.
  * - `lowercase`: Convert the message to lowercase.
+ * @constant {readonly ["standard", "uppercase", "lowercase"]} ECHO_MODES
  */
-export const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
+export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
 
 /**
  * Zod schema defining the input parameters for the `echo_message` tool.
- * Includes validation rules and descriptions for each parameter.
+ * This schema is used by the MCP SDK to validate the arguments provided when the tool is called.
+ * It specifies constraints such as message length, formatting mode, repetition count,
+ * and whether a timestamp should be included in the response.
+ * The `.describe()` calls on each field provide human-readable explanations that
+ * can be used by documentation generators or for context by LLMs.
+ *
+ * @constant {z.ZodObject} EchoToolInputSchema
  */
-export const EchoToolInputSchema = z.object({
-  /** The message to be echoed back. Must be between 1 and 1000 characters. */
-  message: z.string().min(1, "Message cannot be empty").max(1000, "Message cannot exceed 1000 characters").describe(
-    'The message to echo back (1-1000 characters)'
-  ),
-  /** Specifies how the message should be formatted. Defaults to 'standard'. */
-  mode: z.enum(ECHO_MODES).optional().default('standard').describe(
-    'How to format the echoed message: standard (as-is), uppercase, or lowercase'
-  ),
-  /** The number of times the formatted message should be repeated. Defaults to 1, max 10. */
-  repeat: z.number().int().min(1).max(10).optional().default(1).describe(
-    'Number of times to repeat the message (1-10)'
-  ),
-  /** Whether to include an ISO 8601 timestamp in the response. Defaults to true. */
-  timestamp: z.boolean().optional().default(true).describe(
-    'Whether to include a timestamp in the response'
-  )
-}).describe(
-  'Defines the input arguments for the echo_message tool.'
-);
+export const EchoToolInputSchema = z
+  .object({
+    message: z
+      .string()
+      .min(1, "Message cannot be empty.")
+      .max(1000, "Message cannot exceed 1000 characters.")
+      .describe(
+        "The message to echo back. It must be between 1 and 1000 characters long.",
+      ),
+    mode: z
+      .enum(ECHO_MODES)
+      .optional()
+      .default("standard")
+      .describe(
+        "Specifies how the message should be formatted. " +
+        "Options: 'standard' (as-is), 'uppercase', 'lowercase'. Defaults to 'standard'.",
+      ),
+    repeat: z
+      .number()
+      .int("Repeat count must be an integer.")
+      .min(1, "Repeat count must be at least 1.")
+      .max(10, "Repeat count cannot exceed 10.")
+      .optional()
+      .default(1)
+      .describe(
+        "The number of times the formatted message should be repeated. Must be an integer between 1 and 10. Defaults to 1.",
+      ),
+    timestamp: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe(
+        "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
+      ),
+  })
+  .describe(
+    "Zod schema for validating the input arguments for the echo_message tool.",
+  );
 
 /**
  * TypeScript type inferred from `EchoToolInputSchema`.
  * Represents the validated input parameters for the echo tool.
+ * This type is used to ensure type safety when working with the tool's input.
+ *
  * @typedef {z.infer<typeof EchoToolInputSchema>} EchoToolInput
+ * @property {string} message - The message to echo back.
+ * @property {"standard" | "uppercase" | "lowercase"} [mode="standard"] - How to format the message.
+ * @property {number} [repeat=1] - Number of times to repeat the message.
+ * @property {boolean} [timestamp=true] - Whether to include a timestamp.
  */
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 
 /**
  * Defines the structure of the JSON payload returned by the `echo_message` tool handler.
- * This object is JSON-stringified and placed within the `text` field of the
- * `CallToolResult`'s `content` array.
+ * This object is typically JSON-stringified and placed within the `text` field of a
+ * `CallToolResult`'s `content` array when the tool is invoked successfully.
+ *
+ * @property {string} originalMessage - The original message as provided in the input.
+ * @property {string} formattedMessage - The message after the specified formatting mode (e.g., uppercase) has been applied.
+ * @property {string} repeatedMessage - The `formattedMessage` repeated the specified number of times, with repetitions joined by a single space.
+ * @property {(typeof ECHO_MODES)[number]} mode - The formatting mode that was actually applied to the message.
+ * @property {number} repeatCount - The number of times the `formattedMessage` was repeated to create the `repeatedMessage`.
+ * @property {string} [timestamp] - An optional ISO 8601 timestamp indicating when the response was generated. This is included if the `timestamp` input parameter was true.
  */
 export interface EchoToolResponse {
   /** The original message provided in the input. */
@@ -56,67 +101,102 @@ export interface EchoToolResponse {
   formattedMessage: string;
   /** The formatted message repeated the specified number of times, joined by spaces. */
   repeatedMessage: string;
-  /** The formatting mode that was applied ('standard', 'uppercase', or 'lowercase'). */
-  mode: typeof ECHO_MODES[number];
+  /** The formatting mode that was applied. */
+  mode: (typeof ECHO_MODES)[number];
   /** The number of times the message was repeated. */
   repeatCount: number;
-  /** Optional ISO 8601 timestamp indicating when the response was generated. Included if `timestamp` input was true. */
+  /** Optional ISO 8601 timestamp of when the response was generated. */
   timestamp?: string;
 }
 
 // --- Core Logic Function ---
 
 /**
- * Processes the core logic for the echo tool.
- * Formats and repeats the message based on the provided parameters.
+ * Processes the core logic for the `echo_message` tool.
+ * It takes validated input parameters (adhering to {@link EchoToolInputSchema}),
+ * formats the message according to the specified mode, repeats it as requested,
+ * and optionally adds a timestamp to the response.
  *
  * @function processEchoMessage
  * @param {EchoToolInput} params - The validated input parameters for the echo tool.
- * @param {RequestContext} context - The request context for logging and tracing.
- * @returns {EchoToolResponse} The processed response data, including original message, formatted/repeated message, and optional timestamp.
+ * @param {RequestContext} context - The request context, used for logging and tracing the operation.
+ * @returns {EchoToolResponse} An object containing the processed response data, conforming to the {@link EchoToolResponse} interface.
+ * @example
+ * const input = { message: "Hello", mode: "uppercase", repeat: 2, timestamp: true };
+ * const context = requestContextService.createRequestContext({ operation: "EchoToolCall" });
+ * const response = processEchoMessage(input, context);
+ * // response might be:
+ * // {
+ * //   originalMessage: "Hello",
+ * //   formattedMessage: "HELLO",
+ * //   repeatedMessage: "HELLO HELLO",
+ * //   mode: "uppercase",
+ * //   repeatCount: 2,
+ * //   timestamp: "2023-10-27T10:00:00.000Z"
+ * // }
  */
 export const processEchoMessage = (
   params: EchoToolInput,
-  context: RequestContext // Add context parameter
+  context: RequestContext, // Add context parameter
 ): EchoToolResponse => {
-  // Use the passed context for logging
-  logger.debug("Processing echo message logic", { ...context, inputMessage: params.message, mode: params.mode });
+  // Log the start of processing with relevant input details, using the provided context.
+  logger.debug("Processing echo message logic with input parameters.", {
+    ...context, // Spread context for consistent log structure
+    toolInput: {
+      // Nest input under a specific key for clarity
+      messageLength: params.message.length, // Log length instead of full message for brevity/PII
+      mode: params.mode,
+      repeat: params.repeat,
+      timestampRequested: params.timestamp,
+    },
+  });
 
-  // Process the message according to the requested mode
+  // Process the message according to the requested formatting mode.
+  // The `params.mode` is guaranteed by Zod validation to be one of ECHO_MODES or the default 'standard'.
   let formattedMessage = params.message;
   switch (params.mode) {
-    case 'uppercase':
+    case "uppercase":
       formattedMessage = params.message.toUpperCase();
       break;
-    case 'lowercase':
+    case "lowercase":
       formattedMessage = params.message.toLowerCase();
       break;
-    // 'standard' mode keeps the message as-is
+    // 'standard' mode: formattedMessage remains params.message (no change needed).
   }
 
-  // Repeat the message the specified number of times, ensuring it's within bounds
-  // Default repeat value is handled by the Zod schema
-  const safeRepeatCount = Math.min(params.repeat, 10);
-  const repeatedMessage = Array(safeRepeatCount)
-    .fill(formattedMessage)
-    .join(' ');
+  // Repeat the formatted message the specified number of times.
+  // The `params.repeat` is guaranteed by Zod to be an integer between 1 and 10 (inclusive of default).
+  // No need for Math.min here as Zod schema already enforces max:10.
+  const repeatedMessage = Array(params.repeat).fill(formattedMessage).join(" "); // Join repetitions with a single space.
 
-  // Prepare the response data using the imported EchoToolResponse type
+  // Prepare the response data object, conforming to the EchoToolResponse interface.
   const response: EchoToolResponse = {
     originalMessage: params.message,
     formattedMessage,
     repeatedMessage,
-    // Default mode value is handled by the Zod schema
-    mode: params.mode,
-    repeatCount: safeRepeatCount
+    mode: params.mode, // Mode used, guaranteed by Zod.
+    repeatCount: params.repeat, // Actual repeat count used, guaranteed by Zod.
   };
 
-  // Add timestamp if requested (default is true based on schema)
-  if (params.timestamp !== false) {
+  // Add an ISO 8601 timestamp to the response if requested.
+  // The `params.timestamp` is guaranteed by Zod to be a boolean (defaults to true).
+  if (params.timestamp) {
+    // Check for true explicitly, as default is true.
     response.timestamp = new Date().toISOString();
   }
 
-  // Use the passed context for logging the result
-  logger.debug("Echo message processed successfully", { ...context, response });
+  // Log the successful completion of the processing, including a summary of the response.
+  logger.debug("Echo message processed successfully.", {
+    ...context, // Spread context
+    toolResponseSummary: {
+      // Nest response summary
+      formattedMessageLength: response.formattedMessage.length,
+      repeatedMessageLength: response.repeatedMessage.length,
+      modeUsed: response.mode,
+      timesRepeated: response.repeatCount,
+      timestampGenerated: !!response.timestamp,
+    },
+  });
+
   return response;
 };

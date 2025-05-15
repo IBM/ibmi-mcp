@@ -1,31 +1,36 @@
 /**
- * @file requestContext.ts
- * @description Utilities for creating and managing request contexts.
+ * @fileoverview Utilities for creating and managing request contexts.
  * A request context is an object carrying a unique ID, timestamp, and other
- * relevant data for logging, tracing, and processing.
+ * relevant data for logging, tracing, and processing. It also defines
+ * configuration and operational context structures.
+ * @module utils/internal/requestContext
  */
 
-import { logger } from './logger.js';
-// Import utils from the main barrel file (generateUUID from ../security/idGenerator.js)
-import { generateUUID } from '../index.js';
-// Removed incorrect import: import { RequestContext } from './rateLimiter.js';
+import { logger } from "./logger.js";
+import { generateUUID } from "../index.js"; // For generating unique request IDs
 
 /**
- * Defines the structure for context information associated with a request or operation.
+ * Defines the core structure for context information associated with a request or operation.
+ * This is fundamental for logging, tracing, and passing operational data.
+ * @typedef {object} RequestContext
+ * @property {string} requestId - Unique ID for the context instance, used for log correlation and request tracing.
+ * @property {string} timestamp - ISO 8601 timestamp indicating when the context was created.
+ * @property {unknown} [key] - Allows arbitrary key-value pairs for specific context needs.
+ *                             Consumers must type-check/assert when accessing extended properties.
  */
 export interface RequestContext {
-  /** 
-   * Unique ID for the context instance. 
+  /**
+   * Unique ID for the context instance.
    * Used for log correlation and request tracing.
    */
   requestId: string;
 
-  /** 
+  /**
    * ISO 8601 timestamp indicating when the context was created.
    */
   timestamp: string;
 
-  /** 
+  /**
    * Allows arbitrary key-value pairs for specific context needs.
    * Using `unknown` promotes type-safe access.
    * Consumers must type-check/assert when accessing extended properties.
@@ -34,9 +39,11 @@ export interface RequestContext {
 }
 
 /**
- * Configuration interface for the request context service.
- * Extensible for future configuration.
- * Placeholder for potential service-wide settings.
+ * Configuration for the {@link requestContextService}.
+ * Allows for future extensibility of service-wide settings.
+ * Currently a placeholder for potential configurations.
+ * @typedef {object} ContextConfig
+ * @property {unknown} [key] - Custom configuration properties. Allows for arbitrary key-value pairs.
  */
 export interface ContextConfig {
   /** Custom configuration properties. Allows for arbitrary key-value pairs. */
@@ -44,12 +51,15 @@ export interface ContextConfig {
 }
 
 /**
- * Represents a broader operation context, optionally including
- * a `RequestContext` and custom properties.
- * Often used to pass contextual information for an operation or task.
+ * Represents a broader context for a specific operation or task.
+ * It can optionally include a base {@link RequestContext} and other custom properties
+ * relevant to the operation.
+ * @typedef {object} OperationContext
+ * @property {RequestContext} [requestContext] - Optional base request context data.
+ * @property {unknown} [key] - Allows for additional, custom properties specific to the operation.
  */
 export interface OperationContext {
-  /** Optional request context data, adhering to the `RequestContext` structure. */
+  /** Optional base request context data, adhering to the `RequestContext` structure. */
   requestContext?: RequestContext;
 
   /** Allows for additional, custom properties specific to the operation. */
@@ -57,50 +67,59 @@ export interface OperationContext {
 }
 
 /**
- * Service instance for managing request context operations.
- * Singleton-like object to configure the service and create contexts.
+ * Singleton-like service object for managing request context operations.
+ * Provides methods to configure the service and create {@link RequestContext} instances.
+ * @private
  */
 const requestContextServiceInstance = {
   /**
-   * Internal configuration store.
-   * Initialized empty, updatable via `configure`.
+   * Internal configuration store for the service.
+   * Initialized as an empty object and can be updated via the `configure` method.
+   * @type {ContextConfig}
    */
   config: {} as ContextConfig,
 
   /**
-   * Configures the service with new settings, merging with existing config.
+   * Configures the request context service with new settings.
+   * Merges the provided partial configuration with existing settings.
    *
-   * @param config - A partial `ContextConfig` object containing settings to update.
-   * @returns A shallow copy of the updated configuration.
+   * @param {Partial<ContextConfig>} config - A partial `ContextConfig` object containing settings to update or add.
+   * @returns {ContextConfig} A shallow copy of the newly updated configuration.
    */
   configure(config: Partial<ContextConfig>): ContextConfig {
     this.config = {
       ...this.config,
       ...config,
     };
-    logger.debug('RequestContextService configuration updated', { newConfig: this.config });
+    const logContext = this.createRequestContext({
+      operation: "RequestContextService.configure",
+      newConfigState: { ...this.config },
+    });
+    logger.debug("RequestContextService configuration updated", logContext);
     return { ...this.config }; // Return a copy to prevent direct mutation
   },
 
   /**
    * Retrieves a shallow copy of the current service configuration.
+   * This prevents direct mutation of the internal configuration state.
    *
-   * @returns A shallow copy of the current `ContextConfig`.
+   * @returns {ContextConfig} A shallow copy of the current `ContextConfig`.
    */
   getConfig(): ContextConfig {
     return { ...this.config }; // Return a copy
   },
 
   /**
-   * Creates a new request context with a unique `requestId` and `timestamp`.
-   * Custom properties can be added via `additionalContext`.
+   * Creates a new {@link RequestContext} instance.
+   * Each context is assigned a unique `requestId` (UUID) and a current `timestamp` (ISO 8601).
+   * Additional custom properties can be merged into the context.
    *
-   * @param additionalContext - An optional record of key-value pairs to be
-   *                            included in the request context. Defaults to an empty object.
-   * @returns A `RequestContext` object.
+   * @param {Record<string, unknown>} [additionalContext={}] - An optional record of key-value pairs to be
+   *                                                            included in the created request context.
+   * @returns {RequestContext} A new `RequestContext` object.
    */
   createRequestContext(
-    additionalContext: Record<string, unknown> = {}
+    additionalContext: Record<string, unknown> = {},
   ): RequestContext {
     const requestId = generateUUID();
     const timestamp = new Date().toISOString();
@@ -120,6 +139,8 @@ const requestContextServiceInstance = {
 
 /**
  * Primary export for request context functionalities.
- * Provides methods to create and manage request contexts.
+ * This service provides methods to create and manage {@link RequestContext} instances,
+ * which are essential for logging, tracing, and correlating operations.
+ * @type {typeof requestContextServiceInstance}
  */
 export const requestContextService = requestContextServiceInstance;

@@ -24,15 +24,15 @@
  *   - Can limit directory depth
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
 
 // Define the project root directory robustly
 const projectRoot = process.cwd();
 
 // Process command line arguments
 const args = process.argv.slice(2);
-let outputPath = 'docs/tree.md'; // Default output path relative to project root
+let outputPath = "docs/tree.md"; // Default output path relative to project root
 let maxDepth = Infinity;
 
 /**
@@ -45,7 +45,7 @@ interface GitignorePattern {
 }
 
 // Handle command line options
-if (args.includes('--help')) {
+if (args.includes("--help")) {
   console.log(`
 Generate Tree - Project directory structure visualization tool
 
@@ -61,41 +61,53 @@ Options:
 }
 
 // Default patterns to always ignore
-const DEFAULT_IGNORE_PATTERNS: string[] = ['.git', 'node_modules', '.DS_Store', 'dist', 'build'];
+const DEFAULT_IGNORE_PATTERNS: string[] = [
+  ".git",
+  "node_modules",
+  ".DS_Store",
+  "dist",
+  "build",
+];
 
 /**
  * Loads patterns from the .gitignore file
  */
 async function loadGitignorePatterns(): Promise<GitignorePattern[]> {
-  const gitignorePath = path.join(projectRoot, '.gitignore');
+  const gitignorePath = path.join(projectRoot, ".gitignore");
   try {
     // Security: Ensure we read only from within the project root
     if (!path.resolve(gitignorePath).startsWith(projectRoot + path.sep)) {
-        console.warn('Attempted to read .gitignore outside project root. Using default patterns only.');
-        return [];
+      console.warn(
+        "Attempted to read .gitignore outside project root. Using default patterns only.",
+      );
+      return [];
     }
-    const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-    return gitignoreContent
-      .split('\n')
-      .map(line => line.trim())
-      // Remove comments, empty lines, and lines with just whitespace
-      .filter(line => line && !line.startsWith('#') && line.trim() !== '')
-      // Process each pattern
-      .map(pattern => ({
-        pattern: pattern.startsWith('!') ? pattern.slice(1) : pattern,
-        negated: pattern.startsWith('!'),
-        // Convert glob patterns to regex-compatible strings (simplified approach)
-        regex: pattern
-          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars first
-          .replace(/\\\*/g, '.*')  // Convert \* to .*
-          .replace(/\\\?/g, '.')   // Convert \? to .
-          .replace(/\/$/, '(/.*)?') // Handle directory indicators
-      }));
+    const gitignoreContent = await fs.readFile(gitignorePath, "utf-8");
+    return (
+      gitignoreContent
+        .split("\n")
+        .map((line) => line.trim())
+        // Remove comments, empty lines, and lines with just whitespace
+        .filter((line) => line && !line.startsWith("#") && line.trim() !== "")
+        // Process each pattern
+        .map((pattern) => ({
+          pattern: pattern.startsWith("!") ? pattern.slice(1) : pattern,
+          negated: pattern.startsWith("!"),
+          // Convert glob patterns to regex-compatible strings (simplified approach)
+          regex: pattern
+            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // Escape regex special chars first
+            .replace(/\\\*/g, ".*") // Convert \* to .*
+            .replace(/\\\?/g, ".") // Convert \? to .
+            .replace(/\/$/, "(/.*)?"), // Handle directory indicators
+        }))
+    );
   } catch (error: any) {
-    if (error.code === 'ENOENT') {
-        console.warn('No .gitignore file found at project root, using default patterns only');
+    if (error.code === "ENOENT") {
+      console.warn(
+        "No .gitignore file found at project root, using default patterns only",
+      );
     } else {
-        console.error(`Error reading .gitignore: ${error.message}`);
+      console.error(`Error reading .gitignore: ${error.message}`);
     }
     return [];
   }
@@ -104,11 +116,16 @@ async function loadGitignorePatterns(): Promise<GitignorePattern[]> {
 /**
  * Checks if a path should be ignored based on patterns
  */
-function isIgnored(entryPath: string, ignorePatterns: GitignorePattern[]): boolean {
+function isIgnored(
+  entryPath: string,
+  ignorePatterns: GitignorePattern[],
+): boolean {
   const relativePath = path.relative(projectRoot, entryPath); // Use relative path for matching
 
   // Always check default patterns first using relative path
-  if (DEFAULT_IGNORE_PATTERNS.some(pattern => relativePath.startsWith(pattern))) {
+  if (
+    DEFAULT_IGNORE_PATTERNS.some((pattern) => relativePath.startsWith(pattern))
+  ) {
     return true;
   }
 
@@ -131,15 +148,18 @@ function isIgnored(entryPath: string, ignorePatterns: GitignorePattern[]): boole
 async function generateTree(
   dir: string,
   ignorePatterns: GitignorePattern[],
-  prefix = '',
+  prefix = "",
   isLast = true,
-  currentDepth = 0
+  currentDepth = 0,
 ): Promise<string> {
   // Security Check: Ensure the directory being read is within the project root
   const resolvedDir = path.resolve(dir);
-  if (!resolvedDir.startsWith(projectRoot + path.sep) && resolvedDir !== projectRoot) {
+  if (
+    !resolvedDir.startsWith(projectRoot + path.sep) &&
+    resolvedDir !== projectRoot
+  ) {
     console.warn(`Skipping directory outside project root: ${resolvedDir}`);
-    return ''; // Prevent traversal outside root
+    return ""; // Prevent traversal outside root
   }
 
   let entries;
@@ -147,14 +167,14 @@ async function generateTree(
     entries = await fs.readdir(resolvedDir, { withFileTypes: true }); // Use resolvedDir
   } catch (error: any) {
     console.error(`Error reading directory ${resolvedDir}: ${error.message}`);
-    return ''; // Stop processing this branch on error
+    return ""; // Stop processing this branch on error
   }
 
-  let output = '';
+  let output = "";
 
   // Filter and sort entries
   const filteredEntries = entries
-    .filter(entry => {
+    .filter((entry) => {
       const entryAbsolutePath = path.join(resolvedDir, entry.name); // Use absolute path for ignore check
       return !isIgnored(entryAbsolutePath, ignorePatterns);
     })
@@ -168,9 +188,9 @@ async function generateTree(
   for (let i = 0; i < filteredEntries.length; i++) {
     const entry = filteredEntries[i];
     const isLastEntry = i === filteredEntries.length - 1;
-    const newPrefix = prefix + (isLast ? '    ' : '│   ');
+    const newPrefix = prefix + (isLast ? "    " : "│   ");
 
-    output += prefix + (isLastEntry ? '└── ' : '├── ') + entry.name + '\n';
+    output += prefix + (isLastEntry ? "└── " : "├── ") + entry.name + "\n";
 
     // Only traverse deeper if we haven't reached maxDepth
     if (entry.isDirectory() && currentDepth < maxDepth) {
@@ -179,7 +199,7 @@ async function generateTree(
         ignorePatterns,
         newPrefix,
         isLastEntry,
-        currentDepth + 1
+        currentDepth + 1,
       );
     }
   }
@@ -189,17 +209,17 @@ async function generateTree(
 
 // Process command line arguments for custom configurations
 for (const arg of args) {
-  if (arg.startsWith('--depth=')) {
-    const depthValue = arg.split('=')[1];
+  if (arg.startsWith("--depth=")) {
+    const depthValue = arg.split("=")[1];
     const parsedDepth = parseInt(depthValue, 10);
 
     if (isNaN(parsedDepth) || parsedDepth < 1) {
-      console.error('Invalid depth value. Using unlimited depth.');
+      console.error("Invalid depth value. Using unlimited depth.");
       maxDepth = Infinity;
     } else {
       maxDepth = parsedDepth;
     }
-  } else if (!arg.startsWith('--')) {
+  } else if (!arg.startsWith("--")) {
     // If it's not an option flag, assume it's the output path
     outputPath = arg;
   }
@@ -216,14 +236,21 @@ const writeTree = async (): Promise<void> => {
     // --- Security Validation for Output Path ---
     const resolvedOutputFile = path.resolve(projectRoot, outputPath);
     if (!resolvedOutputFile.startsWith(projectRoot + path.sep)) {
-        console.error(`Error: Output path "${outputPath}" resolves outside the project directory: ${resolvedOutputFile}`);
-        process.exit(1);
+      console.error(
+        `Error: Output path "${outputPath}" resolves outside the project directory: ${resolvedOutputFile}`,
+      );
+      process.exit(1);
     }
     const resolvedOutputDir = path.dirname(resolvedOutputFile);
     // Double-check directory path as well
-    if (!resolvedOutputDir.startsWith(projectRoot + path.sep) && resolvedOutputDir !== projectRoot) {
-        console.error(`Error: Output directory "${resolvedOutputDir}" is outside the project directory.`);
-        process.exit(1);
+    if (
+      !resolvedOutputDir.startsWith(projectRoot + path.sep) &&
+      resolvedOutputDir !== projectRoot
+    ) {
+      console.error(
+        `Error: Output directory "${resolvedOutputDir}" is outside the project directory.`,
+      );
+      process.exit(1);
     }
     // --- End Security Validation ---
 
@@ -234,7 +261,13 @@ const writeTree = async (): Promise<void> => {
     }
 
     // Generate the tree structure starting from the project root
-    const treeContent = await generateTree(projectRoot, ignorePatterns, '', true, 0);
+    const treeContent = await generateTree(
+      projectRoot,
+      ignorePatterns,
+      "",
+      true,
+      0,
+    );
 
     // Ensure output directory exists (use validated path)
     try {
@@ -242,21 +275,26 @@ const writeTree = async (): Promise<void> => {
     } catch {
       console.log(`Creating directory: ${resolvedOutputDir}`);
       try {
-          await fs.mkdir(resolvedOutputDir, { recursive: true }); // Use validated resolvedOutputDir
+        await fs.mkdir(resolvedOutputDir, { recursive: true }); // Use validated resolvedOutputDir
       } catch (mkdirError: any) {
-          console.error(`Error creating directory ${resolvedOutputDir}: ${mkdirError.message}`);
-          process.exit(1);
+        console.error(
+          `Error creating directory ${resolvedOutputDir}: ${mkdirError.message}`,
+        );
+        process.exit(1);
       }
     }
 
     // Write tree to file (use validated path)
-    const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/T/, " ")
+      .replace(/\..+/, "");
 
     const content = `# ${projectName} - Directory Structure
 
 Generated on: ${timestamp}
 
-${maxDepth !== Infinity ? `_Depth limited to ${maxDepth} levels_\n\n` : ''}
+${maxDepth !== Infinity ? `_Depth limited to ${maxDepth} levels_\n\n` : ""}
 \`\`\`
 ${projectName}
 ${treeContent}
@@ -266,18 +304,24 @@ _Note: This tree excludes files and directories matched by .gitignore and common
 `;
 
     try {
-        await fs.writeFile(
-          resolvedOutputFile, // Use validated resolvedOutputFile
-          content
-        );
+      await fs.writeFile(
+        resolvedOutputFile, // Use validated resolvedOutputFile
+        content,
+      );
     } catch (writeFileError: any) {
-        console.error(`Error writing to file ${resolvedOutputFile}: ${writeFileError.message}`);
-        process.exit(1);
+      console.error(
+        `Error writing to file ${resolvedOutputFile}: ${writeFileError.message}`,
+      );
+      process.exit(1);
     }
 
-    console.log(`✓ Successfully generated tree structure in ${resolvedOutputFile}`);
+    console.log(
+      `✓ Successfully generated tree structure in ${resolvedOutputFile}`,
+    );
   } catch (error) {
-    console.error(`× Error generating tree: ${error instanceof Error ? error.message : error}`);
+    console.error(
+      `× Error generating tree: ${error instanceof Error ? error.message : error}`,
+    );
     process.exit(1);
   }
 };

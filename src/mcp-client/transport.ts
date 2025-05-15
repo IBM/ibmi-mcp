@@ -1,36 +1,52 @@
+/**
+ * @fileoverview Provides functions for creating and configuring MCP client transports.
+ * This module supports creating Stdio (Standard Input/Output) and Streamable HTTP transports
+ * based on server configurations loaded via `configLoader.ts`.
+ * @module mcp-client/transport
+ */
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"; // Corrected Import HTTP transport name
-// Import utils from the main barrel file (logger, RequestContext, requestContextService from ../utils/internal/*)
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { BaseErrorCode, McpError } from "../types-global/errors.js";
 import {
   logger,
   RequestContext,
   requestContextService,
-} from "../utils/index.js";
+} from "../utils/index.js"; // Centralized internal imports
 import { getMcpServerConfig } from "./configLoader.js";
 
 /**
- * Configuration options specifically required for creating a StdioClientTransport.
- * This includes the command to execute, arguments, and optional environment variables.
+ * Configuration options specifically required for creating a `StdioClientTransport`
+ * (from the `@modelcontextprotocol/sdk`).
+ * This includes the command to execute the server process, arguments to pass to it,
+ * and optional environment variables for the server's execution context.
+ * @typedef {object} StdioTransportConfig
+ * @property {string} command - The command or path to the executable that starts the MCP server.
+ * @property {string[]} args - An array of string arguments to pass to the server command.
+ * @property {Record<string, string>} [env] - Optional key-value pairs representing environment variables
+ *                                            to set for the server process. These are merged with,
+ *                                            and take precedence over, the client's current environment.
  */
-interface StdioTransportConfig {
+export interface StdioTransportConfig {
   command: string;
   args: string[];
-  env?: Record<string, string>; // Environment variables for the server process
+  env?: Record<string, string>;
 }
 
 /**
- * Creates and configures a StdioClientTransport instance for launching and communicating
- * with an MCP server process via standard input/output.
+ * Creates and configures a `StdioClientTransport` instance (from the `@modelcontextprotocol/sdk`)
+ * for launching and communicating with an MCP server process via its standard input and output streams.
  *
- * @param transportConfig - Configuration containing the command, args, and env for the server process.
- * @param parentContext - Optional parent request context for logging.
- * @returns A configured StdioClientTransport instance ready to be connected.
- * @throws McpError if the provided configuration is invalid or if the transport fails to initialize.
+ * @param {StdioTransportConfig} transportConfig - Configuration containing the command, arguments,
+ *                                                 and environment variables for the server process.
+ * @param {RequestContext | null} [parentContext] - Optional parent request context for logging and tracing.
+ * @returns {StdioClientTransport} A configured `StdioClientTransport` instance, ready to be connected.
+ * @throws {McpError} If the provided `transportConfig` is invalid (e.g., missing command)
+ *                    or if the transport fails to initialize for other reasons.
+ * @public
  */
 export function createStdioClientTransport(
   transportConfig: StdioTransportConfig,
-  parentContext?: RequestContext | null
+  parentContext?: RequestContext | null,
 ): StdioClientTransport {
   const baseContext = parentContext ? { ...parentContext } : {};
   const context = requestContextService.createRequestContext({
@@ -42,32 +58,27 @@ export function createStdioClientTransport(
 
   logger.debug("Creating StdioClientTransport", context);
 
-  // --- Input Validation ---
   if (!transportConfig.command || typeof transportConfig.command !== "string") {
     logger.error("Invalid command provided for StdioClientTransport", context);
     throw new McpError(
       BaseErrorCode.CONFIGURATION_ERROR,
-      "Invalid command for StdioClientTransport",
-      context
+      "Invalid command for StdioClientTransport: command must be a non-empty string.",
+      context,
     );
   }
   if (!Array.isArray(transportConfig.args)) {
     logger.error(
       "Invalid args provided for StdioClientTransport (must be an array)",
-      context
+      context,
     );
     throw new McpError(
       BaseErrorCode.CONFIGURATION_ERROR,
-      "Invalid args for StdioClientTransport (must be an array)",
-      context
+      "Invalid args for StdioClientTransport: args must be an array.",
+      context,
     );
   }
 
   try {
-    // --- Environment Merging ---
-    // Combine the client's current environment with server-specific variables from the config.
-    // Server-specific variables take precedence.
-    // Filter out undefined values from process.env to avoid potential issues.
     const filteredProcessEnv: Record<string, string> = {};
     for (const key in process.env) {
       if (
@@ -79,17 +90,15 @@ export function createStdioClientTransport(
     }
 
     const mergedEnv: Record<string, string> = {
-      ...filteredProcessEnv, // Start with client's environment
-      ...(transportConfig.env || {}), // Override/add server-specific env vars
+      ...filteredProcessEnv,
+      ...(transportConfig.env || {}),
     };
 
     logger.debug("Creating StdioClientTransport with merged environment", {
       ...context,
-      envKeys: Object.keys(mergedEnv).length, // Log count for brevity
+      envKeysCount: Object.keys(mergedEnv).length,
     });
 
-    // --- Instantiate Transport ---
-    // Create the transport instance, passing the command, args, and merged environment.
     const transport = new StdioClientTransport({
       command: transportConfig.command,
       args: transportConfig.args,
@@ -99,37 +108,38 @@ export function createStdioClientTransport(
     logger.info("StdioClientTransport created successfully", context);
     return transport;
   } catch (error) {
-    // Catch errors during transport instantiation (e.g., invalid command path).
     logger.error("Failed to create StdioClientTransport", {
       ...context,
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    // Re-throw as a specific McpError for consistent error handling.
     throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR, // Could potentially be CONFIGURATION_ERROR if command is invalid
+      BaseErrorCode.INTERNAL_ERROR,
       `Failed to create StdioClientTransport: ${
         error instanceof Error ? error.message : String(error)
       }`,
-      { originalError: error, ...context }
+      { originalError: error, ...context },
     );
   }
 }
 
 /**
  * Retrieves the server configuration and creates the appropriate client transport
- * (Stdio or HTTP) based on the `transportType` specified in the configuration.
- * This acts as a factory function for obtaining the correct transport instance.
+ * (either `StdioClientTransport` or `StreamableHTTPClientTransport` from the `@modelcontextprotocol/sdk`)
+ * based on the `transportType` specified in the server's configuration.
+ * This function acts as a factory for client transport instances.
  *
- * @param serverName - The name of the MCP server (key in mcp-config.json).
- * @param parentContext - Optional parent request context for logging.
- * @returns A configured transport instance (either StdioClientTransport or StreamableHTTPClientTransport).
- * @throws McpError if configuration is missing, invalid, specifies an unsupported transport type, or if transport creation fails.
+ * @param {string} serverName - The name of the MCP server, as defined in the `mcp-config.json` file.
+ * @param {RequestContext | null} [parentContext] - Optional parent request context for logging and tracing.
+ * @returns {StdioClientTransport | StreamableHTTPClientTransport} A configured transport instance.
+ * @throws {McpError} If the server configuration is missing or invalid, if an unsupported
+ *                    transport type is specified, or if transport creation fails.
+ * @public
  */
 export function getClientTransport(
   serverName: string,
-  parentContext?: RequestContext | null
-): StdioClientTransport | StreamableHTTPClientTransport { // Use union type for specific return possibilities
+  parentContext?: RequestContext | null,
+): StdioClientTransport | StreamableHTTPClientTransport {
   const baseContext = parentContext ? { ...parentContext } : {};
   const context = requestContextService.createRequestContext({
     ...baseContext,
@@ -140,39 +150,30 @@ export function getClientTransport(
   logger.info(`Getting transport for server: ${serverName}`, context);
 
   try {
-    // --- 1. Load Server Configuration ---
-    // Retrieve the validated configuration for the specified server.
     const serverConfig = getMcpServerConfig(serverName, context);
-
-    // --- 2. Determine and Create Transport ---
-    const transportType = serverConfig.transportType; // Already defaulted to 'stdio' by config loader if missing
+    const transportType = serverConfig.transportType;
     logger.info(
       `Selected transport type "${transportType}" for server: ${serverName}`,
-      { ...context, transportType }
+      { ...context, transportType },
     );
 
     if (transportType === "stdio") {
-      // --- Create Stdio Transport ---
       logger.info(`Creating stdio transport for server: ${serverName}`, {
         ...context,
         command: serverConfig.command,
         args: serverConfig.args,
         envProvided: !!serverConfig.env,
       });
-      // Delegate to the dedicated stdio creation function.
       return createStdioClientTransport(
         {
           command: serverConfig.command,
           args: serverConfig.args,
-          env: serverConfig.env, // Pass validated env config
+          env: serverConfig.env,
         },
-        context
+        context,
       );
     } else if (transportType === "http") {
-      // --- Create HTTP Transport ---
-      // For HTTP, the 'command' field in the config is interpreted as the base URL.
       const baseUrl = serverConfig.command;
-      // Validate that the command field looks like a URL for HTTP transport.
       if (
         !baseUrl ||
         typeof baseUrl !== "string" ||
@@ -183,69 +184,57 @@ export function getClientTransport(
         throw new McpError(
           BaseErrorCode.CONFIGURATION_ERROR,
           httpConfigError,
-          context
+          context,
         );
       }
 
       logger.info(
         `Creating HTTP transport for server: ${serverName} with base URL: ${baseUrl}`,
-        context
+        context,
       );
 
       try {
-        // Instantiate the StreamableHTTPClientTransport using the base URL.
-        // The SDK handles constructing the full /mcp endpoint path.
-        // IMPORTANT: Authentication headers (e.g., Authorization: Bearer <token>)
-        // need to be added here or via client options if required by the server,
-        // following the MCP Authentication Specification.
+        // Authentication headers or other options can be added here if needed.
         const transportOptions = {
-          // Example: Adding authentication headers if needed
-          // headers: {
-          //   'Authorization': `Bearer ${getAuthTokenForServer(serverName)}`
-          // }
+          // headers: { 'Authorization': `Bearer YOUR_TOKEN_HERE` }
         };
         const transport = new StreamableHTTPClientTransport(
-          new URL(baseUrl),
-          transportOptions // Pass options if needed
+          new URL(baseUrl), // SDK expects a URL object
+          transportOptions,
         );
-
         logger.info(
           `StreamableHTTPClientTransport created successfully for ${serverName}`,
-          context
+          context,
         );
         return transport;
       } catch (error) {
-        // Catch errors during HTTP transport instantiation (e.g., invalid URL format).
         logger.error(
-          `Failed to create StreamableHttpClientTransport for ${serverName}`,
+          `Failed to create StreamableHTTPClientTransport for ${serverName}`,
           {
             ...context,
             baseUrl: baseUrl,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
-          }
+          },
         );
         throw new McpError(
-          BaseErrorCode.INTERNAL_ERROR, // Or CONFIGURATION_ERROR if URL is invalid
+          BaseErrorCode.INTERNAL_ERROR,
           `Failed to create HTTP transport for ${serverName}: ${
             error instanceof Error ? error.message : String(error)
           }`,
-          { originalError: error, ...context }
+          { originalError: error, ...context },
         );
       }
     } else {
-      // --- Unsupported Transport Type ---
-      // This path should ideally not be reachable due to Zod validation in the config loader.
       const unsupportedErrorMessage = `Unsupported transportType "${serverConfig.transportType}" configured for server "${serverName}".`;
       logger.error(unsupportedErrorMessage, context);
       throw new McpError(
         BaseErrorCode.CONFIGURATION_ERROR,
         unsupportedErrorMessage,
-        context
+        context,
       );
     }
   } catch (error) {
-    // Catch errors from config loading or transport creation steps.
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
       `Failed to get or create transport for server "${serverName}"`,
@@ -253,18 +242,15 @@ export function getClientTransport(
         ...context,
         error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined,
-      }
+      },
     );
-
-    // Ensure a consistent McpError is thrown.
     if (error instanceof McpError) {
       throw error;
     } else {
-      // Assume configuration error if not already an McpError
       throw new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
+        BaseErrorCode.CONFIGURATION_ERROR, // Default to config error if origin unknown
         `Failed to initialize transport for ${serverName}: ${errorMessage}`,
-        { originalError: error }
+        { originalError: error },
       );
     }
   }

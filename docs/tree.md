@@ -1,11 +1,13 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-13 03:16:48
+Generated on: 2025-05-15 08:39:48
 
 
 ```
 mcp-ts-template
 ├── docs
+    ├── api-references
+    │   └── jsdoc-standard-tags.md
     ├── .DS_Store
     └── tree.md
 ├── scripts
@@ -78,6 +80,7 @@ mcp-ts-template
 ├── repomix.config.json
 ├── smithery.yaml
 ├── tsconfig.json
+├── tsdoc.json
 └── typedoc.json
 
 ```

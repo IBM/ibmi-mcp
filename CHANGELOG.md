@@ -2,12 +2,70 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-05-15
+
+### Added
+
+- **Development Tooling**:
+  - Added `prettier` as a dev dependency for consistent code formatting.
+  - Included a `format` script in `package.json` to run Prettier across the codebase.
+- **Documentation**:
+  - Expanded `tsdoc.json` to recognize more standard JSDoc tags (`@property`, `@class`, `@static`, `@private`, `@constant`) for improved TypeDoc generation.
+
+### Changed
+
+- **Code Quality**:
+  - Extensively refactored JSDoc comments across the entire codebase (core utilities, MCP client/server components, services, scripts, and type definitions) for improved clarity, accuracy, and completeness.
+  - Standardized code formatting throughout the project using Prettier.
+  - Added `@module` and `@fileoverview` JSDoc tags to relevant files to enhance documentation structure and maintainability.
+- **Scripts**:
+  - Improved JSDoc comments and formatting in utility scripts (`scripts/clean.ts`, `scripts/fetch-openapi-spec.ts`, `scripts/make-executable.ts`, `scripts/tree.ts`).
+- **Documentation Files**:
+  - Updated `docs/api-references/jsdoc-standard-tags.md` with formatting improvements and to align with expanded `tsdoc.json`.
+  - Refreshed `docs/tree.md` to reflect the current directory structure and generation timestamp.
+  - Updated `README.md` to reflect the new version.
+- **Configuration**:
+  - Minor formatting adjustment in `repomix.config.json`.
+  - Minor formatting adjustment (trailing newline) in `tsconfig.json`.
+- **Core Application & Utilities**:
+  - Refactored configuration management (`src/config/index.ts`) for enhanced clarity, validation using Zod, and comprehensive JSDoc.
+  - Overhauled the main application entry point (`src/index.ts`) with improved startup/shutdown logic, robust error handling for uncaught exceptions/rejections, and detailed JSDoc.
+  - Enhanced error type definitions (`src/types-global/errors.ts`) with extensive JSDoc, clarifying `BaseErrorCode`, `McpError`, and `ErrorSchema`.
+- **MCP Components**:
+  - Refactored the `echo` resource (`src/mcp-server/resources/echoResource/`) with detailed JSDoc, clearer type definitions, and improved registration logic.
+  - Refactored the `echo_message` tool (`src/mcp-server/tools/echoTool/`) with detailed JSDoc, improved input/response types, and enhanced registration structure.
+
+## [1.2.0] - 2025-05-14
+
+### Added
+
+- **Documentation System**:
+  - Integrated JSDoc for comprehensive code documentation.
+  - Added `tsdoc.json` for TSDoc configuration to ensure consistent JSDoc tag recognition by TypeDoc.
+  - Included `docs/api-references/jsdoc-standard-tags.md` as a detailed reference for standard JSDoc tags.
+  - Updated `.clinerules` with a new section on JSDoc and code documentation best practices.
+- **Logging**: Implemented log file rotation for the Winston logger (`src/utils/internal/logger.ts`) to manage log file sizes.
+
+### Changed
+
+- **Refactoring**:
+  - Standardized `RequestContext` creation and usage across the application (server, transports, core utilities) using `requestContextService.createRequestContext()` for improved logging, error reporting, and operational tracing.
+  - Enhanced `ErrorHandler` (`src/utils/internal/errorHandler.ts`) to correctly use and create `RequestContext` and improve log payload creation.
+  - Significantly refactored the `Logger` (`src/utils/internal/logger.ts`) to correctly handle `RequestContext`, improve console logging format, and enhance MCP notification payloads.
+  - Updated JSDoc comments in `src/utils/internal/requestContext.ts` and improved internal logging within the service.
+  - Modified various utility files (`jsonParser.ts`, `rateLimiter.ts`, `sanitization.ts`) to use `requestContextService.createRequestContext` for internal logging when a context is not provided.
+- **Dependencies**:
+  - Updated `@types/node` from `22.15.17` to `22.15.18`.
+  - Updated `sanitize-html` from `2.16.0` to `2.17.0`.
+- **Documentation**:
+  - Updated `docs/tree.md` to reflect new documentation files and structure.
+
 ## [1.1.9] - 2025-05-12
 
 ### Changed
 
 - **Configuration**:
-    - Renamed `APP_URL` to `OPENROUTER_APP_URL` and `APP_NAME` to `OPENROUTER_APP_NAME` across the codebase (`src/config/index.ts`, `src/services/openRouterProvider.ts`, `README.md`) for clarity.
+  - Renamed `APP_URL` to `OPENROUTER_APP_URL` and `APP_NAME` to `OPENROUTER_APP_NAME` across the codebase (`src/config/index.ts`, `src/services/openRouterProvider.ts`, `README.md`) for clarity.
 
 ## [1.1.8] - 2025-05-12
 
@@ -15,18 +73,18 @@ All notable changes to this project will be documented in this file.
 
 - **Service**: Integrated OpenRouter service (`src/services/openRouterProvider.ts`) for leveraging various Large Language Models.
 - **Configuration**:
-    - Added new environment variables to `src/config/index.ts` for OpenRouter and LLM customization: `OPENROUTER_APP_URL`, `OPENROUTER_APP_NAME`, `OPENROUTER_API_KEY`, `LLM_DEFAULT_MODEL`, `LLM_DEFAULT_TEMPERATURE`, `LLM_DEFAULT_TOP_P`, `LLM_DEFAULT_MAX_TOKENS`, `LLM_DEFAULT_TOP_K`, `LLM_DEFAULT_MIN_P`.
+  - Added new environment variables to `src/config/index.ts` for OpenRouter and LLM customization: `OPENROUTER_APP_URL`, `OPENROUTER_APP_NAME`, `OPENROUTER_API_KEY`, `LLM_DEFAULT_MODEL`, `LLM_DEFAULT_TEMPERATURE`, `LLM_DEFAULT_TOP_P`, `LLM_DEFAULT_MAX_TOKENS`, `LLM_DEFAULT_TOP_K`, `LLM_DEFAULT_MIN_P`.
 - **Error Handling**: Introduced `INITIALIZATION_FAILED` error code to `src/types-global/errors.ts` for better service initialization diagnostics.
 
 ### Changed
 
 - **Dependencies**:
-    - Updated `@modelcontextprotocol/sdk` to `^1.11.2`.
-    - Updated `@types/node` to `^22.15.17`.
-    - Updated `openai` to `^4.98.0`.
+  - Updated `@modelcontextprotocol/sdk` to `^1.11.2`.
+  - Updated `@types/node` to `^22.15.17`.
+  - Updated `openai` to `^4.98.0`.
 - **Documentation**:
-    - Updated `README.md` to document new OpenRouter environment variables and add the OpenRouter Provider to the project features table.
-    - Refreshed `docs/tree.md` to reflect the current directory structure.
+  - Updated `README.md` to document new OpenRouter environment variables and add the OpenRouter Provider to the project features table.
+  - Refreshed `docs/tree.md` to reflect the current directory structure.
 
 ## [1.1.7] - 2025-05-07
 

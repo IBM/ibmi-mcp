@@ -1,9 +1,9 @@
 # MCP TypeScript Template 🚀
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-1.11.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-1.11.2-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.1.9-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.2.1-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -23,7 +23,7 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 | **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                             | `src/utils/`                                                                   |
 | **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware stub for HTTP). | Throughout, `src/utils/security/`, `src/mcp-server/transports/authentication/` |
 | **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                      | `src/utils/internal/errorHandler.ts`, `src/types-global/`                      |
-| **📚 Documentation**        | Comprehensive `README.md`, inline JSDoc comments.                                                                                | `README.md`, Codebase                                                          |
+| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments (via `tsdoc.json`), API references.                                         | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`                    |
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                       | `.clinerules`                                                                  |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.             | `scripts/`                                                                     |
 
@@ -71,7 +71,13 @@ Get the example server running in minutes:
     # Or use 'npm run rebuild' for a clean install (deletes node_modules, logs, dist)
     ```
 
-4.  **Run the Example Server:**
+4.  **Format the code (Optional but Recommended):**
+
+    ```bash
+    npm run format
+    ```
+
+5.  **Run the Example Server:**
 
     - **Via Stdio (Default):** Many MCP host applications will run this automatically using `stdio`. To run manually for testing:
       ```bash
@@ -211,7 +217,7 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 |                          | Configuration                   | Environment-aware settings with Zod validation.                                                              | `src/config/`, `src/mcp-client/configLoader.ts`  |
 |                          | HTTP Transport                  | Express-based server with SSE, session management, CORS, port retries.                                       | `src/mcp-server/transports/httpTransport.ts`     |
 |                          | Stdio Transport                 | Handles MCP communication over standard input/output.                                                        | `src/mcp-server/transports/stdioTransport.ts`    |
-| **Utilities (Core)**     | Logger                          | Structured, context-aware logging (files & MCP notifications).                                               | `src/utils/internal/logger.ts`                   |
+| **Utilities (Core)**     | Logger                          | Structured, context-aware logging (files with rotation & MCP notifications).                                 | `src/utils/internal/logger.ts`                   |
 |                          | ErrorHandler                    | Centralized error processing, classification, and logging.                                                   | `src/utils/internal/errorHandler.ts`             |
 |                          | RequestContext                  | Request/operation tracking and correlation.                                                                  | `src/utils/internal/requestContext.ts`           |
 | **Utilities (Metrics)**  | TokenCounter                    | Estimates token counts using `tiktoken`.                                                                     | `src/utils/metrics/tokenCounter.ts`              |

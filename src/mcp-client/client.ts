@@ -38,7 +38,7 @@ const connectedClients: Map<string, ConnectedMcpClient> = new Map();
  */
 export async function connectMcpClient(
   serverName: string,
-  parentContext?: RequestContext | null
+  parentContext?: RequestContext | null,
 ): Promise<ConnectedMcpClient> {
   const operationContext = requestContextService.createRequestContext({
     ...(parentContext ?? {}),
@@ -50,14 +50,14 @@ export async function connectMcpClient(
   if (connectedClients.has(serverName)) {
     logger.debug(
       `Returning existing connected client for server: ${serverName}`,
-      operationContext
+      operationContext,
     );
     return connectedClients.get(serverName)!;
   }
 
   logger.info(
     `Attempting to connect to MCP server: ${serverName}`,
-    operationContext
+    operationContext,
   );
 
   return await ErrorHandler.tryCatch(
@@ -67,13 +67,13 @@ export async function connectMcpClient(
       // This prevents trying to create transports for non-existent servers.
       logger.debug(
         `Validating configuration for server: ${serverName}`,
-        operationContext
+        operationContext,
       );
       // getMcpServerConfig throws McpError if the serverName is not found.
       getMcpServerConfig(serverName, operationContext);
       logger.debug(
         `Configuration validated for server: ${serverName}`,
-        operationContext
+        operationContext,
       );
 
       // --- 2. Define Client Identity & Capabilities (MCP Spec 2025-03-26) ---
@@ -150,7 +150,7 @@ export async function connectMcpClient(
       // Instantiate the high-level SDK Client. It requires identity and capabilities.
       logger.debug(
         `Creating MCP Client instance for ${serverName}`,
-        operationContext
+        operationContext,
       );
       const client = new Client(clientIdentity, {
         capabilities: clientCapabilities,
@@ -187,7 +187,7 @@ export async function connectMcpClient(
         // Transport connection closed (gracefully or unexpectedly)
         logger.info(
           `MCP Transport closed for server ${serverName}`,
-          operationContext
+          operationContext,
         );
         // Trigger disconnection and cleanup
         disconnectMcpClient(serverName, operationContext);
@@ -199,12 +199,12 @@ export async function connectMcpClient(
       // with the defined identity and capabilities, and processing the server's response.
       logger.info(
         `Connecting client to transport for ${serverName}...`,
-        operationContext
+        operationContext,
       );
       await client.connect(transport); // This promise resolves after successful initialization
       logger.info(
         `Successfully connected and initialized with MCP server: ${serverName}`,
-        operationContext
+        operationContext,
       );
 
       // --- 7. Store Connection ---
@@ -217,7 +217,7 @@ export async function connectMcpClient(
       operation: `connecting to MCP server ${serverName}`,
       context: operationContext,
       errorCode: BaseErrorCode.INTERNAL_ERROR, // Use INTERNAL_ERROR as fallback for connection issues
-    }
+    },
   );
 }
 
@@ -232,7 +232,7 @@ export async function connectMcpClient(
 export async function disconnectMcpClient(
   serverName: string,
   parentContext?: RequestContext | null,
-  error?: Error | McpError
+  error?: Error | McpError,
 ): Promise<void> {
   const context = requestContextService.createRequestContext({
     ...(parentContext ?? {}),
@@ -252,7 +252,7 @@ export async function disconnectMcpClient(
       connectedClients.delete(serverName);
       logger.debug(
         `Removed client ${serverName} from cache due to error trigger.`,
-        context
+        context,
       );
     }
 
@@ -265,9 +265,7 @@ export async function disconnectMcpClient(
       logger.error(`Error closing client for ${serverName}`, {
         ...context,
         error:
-          closeError instanceof Error
-            ? closeError.message
-            : String(closeError),
+          closeError instanceof Error ? closeError.message : String(closeError),
         stack: closeError instanceof Error ? closeError.stack : undefined,
       });
       // Continue cleanup even if close fails
@@ -277,7 +275,7 @@ export async function disconnectMcpClient(
         connectedClients.delete(serverName);
         logger.debug(
           `Removed client ${serverName} from connection cache after close attempt.`,
-          context
+          context,
         );
       }
     }
@@ -286,7 +284,7 @@ export async function disconnectMcpClient(
     if (!error) {
       logger.warning(
         `Client for server ${serverName} not found in cache or already disconnected.`,
-        context
+        context,
       );
     }
     // Defensive removal in case of inconsistent state
@@ -303,7 +301,7 @@ export async function disconnectMcpClient(
  * @param parentContext - Optional parent request context for logging.
  */
 export async function disconnectAllMcpClients(
-  parentContext?: RequestContext | null
+  parentContext?: RequestContext | null,
 ): Promise<void> {
   const context = requestContextService.createRequestContext({
     ...(parentContext ?? {}),
