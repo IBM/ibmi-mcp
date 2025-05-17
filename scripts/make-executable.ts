@@ -1,76 +1,68 @@
 #!/usr/bin/env node
 
 /**
- * Make Executable Script
- * ======================
+ * @fileoverview Utility script to make files executable (chmod +x) on Unix-like systems.
+ * @module scripts/make-executable
+ * @description
+ *   On Windows, this script does nothing but exits successfully.
+ *   Useful for CLI applications where built output needs executable permissions.
+ *   Default target (if no args): dist/index.js.
+ *   Ensures output paths are within the project directory for security.
  *
- * Description:
- *   A cross-platform utility that makes script files executable (chmod +x) on Unix-like systems.
- *   On Windows, this script does nothing but exits successfully (as chmod is not applicable).
- *   Useful for CLI applications or tools where the built output needs to be executable.
+ * @example
+ * // Add to package.json build script:
+ * // "build": "tsc && ts-node --esm scripts/make-executable.ts dist/index.js"
  *
- * Usage:
- *   - Add to package.json build script: "build": "tsc && ts-node --esm scripts/make-executable.ts dist/index.js"
- *   - Run directly (if needed): ts-node --esm scripts/make-executable.ts [file1] [file2] ...
- *   - Default target (if no args): dist/index.js
- *
- * Platform compatibility:
- *   - Runs on all platforms but only performs chmod on Unix-like systems (Linux, macOS)
- *   - On Windows, the script will succeed without performing any action
- *
- * Common use case:
- *   - For Node.js CLI applications where the entry point needs executable permissions
- *   - Often used as a postbuild script to ensure the built output is executable
+ * @example
+ * // Run directly with custom files:
+ * // ts-node --esm scripts/make-executable.ts path/to/script1 path/to/script2
  */
 
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
 
-// Get platform information
 const isUnix = os.platform() !== "win32";
-const projectRoot = process.cwd(); // Define project root
-
-// File permissions
+const projectRoot = process.cwd();
 const EXECUTABLE_MODE = 0o755; // rwxr-xr-x
 
 /**
- * Interface for the result of making a file executable
+ * Represents the result of an attempt to make a file executable.
+ * @property file - The relative path of the file targeted.
+ * @property status - The outcome of the operation ('success', 'error', or 'skipped').
+ * @property reason - If status is 'error' or 'skipped', an explanation.
  */
 interface ExecutableResult {
   file: string;
-  status: "success" | "error" | "skipped"; // Added 'skipped' status
+  status: "success" | "error" | "skipped";
   reason?: string;
 }
 
 /**
- * Main function to make files executable
+ * Main function to make specified files executable.
+ * Skips operation on Windows. Processes command-line arguments for target files
+ * or defaults to 'dist/index.js'. Reports status for each file.
  */
 const makeExecutable = async (): Promise<void> => {
   try {
-    // Get target files from command line arguments or use default
     const targetFiles: string[] =
       process.argv.slice(2).length > 0
         ? process.argv.slice(2)
-        : ["dist/index.js"]; // Default relative to project root
+        : ["dist/index.js"];
 
     if (!isUnix) {
       console.log(
-        "Windows detected. Skipping chmod operation (not applicable).",
-      );
-      console.log(
-        "Note: On Windows, executable permissions are not required to run scripts.",
+        "Skipping chmod operation: Script is running on Windows (not applicable).",
       );
       return;
     }
 
-    console.log("Making files executable...");
+    console.log(`Attempting to make files executable: ${targetFiles.join(", ")}`);
 
     const results = await Promise.allSettled(
       targetFiles.map(async (targetFile): Promise<ExecutableResult> => {
-        const normalizedPath = path.resolve(projectRoot, targetFile); // Resolve against project root
+        const normalizedPath = path.resolve(projectRoot, targetFile);
 
-        // --- Security Check: Ensure path is within project root ---
         if (
           !normalizedPath.startsWith(projectRoot + path.sep) &&
           normalizedPath !== projectRoot
@@ -81,17 +73,13 @@ const makeExecutable = async (): Promise<void> => {
             reason: `Path resolves outside project boundary: ${normalizedPath}`,
           };
         }
-        // --- End Security Check ---
 
         try {
-          // Check if file exists using the validated path
-          await fs.access(normalizedPath);
-
-          // Make file executable using the validated path
+          await fs.access(normalizedPath); // Check if file exists
           await fs.chmod(normalizedPath, EXECUTABLE_MODE);
           return { file: targetFile, status: "success" };
         } catch (error) {
-          const err = error as NodeJS.ErrnoException; // Type assertion for NodeJS errors
+          const err = error as NodeJS.ErrnoException;
           if (err.code === "ENOENT") {
             return {
               file: targetFile,
@@ -99,46 +87,50 @@ const makeExecutable = async (): Promise<void> => {
               reason: "File not found",
             };
           }
-          // Log other errors but return an error status
-          console.error(`Error processing ${targetFile}: ${err.message}`);
+          console.error(
+            `Error setting executable permission for ${targetFile}: ${err.message}`,
+          );
           return { file: targetFile, status: "error", reason: err.message };
         }
       }),
     );
 
-    // Report results
     let hasErrors = false;
-    for (const result of results) {
+    results.forEach((result) => {
       if (result.status === "fulfilled") {
         const { file, status, reason } = result.value;
         if (status === "success") {
-          console.log(`✓ Made executable: ${file}`);
+          console.log(`Successfully made executable: ${file}`);
         } else if (status === "error") {
-          console.error(`× ${file}: ${reason}`);
+          console.error(`Error for ${file}: ${reason}`);
           hasErrors = true;
         } else if (status === "skipped") {
-          console.warn(`! Skipped: ${file} (${reason})`);
+          // This status is not currently generated by the mapAsync logic but kept for future flexibility
+          console.warn(`Skipped ${file}: ${reason}`);
         }
       } else {
-        // Handle rejected promises from map (should ideally not happen with current try/catch)
-        console.error(`× Unexpected error: ${result.reason}`);
+        console.error(
+          `Unexpected failure for one of the files: ${result.reason}`,
+        );
         hasErrors = true;
       }
-    }
+    });
 
     if (hasErrors) {
-      console.error("Some files could not be processed. See errors above.");
-      // Optionally exit with error code if any file failed
-      // process.exit(1);
+      console.error(
+        "One or more files could not be made executable. Please check the errors above.",
+      );
+      // process.exit(1); // Uncomment to exit with error if any file fails
+    } else {
+      console.log("All targeted files processed successfully.");
     }
   } catch (error) {
     console.error(
-      "× Fatal error during script execution:",
+      "A fatal error occurred during the make-executable script:",
       error instanceof Error ? error.message : error,
     );
     process.exit(1);
   }
 };
 
-// Execute the makeExecutable function
 makeExecutable();
