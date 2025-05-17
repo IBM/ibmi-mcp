@@ -17,15 +17,13 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import express, { NextFunction, Request, Response } from "express";
 import http from "http";
 import { randomUUID } from "node:crypto";
-import { config } from "../../config/index.js"; // Validated application configuration
+import { config } from "../../config/index.js";
 import {
   logger,
   RequestContext,
   requestContextService,
-} from "../../utils/index.js"; // Core utilities
-import { mcpAuthMiddleware } from "./authentication/authMiddleware.js"; // MCP authentication middleware
-
-// --- Configuration Constants (Derived from imported config) ---
+} from "../../utils/index.js";
+import { mcpAuthMiddleware } from "./authentication/authMiddleware.js";
 
 /**
  * The port number for the HTTP transport, configured via `MCP_HTTP_PORT` environment variable.
@@ -39,7 +37,6 @@ const HTTP_PORT = config.mcpHttpPort;
  * The host address for the HTTP transport, configured via `MCP_HTTP_HOST` environment variable.
  * Defaults to '127.0.0.1' if not specified (default is managed by the config module).
  * MCP Spec Security Note: Recommends binding to localhost for local servers to minimize exposure.
- * @constant {string} HTTP_HOST
  * @private
  */
 const HTTP_HOST = config.mcpHttpHost;
@@ -76,9 +73,9 @@ const httpTransports: Record<string, StreamableHTTPServerTransport> = {};
  * If the server is bound to localhost, requests from localhost or with no/null origin are also permitted.
  * Sets appropriate CORS headers (`Access-Control-Allow-Origin`, etc.) if the origin is allowed.
  *
- * @param {Request} req - The Express request object.
- * @param {Response} res - The Express response object.
- * @returns {boolean} True if the origin is allowed, false otherwise.
+ * @param req - The Express request object.
+ * @param res - The Express response object.
+ * @returns True if the origin is allowed, false otherwise.
  * @private
  */
 function isOriginAllowed(req: Request, res: Response): boolean {
@@ -115,13 +112,11 @@ function isOriginAllowed(req: Request, res: Response): boolean {
 }
 
 /**
- * Proactively checks if a specific network port is already in use on a given host.
- * This is an asynchronous operation.
- * @param {number} port - The port number to check.
- * @param {string} host - The host address to check the port on.
- * @param {RequestContext} parentContext - Logging context from the caller.
- * @returns {Promise<boolean>} A promise that resolves to `true` if the port is in use (EADDRINUSE),
- *                             or `false` if it's available or if a non-EADDRINUSE error occurs.
+ * Proactively checks if a specific network port is already in use.
+ * @param port - The port number to check.
+ * @param host - The host address to check the port on.
+ * @param parentContext - Logging context from the caller.
+ * @returns A promise that resolves to `true` if the port is in use, or `false` otherwise.
  * @private
  */
 async function isPortInUse(
@@ -163,17 +158,15 @@ async function isPortInUse(
 }
 
 /**
- * Attempts to start the provided HTTP server instance, retrying on incrementing ports
- * if an `EADDRINUSE` (address already in use) error occurs.
- * Uses proactive checks with `isPortInUse` before attempting to bind the main server.
+ * Attempts to start the HTTP server, retrying on incrementing ports if `EADDRINUSE` occurs.
  *
- * @param {http.Server} serverInstance - The Node.js HTTP server instance to start.
- * @param {number} initialPort - The initial port number to try.
- * @param {string} host - The host address to bind to.
- * @param {number} maxRetries - The maximum number of additional ports to attempt (initialPort + 1, initialPort + 2, ...).
- * @param {RequestContext} parentContext - Logging context from the caller.
- * @returns {Promise<number>} A promise that resolves with the port number the server successfully bound to.
- * @throws {Error} Rejects if binding fails after all retries or for a non-EADDRINUSE error during a bind attempt.
+ * @param serverInstance - The Node.js HTTP server instance.
+ * @param initialPort - The initial port number to try.
+ * @param host - The host address to bind to.
+ * @param maxRetries - Maximum number of additional ports to attempt.
+ * @param parentContext - Logging context from the caller.
+ * @returns A promise that resolves with the port number the server successfully bound to.
+ * @throws {Error} If binding fails after all retries or for a non-EADDRINUSE error.
  * @private
  */
 function startHttpServerWithRetry(
@@ -270,23 +263,11 @@ function startHttpServerWithRetry(
 
 /**
  * Sets up and starts the Streamable HTTP transport layer for the MCP server.
- * This involves:
- * - Creating an Express application.
- * - Configuring middleware: JSON body parsing, CORS handling (via `isOriginAllowed`),
- *   standard security headers, and MCP authentication (via `mcpAuthMiddleware`).
- * - Defining route handlers for the single MCP endpoint (`/mcp`) to manage POST (initialize, messages),
- *   GET (SSE stream), and DELETE (session termination) requests.
- * - Managing server-side sessions, creating a new `McpServer` instance per session using the provided factory.
- * - Starting the Node.js HTTP server with retry logic for port binding.
  *
- * @param {() => Promise<McpServer>} createServerInstanceFn - An asynchronous factory function that returns a new
- *                                                            `McpServer` instance. This is called for each new client session.
- * @param {RequestContext} parentContext - Logging context from the main server startup process.
- * @returns {Promise<void>} A promise that resolves when the HTTP server is successfully listening.
- *                          It typically does not reject from this function directly if the server starts;
- *                          critical errors during startup (like port binding failure) will cause process exit.
- * @throws {Error} If the server fails to start after all port retries (propagated from `startHttpServerWithRetry`).
- * @public
+ * @param createServerInstanceFn - An asynchronous factory function that returns a new `McpServer` instance.
+ * @param parentContext - Logging context from the main server startup process.
+ * @returns A promise that resolves when the HTTP server is successfully listening.
+ * @throws {Error} If the server fails to start after all port retries.
  */
 export async function startHttpTransport(
   createServerInstanceFn: () => Promise<McpServer>,
@@ -591,7 +572,7 @@ export async function startHttpTransport(
       MAX_PORT_RETRIES,
       transportContext,
     );
-    const protocol = config.environment === "production" ? "https" : "http"; // Basic assumption
+    const protocol = config.environment === "production" ? "https" : "http";
     const serverAddress = `${protocol}://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
     if (process.stdout.isTTY) {
       console.log(

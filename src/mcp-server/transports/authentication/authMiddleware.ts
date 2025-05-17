@@ -34,11 +34,10 @@
 
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { config, environment } from "../../../config/index.js"; // Application config and environment
-import { logger, requestContextService } from "../../../utils/index.js"; // Core utilities
+import { config, environment } from "../../../config/index.js";
+import { logger, requestContextService } from "../../../utils/index.js";
 
 // Extend the Express Request interface to include the optional 'auth' property
-// This allows attaching the decoded JWT payload to the request object for downstream use.
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
@@ -49,9 +48,7 @@ declare global {
   }
 }
 
-// --- Startup Validation ---
-// Validate secret key presence on module load (fail fast principle).
-// This prevents the server starting insecurely in production without the key.
+// Startup Validation: Validate secret key presence on module load.
 if (environment === "production" && !config.mcpAuthSecretKey) {
   logger.fatal(
     "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production environment. Authentication cannot proceed securely.",
@@ -66,19 +63,16 @@ if (environment === "production" && !config.mcpAuthSecretKey) {
 }
 
 /**
- * Express middleware function for verifying JWT Bearer token authentication.
- * It checks the `Authorization` header for a 'Bearer' token. If found, it verifies
- * the token's signature and expiration using the `config.mcpAuthSecretKey`.
+ * Express middleware for verifying JWT Bearer token authentication.
+ * Checks the `Authorization` header for a 'Bearer' token. If found, it verifies
+ * the token's signature and expiration using `config.mcpAuthSecretKey`.
  * On successful verification, the decoded token payload is attached to `req.auth`.
- * If authentication fails (missing token, invalid format, invalid signature, expired),
- * an HTTP 401 Unauthorized response is sent.
- * In non-production environments, if `config.mcpAuthSecretKey` is not set,
- * authentication is bypassed for development convenience.
+ * If authentication fails, an HTTP 401 Unauthorized response is sent.
+ * In non-production environments with no secret key, authentication is bypassed.
  *
- * @param {Request} req - Express request object.
- * @param {Response} res - Express response object.
- * @param {NextFunction} next - Express next middleware function.
- * @public
+ * @param req - Express request object.
+ * @param res - Express response object.
+ * @param next - Express next middleware function.
  */
 export function mcpAuthMiddleware(
   req: Request,
@@ -95,7 +89,7 @@ export function mcpAuthMiddleware(
     context,
   );
 
-  // --- Development Mode Bypass ---
+  // Development Mode Bypass
   if (!config.mcpAuthSecretKey) {
     if (environment !== "production") {
       logger.warning(
@@ -108,6 +102,8 @@ export function mcpAuthMiddleware(
       };
       return next();
     } else {
+      // This case should ideally be prevented by the startup validation,
+      // but included for defense-in-depth.
       logger.error(
         "FATAL: MCP_AUTH_SECRET_KEY is missing in production. Cannot bypass auth.",
         context,
@@ -119,7 +115,7 @@ export function mcpAuthMiddleware(
     }
   }
 
-  // --- Standard JWT Bearer Token Verification ---
+  // Standard JWT Bearer Token Verification
   const authHeader = req.headers.authorization;
   logger.debug(`Authorization header present: ${!!authHeader}`, context);
 
@@ -151,7 +147,7 @@ export function mcpAuthMiddleware(
   try {
     const decoded = jwt.verify(token, config.mcpAuthSecretKey);
     logger.debug("JWT verified successfully.", { ...context });
-    req.auth = decoded;
+    req.auth = decoded; // Attach decoded payload to request
     next();
   } catch (error: unknown) {
     let errorMessage = "Invalid token";
@@ -165,12 +161,14 @@ export function mcpAuthMiddleware(
       errorMessage = `Invalid token: ${error.message}`;
       logger.warning(`Authentication failed: ${errorMessage}`, { ...context });
     } else if (error instanceof Error) {
+      // Catch generic errors that might occur during verification
       errorMessage = `Verification error: ${error.message}`;
       logger.error(
         "Authentication failed: Unexpected error during token verification.",
         { ...context, error: error.message },
       );
     } else {
+      // Catch non-Error exceptions
       errorMessage = "Unknown verification error";
       logger.error(
         "Authentication failed: Unexpected non-error exception during token verification.",
