@@ -15,46 +15,27 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-// Import validated configuration and environment details.
 import { config, environment } from "../config/index.js";
-// Import core utilities: ErrorHandler, logger, requestContextService.
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
-// Import registration functions for specific resources and tools.
 import { registerEchoResource } from "./resources/echoResource/index.js";
 import { registerEchoTool } from "./tools/echoTool/index.js";
-// Import transport setup functions.
 import { startHttpTransport } from "./transports/httpTransport.js";
 import { connectStdioTransport } from "./transports/stdioTransport.js";
 
 /**
- * Creates and configures a new instance of the `McpServer` (from `@modelcontextprotocol/sdk`).
+ * Creates and configures a new instance of the `McpServer`.
  *
- * This function is central to defining the server's identity and functionality
- * as presented to connecting clients during the MCP initialization phase.
+ * This function defines the server's identity and capabilities as presented
+ * to clients during MCP initialization.
  *
  * MCP Spec Relevance:
- * - Server Identity (`serverInfo`): The `name` and `version` provided here are part
- *   of the `ServerInformation` object returned in the `InitializeResult` message,
- *   allowing clients to identify the server they are connected to.
- * - Capabilities Declaration: The `capabilities` object declares the features this
- *   server supports, enabling clients to tailor their interactions.
- *   - `logging: {}`: Indicates the server can receive `logging/setLevel` requests
- *     and may send `notifications/message` log messages (handled by the logger utility).
- *   - `resources: { listChanged: true }`: Signals that the server supports dynamic
- *     resource lists and will send `notifications/resources/list_changed` if the
- *     available resources change after initialization.
- *   - `tools: { listChanged: true }`: Signals support for dynamic tool lists and
- *     `notifications/tools/list_changed`.
- * - Resource/Tool Registration: This function calls specific registration functions
- *   (e.g., `registerEchoResource`) which use SDK methods (`server.resource`, `server.tool`)
- *   to make capabilities available for discovery (`resources/list`, `tools/list`) and
- *   invocation (`resources/read`, `tools/call`).
+ * - Server Identity (`serverInfo`): `name` and `version` are part of `ServerInformation`.
+ * - Capabilities Declaration: Declares supported features (logging, dynamic resources/tools).
+ * - Resource/Tool Registration: Makes capabilities discoverable and invocable.
  *
- * Design Note: This factory function is used to create server instances. For the 'stdio'
- * transport, it's called once. For the 'http' transport, it's passed to `startHttpTransport`
- * and called *per session* to ensure session isolation.
+ * Design Note: This factory is called once for 'stdio' transport and per session for 'http' transport.
  *
- * @returns {Promise<McpServer>} A promise resolving with the configured `McpServer` instance.
+ * @returns A promise resolving with the configured `McpServer` instance.
  * @throws {Error} If any resource or tool registration fails.
  * @private
  */
@@ -86,9 +67,9 @@ async function createMcpServerInstance(): Promise<McpServer> {
     { name: config.mcpServerName, version: config.mcpServerVersion },
     {
       capabilities: {
-        logging: {},
-        resources: { listChanged: true },
-        tools: { listChanged: true },
+        logging: {}, // Server can receive logging/setLevel and send notifications/message
+        resources: { listChanged: true }, // Server supports dynamic resource lists
+        tools: { listChanged: true }, // Server supports dynamic tool lists
       },
     },
   );
@@ -112,22 +93,14 @@ async function createMcpServerInstance(): Promise<McpServer> {
 
 /**
  * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
- * This function acts as the bridge between the core server logic and the communication channel.
  *
  * MCP Spec Relevance:
- * - Transport Selection: Reads `config.mcpTransportType` ('stdio' or 'http') to determine
- *   which transport mechanism defined in the MCP specification to use.
- * - Transport Connection: Calls dedicated functions (`connectStdioTransport` or `startHttpTransport`)
- *   which handle the specifics of establishing communication according to the chosen
- *   transport's rules.
- * - Server Instance Lifecycle:
- *   - For 'stdio', creates a single `McpServer` instance for the lifetime of the process.
- *   - For 'http', passes the `createMcpServerInstance` factory function to `startHttpTransport`,
- *     allowing the HTTP transport to create a new, isolated server instance for each client session.
+ * - Transport Selection: Uses `config.mcpTransportType` ('stdio' or 'http').
+ * - Transport Connection: Calls dedicated functions for chosen transport.
+ * - Server Instance Lifecycle: Single instance for 'stdio', per-session for 'http'.
  *
- * @returns {Promise<McpServer | void>} Resolves with the `McpServer` instance for 'stdio' transport,
- *                                      or `void` for 'http' transport (as it runs indefinitely).
- * @throws {Error} If the configured transport type is unsupported or if transport setup fails.
+ * @returns Resolves with `McpServer` for 'stdio', or `void` for 'http'.
+ * @throws {Error} If transport type is unsupported or setup fails.
  * @private
  */
 async function startTransport(): Promise<McpServer | void> {
@@ -140,8 +113,9 @@ async function startTransport(): Promise<McpServer | void> {
 
   if (transportType === "http") {
     logger.debug("Delegating to startHttpTransport...", context);
+    // For HTTP, startHttpTransport manages its own lifecycle and server instances per session.
     await startHttpTransport(createMcpServerInstance, context);
-    return;
+    return; // HTTP server runs indefinitely, no single server instance returned here.
   }
 
   if (transportType === "stdio") {
@@ -152,9 +126,10 @@ async function startTransport(): Promise<McpServer | void> {
     const server = await createMcpServerInstance();
     logger.debug("Delegating to connectStdioTransport...", context);
     await connectStdioTransport(server, context);
-    return server;
+    return server; // Return the single server instance for stdio.
   }
 
+  // Should not be reached if config validation is effective.
   logger.fatal(
     `Unsupported transport type configured: ${transportType}`,
     context,
@@ -166,20 +141,14 @@ async function startTransport(): Promise<McpServer | void> {
 
 /**
  * Main application entry point. Initializes and starts the MCP server.
- * This function orchestrates the server startup sequence, including transport selection
- * and top-level error handling.
+ * Orchestrates server startup, transport selection, and top-level error handling.
  *
  * MCP Spec Relevance:
- * - Orchestrates the server startup sequence, culminating in a server ready to accept
- *   connections and process MCP messages according to the chosen transport's rules.
- * - Implements top-level error handling for critical startup failures, ensuring the
- *   process exits appropriately if it cannot initialize correctly.
+ * - Manages server startup, leading to a server ready for MCP messages.
+ * - Handles critical startup failures, ensuring appropriate process exit.
  *
- * @returns {Promise<void | McpServer>} Resolves upon successful startup. For 'http' transport, this promise
- *                                      effectively does not resolve as the server runs indefinitely. For 'stdio',
- *                                      it resolves with the `McpServer` instance. Rejects on critical failure,
- *                                      leading to process exit.
- * @public
+ * @returns For 'stdio', resolves with `McpServer`. For 'http', runs indefinitely.
+ *   Rejects on critical failure, leading to process exit.
  */
 export async function initializeAndStartServer(): Promise<void | McpServer> {
   const context = requestContextService.createRequestContext({
@@ -192,22 +161,23 @@ export async function initializeAndStartServer(): Promise<void | McpServer> {
       "MCP Server initialization sequence completed successfully.",
       context,
     );
-    return result; // For stdio, this is the server instance. For http, this is void.
+    return result;
   } catch (err) {
     logger.fatal("Critical error during MCP server initialization.", {
       ...context,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
     });
+    // Ensure the error is handled by our centralized handler, which might log more details or perform cleanup.
     ErrorHandler.handleError(err, {
-      operation: "initializeAndStartServer",
-      context: context,
-      critical: true,
+      operation: "initializeAndStartServer", // More specific operation
+      context: context, // Pass the existing context
+      critical: true, // This is a critical failure
     });
     logger.info(
       "Exiting process due to critical initialization error.",
       context,
     );
-    process.exit(1);
+    process.exit(1); // Exit with a non-zero code to indicate failure.
   }
 }
