@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2025-05-17
+
+### Changed
+
+- **Build**: Bumped version to `1.2.3` in `package.json` and `README.md`.
+- **Code Quality & Documentation**:
+  - Reordered utility exports in `src/utils/index.ts`, `src/utils/parsing/index.ts`, and `src/utils/security/index.ts` for improved consistency.
+  - Corrected JSDoc `@module` paths across numerous files in `src/` to accurately reflect their location within the project structure (e.g., `utils/internal/logger` to `src/utils/internal/logger`), enhancing documentation generation and accuracy.
+  - Applied automated code formatting (e.g., Prettier) across various files, including scripts (`scripts/`), source code (`src/`), and documentation (`docs/`, `tsconfig.typedoc.json`). This includes consistent trailing commas, improved readability of conditional logic, and standardized array formatting.
+  - Removed a redundant type export from `src/services/openRouterProvider.ts`.
+
 ## [1.2.2] - 2025-05-17
 
 ### Fixed
