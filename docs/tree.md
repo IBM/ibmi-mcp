@@ -1,74 +1,73 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-17 11:01:35
-
+Generated on: 2025-05-17 11:24:18
 
 ```
 mcp-ts-template
 ├── docs
-    ├── api-references
-    │   ├── jsdoc-standard-tags.md
-    │   └── typedoc-reference.md
-    ├── .DS_Store
-    └── tree.md
+│   ├── api-references
+│   │   ├── jsdoc-standard-tags.md
+│   │   └── typedoc-reference.md
+│   ├── .DS_Store
+│   └── tree.md
 ├── scripts
-    ├── clean.ts
-    ├── fetch-openapi-spec.ts
-    ├── make-executable.ts
-    └── tree.ts
+│   ├── clean.ts
+│   ├── fetch-openapi-spec.ts
+│   ├── make-executable.ts
+│   └── tree.ts
 ├── src
-    ├── config
-    │   └── index.ts
-    ├── mcp-client
-    │   ├── client.ts
-    │   ├── configLoader.ts
-    │   ├── index.ts
-    │   ├── mcp-config.json
-    │   ├── mcp-config.json.example
-    │   └── transport.ts
-    ├── mcp-server
-    │   ├── resources
-    │   │   └── echoResource
-    │   │   │   ├── echoResourceLogic.ts
-    │   │   │   ├── index.ts
-    │   │   │   └── registration.ts
-    │   ├── tools
-    │   │   └── echoTool
-    │   │   │   ├── echoToolLogic.ts
-    │   │   │   ├── index.ts
-    │   │   │   └── registration.ts
-    │   ├── transports
-    │   │   ├── authentication
-    │   │   │   └── authMiddleware.ts
-    │   │   ├── httpTransport.ts
-    │   │   └── stdioTransport.ts
-    │   ├── .DS_Store
-    │   └── server.ts
-    ├── services
-    │   └── openRouterProvider.ts
-    ├── types-global
-    │   └── errors.ts
-    ├── utils
-    │   ├── internal
-    │   │   ├── errorHandler.ts
-    │   │   ├── index.ts
-    │   │   ├── logger.ts
-    │   │   └── requestContext.ts
-    │   ├── metrics
-    │   │   ├── index.ts
-    │   │   └── tokenCounter.ts
-    │   ├── parsing
-    │   │   ├── dateParser.ts
-    │   │   ├── index.ts
-    │   │   └── jsonParser.ts
-    │   ├── security
-    │   │   ├── idGenerator.ts
-    │   │   ├── index.ts
-    │   │   ├── rateLimiter.ts
-    │   │   └── sanitization.ts
-    │   └── index.ts
-    ├── .DS_Store
-    └── index.ts
+│   ├── config
+│   │   └── index.ts
+│   ├── mcp-client
+│   │   ├── client.ts
+│   │   ├── configLoader.ts
+│   │   ├── index.ts
+│   │   ├── mcp-config.json
+│   │   ├── mcp-config.json.example
+│   │   └── transport.ts
+│   ├── mcp-server
+│   │   ├── resources
+│   │   │   └── echoResource
+│   │   │       ├── echoResourceLogic.ts
+│   │   │       ├── index.ts
+│   │   │       └── registration.ts
+│   │   ├── tools
+│   │   │   └── echoTool
+│   │   │       ├── echoToolLogic.ts
+│   │   │       ├── index.ts
+│   │   │       └── registration.ts
+│   │   ├── transports
+│   │   │   ├── authentication
+│   │   │   │   └── authMiddleware.ts
+│   │   │   ├── httpTransport.ts
+│   │   │   └── stdioTransport.ts
+│   │   ├── .DS_Store
+│   │   └── server.ts
+│   ├── services
+│   │   └── openRouterProvider.ts
+│   ├── types-global
+│   │   └── errors.ts
+│   ├── utils
+│   │   ├── internal
+│   │   │   ├── errorHandler.ts
+│   │   │   ├── index.ts
+│   │   │   ├── logger.ts
+│   │   │   └── requestContext.ts
+│   │   ├── metrics
+│   │   │   ├── index.ts
+│   │   │   └── tokenCounter.ts
+│   │   ├── parsing
+│   │   │   ├── dateParser.ts
+│   │   │   ├── index.ts
+│   │   │   └── jsonParser.ts
+│   │   ├── security
+│   │   │   ├── idGenerator.ts
+│   │   │   ├── index.ts
+│   │   │   ├── rateLimiter.ts
+│   │   │   └── sanitization.ts
+│   │   └── index.ts
+│   ├── .DS_Store
+│   └── index.ts
 ├── .clinerules
 ├── .dockerignore
 ├── CHANGELOG.md
@@ -83,7 +82,6 @@ mcp-ts-template
 ├── tsconfig.json
 ├── tsdoc.json
 └── typedoc.json
-
 ```
 
-_Note: This tree excludes files and directories matched by .gitignore and common patterns like node_modules._
+_Note: This tree excludes files and directories matched by .gitignore and default patterns._

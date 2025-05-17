@@ -17,7 +17,6 @@ import { RequestContext } from "./requestContext.js";
  * as used by the Model Context Protocol (MCP).
  * Levels are: 'debug'(7), 'info'(6), 'notice'(5), 'warning'(4), 'error'(3), 'crit'(2), 'alert'(1), 'emerg'(0).
  * Lower numeric values indicate higher severity.
- * @typedef {'debug' | 'info' | 'notice' | 'warning' | 'error' | 'crit' | 'alert' | 'emerg'} McpLogLevel
  */
 export type McpLogLevel =
   | "debug"
@@ -32,7 +31,6 @@ export type McpLogLevel =
 /**
  * Numeric severity mapping for MCP log levels (lower is more severe).
  * @private
- * @type {Readonly<Record<McpLogLevel, number>>}
  */
 const mcpLevelSeverity: Record<McpLogLevel, number> = {
   emerg: 0,
@@ -47,9 +45,7 @@ const mcpLevelSeverity: Record<McpLogLevel, number> = {
 
 /**
  * Maps MCP log levels to Winston's core levels for file logging.
- * Some MCP levels (notice, crit, alert, emerg) are mapped to broader Winston categories.
  * @private
- * @type {Readonly<Record<McpLogLevel, 'debug' | 'info' | 'warn' | 'error'>>}
  */
 const mcpToWinstonLevel: Record<
   McpLogLevel,
@@ -57,10 +53,10 @@ const mcpToWinstonLevel: Record<
 > = {
   debug: "debug",
   info: "info",
-  notice: "info", // Map notice to info for file logging
+  notice: "info",
   warning: "warn",
   error: "error",
-  crit: "error", // Map critical levels to error for file logging
+  crit: "error",
   alert: "error",
   emerg: "error",
 };
@@ -68,10 +64,6 @@ const mcpToWinstonLevel: Record<
 /**
  * Interface for a more structured error object, primarily for formatting console logs.
  * @private
- * @typedef {object} ErrorWithMessageAndStack
- * @property {string} [message] - The error message.
- * @property {string} [stack] - The error stack trace.
- * @property {any} [key] - Allows other properties.
  */
 interface ErrorWithMessageAndStack {
   message?: string;
@@ -82,13 +74,6 @@ interface ErrorWithMessageAndStack {
 /**
  * Interface for the payload of an MCP log notification.
  * This structure is used when sending log data via MCP `notifications/message`.
- * @typedef {object} McpLogPayload
- * @property {string} message - The primary log message.
- * @property {RequestContext} [context] - Optional request context associated with the log event.
- * @property {object} [error] - Optional details of an error associated with the log event.
- * @property {string} error.message - The message of the associated error.
- * @property {string} [error.stack] - The stack trace of the associated error (often truncated for notifications).
- * @property {any} [key] - Allows for arbitrary additional properties in the payload.
  */
 export interface McpLogPayload {
   message: string;
@@ -102,19 +87,15 @@ export interface McpLogPayload {
 
 /**
  * Type for the `data` parameter of the `McpNotificationSender` function.
- * It can be a structured {@link McpLogPayload} or a generic record for flexibility.
- * @typedef {McpLogPayload | Record<string, unknown>} McpNotificationData
  */
 export type McpNotificationData = McpLogPayload | Record<string, unknown>;
 
 /**
  * Defines the signature for a function that can send MCP log notifications.
- * This function is typically provided by the MCP server instance to integrate logging
- * with the MCP communication channel.
- * @typedef {(level: McpLogLevel, data: McpNotificationData, loggerName?: string) => void} McpNotificationSender
- * @param {McpLogLevel} level - The severity level of the log message (e.g., 'info', 'error').
- * @param {McpNotificationData} data - The payload of the log notification, typically an {@link McpLogPayload}.
- * @param {string} [loggerName] - An optional name or identifier for the logger/server sending the notification.
+ * This function is typically provided by the MCP server instance.
+ * @param level - The severity level of the log message.
+ * @param data - The payload of the log notification.
+ * @param loggerName - An optional name or identifier for the logger/server.
  */
 export type McpNotificationSender = (
   level: McpLogLevel,
@@ -122,11 +103,9 @@ export type McpNotificationSender = (
   loggerName?: string,
 ) => void;
 
-// Resolve __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Calculate project root robustly
 const isRunningFromDist = __dirname.includes(path.sep + "dist" + path.sep);
 const levelsToGoUp = isRunningFromDist ? 3 : 2;
 const pathSegments = Array(levelsToGoUp).fill("..");
@@ -134,7 +113,6 @@ const projectRoot = path.resolve(__dirname, ...pathSegments);
 
 const logsDir = path.join(projectRoot, "logs");
 
-// Security: ensure logsDir is within projectRoot
 const resolvedLogsDir = path.resolve(logsDir);
 const isLogsDirSafe =
   resolvedLogsDir === projectRoot ||
@@ -149,8 +127,7 @@ if (!isLogsDirSafe) {
 
 /**
  * Creates the Winston console log format.
- * This format includes colorization, timestamp, level, message, and structured metadata.
- * @returns {winston.Logform.Format} The Winston log format for console output.
+ * @returns The Winston log format for console output.
  * @private
  */
 function createWinstonConsoleFormat(): winston.Logform.Format {
@@ -190,13 +167,9 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
 
 /**
  * Singleton Logger class that wraps Winston for robust logging.
- * It supports file logging with rotation, conditional console logging,
- * and sending log messages as MCP notifications.
- * Access the singleton instance via `Logger.getInstance()` or the exported `logger` constant.
- * @class Logger
+ * Supports file logging, conditional console logging, and MCP notifications.
  */
 export class Logger {
-  // Exporting the class
   private static instance: Logger;
   private winstonLogger?: winston.Logger;
   private initialized = false;
@@ -205,22 +178,15 @@ export class Logger {
   private currentWinstonLevel: "debug" | "info" | "warn" | "error" = "info";
 
   private readonly LOG_FILE_MAX_SIZE = 5 * 1024 * 1024; // 5MB
-  private readonly LOG_MAX_FILES = 5; // Keep 5 rotated log files
+  private readonly LOG_MAX_FILES = 5;
 
-  /**
-   * Private constructor to enforce singleton pattern.
-   * Use `Logger.getInstance()` to get the logger instance.
-   * @private
-   */
+  /** @private */
   private constructor() {}
 
   /**
-   * Initializes the Winston logger instance with file and conditional console transports.
-   * This method should be called once at application startup.
-   * It configures log levels, file rotation, and formatting.
-   * @param {McpLogLevel} [level='info'] - The initial minimum MCP log level.
-   * @returns {Promise<void>} A promise that resolves when initialization is complete.
-   * @public
+   * Initializes the Winston logger instance.
+   * Should be called once at application startup.
+   * @param level - The initial minimum MCP log level.
    */
   public async initialize(level: McpLogLevel = "info"): Promise<void> {
     if (this.initialized) {
@@ -353,9 +319,7 @@ export class Logger {
 
   /**
    * Sets the function used to send MCP 'notifications/message'.
-   * This allows the logger to integrate with an MCP server for sending log data to a client.
-   * @param {McpNotificationSender | undefined} sender - The function to call for sending notifications, or undefined to disable.
-   * @public
+   * @param sender - The function to call for sending notifications, or undefined to disable.
    */
   public setMcpNotificationSender(
     sender: McpNotificationSender | undefined,
@@ -370,10 +334,8 @@ export class Logger {
   }
 
   /**
-   * Dynamically sets the minimum logging level for both file and MCP notifications.
-   * Also adjusts console logging based on the new level and TTY status.
-   * @param {McpLogLevel} newLevel - The new minimum MCP log level to set.
-   * @public
+   * Dynamically sets the minimum logging level.
+   * @param newLevel - The new minimum MCP log level to set.
    */
   public setLevel(newLevel: McpLogLevel): void {
     const setLevelContext: RequestContext = {
@@ -429,9 +391,7 @@ export class Logger {
 
   /**
    * Gets the singleton instance of the Logger.
-   * @returns {Logger} The singleton Logger instance.
-   * @public
-   * @static
+   * @returns The singleton Logger instance.
    */
   public static getInstance(): Logger {
     if (!Logger.instance) {
@@ -441,9 +401,8 @@ export class Logger {
   }
 
   /**
-   * Ensures the logger has been initialized before attempting to log.
-   * Logs a warning to console if not initialized and stdout is a TTY.
-   * @returns {boolean} True if initialized, false otherwise.
+   * Ensures the logger has been initialized.
+   * @returns True if initialized, false otherwise.
    * @private
    */
   private ensureInitialized(): boolean {
@@ -458,12 +417,10 @@ export class Logger {
 
   /**
    * Centralized log processing method.
-   * It checks the current log level, formats the message, logs to Winston (file/console),
-   * and sends an MCP notification if a sender is configured.
-   * @param {McpLogLevel} level - The MCP severity level of the message.
-   * @param {string} msg - The main log message.
-   * @param {RequestContext} [context] - Optional request context for the log.
-   * @param {Error} [error] - Optional error object associated with the log.
+   * @param level - The MCP severity level of the message.
+   * @param msg - The main log message.
+   * @param context - Optional request context for the log.
+   * @param error - Optional error object associated with the log.
    * @private
    */
   private log(
@@ -474,7 +431,7 @@ export class Logger {
   ): void {
     if (!this.ensureInitialized()) return;
     if (mcpLevelSeverity[level] > mcpLevelSeverity[this.currentMcpLevel]) {
-      return;
+      return; // Do not log if message level is less severe than currentMcpLevel
     }
 
     const logData: Record<string, unknown> = { ...context };
@@ -492,6 +449,7 @@ export class Logger {
         mcpDataPayload.context = context;
       if (error) {
         mcpDataPayload.error = { message: error.message };
+        // Include stack trace in debug mode for MCP notifications, truncated for brevity
         if (this.currentMcpLevel === "debug" && error.stack) {
           mcpDataPayload.error.stack = error.stack.substring(0, 500);
         }
@@ -509,7 +467,7 @@ export class Logger {
           originalLevel: level,
           originalMessage: msg,
           sendError: errorMessage,
-          mcpPayload: JSON.stringify(mcpDataPayload).substring(0, 500),
+          mcpPayload: JSON.stringify(mcpDataPayload).substring(0, 500), // Log a preview
         };
         this.winstonLogger!.error(
           "Failed to send MCP log notification",
@@ -519,55 +477,31 @@ export class Logger {
     }
   }
 
-  /**
-   * Logs a message at the 'debug' level.
-   * @param {string} msg - The message to log.
-   * @param {RequestContext} [context] - Optional request context.
-   * @public
-   */
+  /** Logs a message at the 'debug' level. */
   public debug(msg: string, context?: RequestContext): void {
     this.log("debug", msg, context);
   }
 
-  /**
-   * Logs a message at the 'info' level.
-   * @param {string} msg - The message to log.
-   * @param {RequestContext} [context] - Optional request context.
-   * @public
-   */
+  /** Logs a message at the 'info' level. */
   public info(msg: string, context?: RequestContext): void {
     this.log("info", msg, context);
   }
 
-  /**
-   * Logs a message at the 'notice' level.
-   * @param {string} msg - The message to log.
-   * @param {RequestContext} [context] - Optional request context.
-   * @public
-   */
+  /** Logs a message at the 'notice' level. */
   public notice(msg: string, context?: RequestContext): void {
     this.log("notice", msg, context);
   }
 
-  /**
-   * Logs a message at the 'warning' level.
-   * @param {string} msg - The message to log.
-   * @param {RequestContext} [context] - Optional request context.
-   * @public
-   */
+  /** Logs a message at the 'warning' level. */
   public warning(msg: string, context?: RequestContext): void {
     this.log("warning", msg, context);
   }
 
   /**
    * Logs a message at the 'error' level.
-   * Can optionally include an Error object.
-   * @param {string} msg - The main log message.
-   * @param {Error | RequestContext} [err] - Optional. If an Error, it's the error to log.
-   *                                         If a RequestContext, it's the context for a message-only error log.
-   * @param {RequestContext} [context] - Optional. The request context, used if the second parameter (`err`) is an Error.
-   *                                     If the second parameter (`err`) is a RequestContext, this parameter is ignored.
-   * @public
+   * @param msg - The main log message.
+   * @param err - Optional. Error object or RequestContext.
+   * @param context - Optional. RequestContext if `err` is an Error.
    */
   public error(
     msg: string,
@@ -581,13 +515,9 @@ export class Logger {
 
   /**
    * Logs a message at the 'crit' (critical) level.
-   * Can optionally include an Error object.
-   * @param {string} msg - The main log message.
-   * @param {Error | RequestContext} [err] - Optional. If an Error, it's the error to log.
-   *                                         If a RequestContext, it's the context for a message-only critical log.
-   * @param {RequestContext} [context] - Optional. The request context, used if the second parameter (`err`) is an Error.
-   *                                     If the second parameter (`err`) is a RequestContext, this parameter is ignored.
-   * @public
+   * @param msg - The main log message.
+   * @param err - Optional. Error object or RequestContext.
+   * @param context - Optional. RequestContext if `err` is an Error.
    */
   public crit(
     msg: string,
@@ -601,13 +531,9 @@ export class Logger {
 
   /**
    * Logs a message at the 'alert' level.
-   * Can optionally include an Error object.
-   * @param {string} msg - The main log message.
-   * @param {Error | RequestContext} [err] - Optional. If an Error, it's the error to log.
-   *                                         If a RequestContext, it's the context for a message-only alert log.
-   * @param {RequestContext} [context] - Optional. The request context, used if the second parameter (`err`) is an Error.
-   *                                     If the second parameter (`err`) is a RequestContext, this parameter is ignored.
-   * @public
+   * @param msg - The main log message.
+   * @param err - Optional. Error object or RequestContext.
+   * @param context - Optional. RequestContext if `err` is an Error.
    */
   public alert(
     msg: string,
@@ -621,13 +547,9 @@ export class Logger {
 
   /**
    * Logs a message at the 'emerg' (emergency) level.
-   * Can optionally include an Error object.
-   * @param {string} msg - The main log message.
-   * @param {Error | RequestContext} [err] - Optional. If an Error, it's the error to log.
-   *                                         If a RequestContext, it's the context for a message-only emergency log.
-   * @param {RequestContext} [context] - Optional. The request context, used if the second parameter (`err`) is an Error.
-   *                                     If the second parameter (`err`) is a RequestContext, this parameter is ignored.
-   * @public
+   * @param msg - The main log message.
+   * @param err - Optional. Error object or RequestContext.
+   * @param context - Optional. RequestContext if `err` is an Error.
    */
   public emerg(
     msg: string,
@@ -641,13 +563,9 @@ export class Logger {
 
   /**
    * Logs a message at the 'emerg' (emergency) level, typically for fatal errors.
-   * Can optionally include an Error object.
-   * @param {string} msg - The main log message.
-   * @param {Error | RequestContext} [err] - Optional. If an Error, it's the error to log.
-   *                                         If a RequestContext, it's the context for a message-only fatal log.
-   * @param {RequestContext} [context] - Optional. The request context, used if the second parameter (`err`) is an Error.
-   *                                     If the second parameter (`err`) is a RequestContext, this parameter is ignored.
-   * @public
+   * @param msg - The main log message.
+   * @param err - Optional. Error object or RequestContext.
+   * @param context - Optional. RequestContext if `err` is an Error.
    */
   public fatal(
     msg: string,
@@ -656,13 +574,12 @@ export class Logger {
   ): void {
     const errorObj = err instanceof Error ? err : undefined;
     const actualContext = err instanceof Error ? context : err;
-    this.log("emerg", msg, actualContext, errorObj); // fatal logs at 'emerg' level
+    this.log("emerg", msg, actualContext, errorObj);
   }
 }
 
 /**
  * The singleton instance of the Logger.
- * Use this instance for all logging operations throughout the application.
- * @type {Logger}
+ * Use this instance for all logging operations.
  */
 export const logger = Logger.getInstance();

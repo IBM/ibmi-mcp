@@ -6,7 +6,7 @@
  * @module utils/internal/errorHandler
  */
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { generateUUID, sanitizeInputForLogging } from "../index.js"; // generateUUID for fallback request IDs
+import { generateUUID, sanitizeInputForLogging } from "../index.js";
 import { logger } from "./logger.js";
 import { RequestContext } from "./requestContext.js";
 
@@ -14,10 +14,6 @@ import { RequestContext } from "./requestContext.js";
  * Defines a generic structure for providing context with errors.
  * This context can include identifiers like `requestId` or any other relevant
  * key-value pairs that aid in debugging or understanding the error's circumstances.
- * @typedef {object} ErrorContext
- * @property {string} [requestId] - A unique identifier for the request or operation during which the error occurred.
- *                                  Useful for tracing errors through logs and distributed systems.
- * @property {unknown} [key] - Allows for arbitrary additional context information. Keys are strings, and values can be of any type.
  */
 export interface ErrorContext {
   /**
@@ -36,15 +32,6 @@ export interface ErrorContext {
 /**
  * Configuration options for the `ErrorHandler.handleError` method.
  * These options control how an error is processed, logged, and whether it's rethrown.
- * @typedef {object} ErrorHandlerOptions
- * @property {ErrorContext} [context] - The context of the operation that caused the error.
- * @property {string} operation - A descriptive name of the operation being performed.
- * @property {unknown} [input] - The input data being processed when the error occurred; sanitized before logging.
- * @property {boolean} [rethrow=false] - If true, the (potentially transformed) error will be rethrown.
- * @property {BaseErrorCode} [errorCode] - A specific `BaseErrorCode` to assign, overriding automatic determination.
- * @property {(error: unknown) => Error} [errorMapper] - Custom function to transform the original error.
- * @property {boolean} [includeStack=true] - If true, stack traces are included in logs.
- * @property {boolean} [critical=false] - If true, indicates the error is critical.
  */
 export interface ErrorHandlerOptions {
   /**
@@ -81,8 +68,8 @@ export interface ErrorHandlerOptions {
   /**
    * A custom function to map or transform the original error into a new `Error` instance.
    * If provided, this function is used instead of the default `McpError` creation.
-   * @param {unknown} error - The original error that occurred.
-   * @returns {Error} The transformed error.
+   * @param error - The original error that occurred.
+   * @returns The transformed error.
    */
   errorMapper?: (error: unknown) => Error;
 
@@ -103,10 +90,6 @@ export interface ErrorHandlerOptions {
 /**
  * Defines a basic rule for mapping errors based on patterns.
  * Used internally by `COMMON_ERROR_PATTERNS` and as a base for `ErrorMapping`.
- * @typedef {object} BaseErrorMapping
- * @property {string | RegExp} pattern - String or RegExp to match against the error message (case-insensitive for strings).
- * @property {BaseErrorCode} errorCode - The `BaseErrorCode` to assign if the pattern matches.
- * @property {string} [messageTemplate] - Optional custom message template (Note: not directly used by `determineErrorCode`).
  */
 export interface BaseErrorMapping {
   /**
@@ -132,18 +115,15 @@ export interface BaseErrorMapping {
  * Extends `BaseErrorMapping` to include a factory function for creating
  * specific error instances and additional context for the mapping.
  * Used by `ErrorHandler.mapError`.
- * @template T - The type of `Error` this mapping will produce, defaults to `Error`.
- * @typedef {object} ErrorMapping
- * @property {(error: unknown, context?: Record<string, unknown>) => T} factory - Creates the mapped error instance.
- * @property {Record<string, unknown>} [additionalContext] - Static context for the factory function.
+ * @template T The type of `Error` this mapping will produce, defaults to `Error`.
  */
 export interface ErrorMapping<T extends Error = Error>
   extends BaseErrorMapping {
   /**
    * A factory function that creates and returns an instance of the mapped error type `T`.
-   * @param {unknown} error - The original error that occurred.
-   * @param {Record<string, unknown>} [context] - Optional additional context provided in the mapping rule.
-   * @returns {T} The newly created error instance.
+   * @param error - The original error that occurred.
+   * @param context - Optional additional context provided in the mapping rule.
+   * @returns The newly created error instance.
    */
   factory: (error: unknown, context?: Record<string, unknown>) => T;
 
@@ -156,8 +136,6 @@ export interface ErrorMapping<T extends Error = Error>
 
 /**
  * Maps standard JavaScript error constructor names to `BaseErrorCode` values.
- * This allows for quick classification of common built-in error types.
- * @type {Readonly<Record<string, BaseErrorCode>>}
  * @private
  */
 const ERROR_TYPE_MAPPINGS: Readonly<Record<string, BaseErrorCode>> = {
@@ -170,12 +148,8 @@ const ERROR_TYPE_MAPPINGS: Readonly<Record<string, BaseErrorCode>> = {
 };
 
 /**
- * An array of `BaseErrorMapping` rules used to automatically classify
- * errors based on keywords or patterns found in their messages or names.
- * These patterns are typically case-insensitive.
- * **IMPORTANT**: The order of patterns matters. More specific patterns should generally come
- * before more generic ones if there's a possibility of overlap, as the first match is used.
- * @type {ReadonlyArray<Readonly<BaseErrorMapping>>}
+ * Array of `BaseErrorMapping` rules to classify errors by message/name patterns.
+ * Order matters: more specific patterns should precede generic ones.
  * @private
  */
 const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
@@ -217,28 +191,26 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
 
 /**
  * Creates a "safe" RegExp for testing error messages.
- * Ensures case-insensitivity if not already specified and removes the global flag.
- * @param {string | RegExp} pattern - The string or RegExp pattern.
- * @returns {RegExp} A new RegExp instance, typically case-insensitive and non-global.
+ * Ensures case-insensitivity and removes the global flag.
+ * @param pattern - The string or RegExp pattern.
+ * @returns A new RegExp instance.
  * @private
  */
 function createSafeRegex(pattern: string | RegExp): RegExp {
   if (pattern instanceof RegExp) {
-    let flags = pattern.flags.replace("g", ""); // Remove global flag
+    let flags = pattern.flags.replace("g", "");
     if (!flags.includes("i")) {
-      flags += "i"; // Add case-insensitive if not present
+      flags += "i";
     }
     return new RegExp(pattern.source, flags);
   }
-  return new RegExp(pattern, "i"); // Default to case-insensitive for string patterns
+  return new RegExp(pattern, "i");
 }
 
 /**
  * Retrieves a descriptive name for an error object or value.
- * Handles various types including `Error` instances, `null`, `undefined`, and other primitives/objects.
- *
- * @param {unknown} error - The error object or value.
- * @returns {string} A string representing the error's name or type (e.g., "TypeError", "NullValueEncountered").
+ * @param error - The error object or value.
+ * @returns A string representing the error's name or type.
  * @private
  */
 function getErrorName(error: unknown): string {
@@ -265,10 +237,8 @@ function getErrorName(error: unknown): string {
 
 /**
  * Extracts a message string from an error object or value.
- * Handles `Error` instances, primitives, and converts other types to a string representation.
- *
- * @param {unknown} error - The error object or value.
- * @returns {string} The error message string.
+ * @param error - The error object or value.
+ * @returns The error message string.
  * @private
  */
 function getErrorMessage(error: unknown): string {
@@ -301,18 +271,14 @@ function getErrorMessage(error: unknown): string {
 
 /**
  * A utility class providing static methods for comprehensive error handling.
- * @class ErrorHandler
  */
 export class ErrorHandler {
   /**
    * Determines an appropriate `BaseErrorCode` for a given error.
-   * It checks if the error is an `McpError` instance, then consults
-   * `ERROR_TYPE_MAPPINGS` by error name, and finally `COMMON_ERROR_PATTERNS`
-   * by error message or name. Defaults to `BaseErrorCode.INTERNAL_ERROR`.
-   * @param {unknown} error - The error instance or value to classify.
-   * @returns {BaseErrorCode} The determined error code for the input error.
-   * @public
-   * @static
+   * Checks `McpError` instances, `ERROR_TYPE_MAPPINGS`, and `COMMON_ERROR_PATTERNS`.
+   * Defaults to `BaseErrorCode.INTERNAL_ERROR`.
+   * @param error - The error instance or value to classify.
+   * @returns The determined error code.
    */
   public static determineErrorCode(error: unknown): BaseErrorCode {
     if (error instanceof McpError) {
@@ -337,13 +303,10 @@ export class ErrorHandler {
 
   /**
    * Handles an error with consistent logging and optional transformation.
-   * It sanitizes input, determines an error code, logs the error details,
-   * and can rethrow a (potentially mapped) `Error` instance.
-   * @param {unknown} error - The error instance or value that occurred.
-   * @param {ErrorHandlerOptions} options - Configuration for handling the error.
-   * @returns {Error} The handled (and potentially transformed) error instance. This is the error that would be rethrown if `options.rethrow` is true.
-   * @public
-   * @static
+   * Sanitizes input, determines error code, logs details, and can rethrow.
+   * @param error - The error instance or value that occurred.
+   * @param options - Configuration for handling the error.
+   * @returns The handled (and potentially transformed) error instance.
    */
   public static handleError(
     error: unknown,
@@ -391,20 +354,13 @@ export class ErrorHandler {
 
     if (error instanceof McpError) {
       loggedErrorCode = error.code;
-      // Pass consolidatedDetails directly to the constructor if not using errorMapper.
-      // If errorMapper is used, it's responsible for handling details.
       finalError = errorMapper
         ? errorMapper(error)
         : new McpError(error.code, error.message, consolidatedDetails);
-      // If errorMapper returned an McpError without details, and we want to ensure
-      // consolidatedDetails are present, this would be a design choice.
-      // However, with 'details' being readonly, it must be set at construction.
-      // The current McpError constructor already takes details.
     } else {
       loggedErrorCode =
         explicitErrorCode || ErrorHandler.determineErrorCode(error);
       const message = `Error in ${operation}: ${originalErrorMessage}`;
-      // Pass consolidatedDetails directly to the constructor if not using errorMapper.
       finalError = errorMapper
         ? errorMapper(error)
         : new McpError(loggedErrorCode, message, consolidatedDetails);
@@ -462,7 +418,7 @@ export class ErrorHandler {
 
     logger.error(
       `Error in ${operation}: ${finalError.message || originalErrorMessage}`,
-      logPayload as unknown as RequestContext,
+      logPayload as unknown as RequestContext, // Cast to RequestContext for logger compatibility
     );
 
     if (rethrow) {
@@ -472,16 +428,13 @@ export class ErrorHandler {
   }
 
   /**
-   * Maps an error to a specific error type `T` based on a list of `ErrorMapping` rules.
-   * If no mapping matches, it returns the original error (if it's an `Error` instance),
-   * a new `Error` wrapping the original value, or the result of `defaultFactory` if provided.
-   * @template T - The target error type, extending `Error`.
-   * @param {unknown} error - The error instance or value to map.
-   * @param {ReadonlyArray<ErrorMapping<T>>} mappings - An array of mapping rules to apply.
-   * @param {(error: unknown, context?: Record<string, unknown>) => T} [defaultFactory] - An optional factory to create a default error if no mapping matches.
-   * @returns {T | Error} The mapped error of type `T`, or the original/defaulted error.
-   * @public
-   * @static
+   * Maps an error to a specific error type `T` based on `ErrorMapping` rules.
+   * Returns original/default error if no mapping matches.
+   * @template T The target error type, extending `Error`.
+   * @param error - The error instance or value to map.
+   * @param mappings - An array of mapping rules to apply.
+   * @param defaultFactory - Optional factory for a default error if no mapping matches.
+   * @returns The mapped error of type `T`, or the original/defaulted error.
    */
   public static mapError<T extends Error>(
     error: unknown,
@@ -505,13 +458,9 @@ export class ErrorHandler {
   }
 
   /**
-   * Formats an error into a consistent object structure, suitable for API responses or structured logging.
-   * If the error is an `McpError`, its `code`, `message`, and `details` are used.
-   * Otherwise, a `code` is determined, and `message` and `errorType` are extracted.
-   * @param {unknown} error - The error instance or value to format.
-   * @returns {Record<string, unknown>} A structured representation of the error.
-   * @public
-   * @static
+   * Formats an error into a consistent object structure for API responses or structured logging.
+   * @param error - The error instance or value to format.
+   * @returns A structured representation of the error.
    */
   public static formatError(error: unknown): Record<string, unknown> {
     if (error instanceof McpError) {
@@ -541,17 +490,15 @@ export class ErrorHandler {
   }
 
   /**
-   * Safely executes a function (synchronous or asynchronous) and handles any errors
-   * that occur using `ErrorHandler.handleError`. The error is always rethrown.
-   * This is a convenient wrapper for common try/catch blocks.
-   * @template T - The expected return type of the function `fn`.
-   * @param {() => Promise<T> | T} fn - The function to execute.
-   * @param {Omit<ErrorHandlerOptions, 'rethrow'>} options - Error handling options, excluding `rethrow` (as it's always true).
-   * @returns {Promise<T>} A promise that resolves with the result of `fn` if successful.
-   * @throws {McpError | Error} The error processed by `ErrorHandler.handleError` if `fn` throws.
-   * @public
-   * @static
+   * Safely executes a function (sync or async) and handles errors using `ErrorHandler.handleError`.
+   * The error is always rethrown.
+   * @template T The expected return type of the function `fn`.
+   * @param fn - The function to execute.
+   * @param options - Error handling options (excluding `rethrow`).
+   * @returns A promise resolving with the result of `fn` if successful.
+   * @throws {McpError | Error} The error processed by `ErrorHandler.handleError`.
    * @example
+   * ```typescript
    * async function fetchData(userId: string, context: RequestContext) {
    *   return ErrorHandler.tryCatch(
    *     async () => {
@@ -562,6 +509,7 @@ export class ErrorHandler {
    *     { operation: 'fetchUserData', context, input: { userId } }
    *   );
    * }
+   * ```
    */
   public static async tryCatch<T>(
     fn: () => Promise<T> | T,
@@ -570,6 +518,7 @@ export class ErrorHandler {
     try {
       return await Promise.resolve(fn());
     } catch (error) {
+      // ErrorHandler.handleError will return the error to be thrown.
       throw ErrorHandler.handleError(error, { ...options, rethrow: true });
     }
   }
