@@ -4,7 +4,6 @@
  * @fileoverview Fetches an OpenAPI specification (YAML/JSON) from a URL,
  * parses it, and saves it locally in both YAML and JSON formats.
  * @module scripts/fetch-openapi-spec
- * @description
  *   Includes fallback logic for common OpenAPI file names (openapi.yaml, openapi.json).
  *   Ensures output paths are within the project directory for security.
  *

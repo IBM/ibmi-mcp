@@ -3,7 +3,6 @@
 /**
  * @fileoverview Utility script to clean build artifacts and temporary directories.
  * @module scripts/clean
- * @description
  *   By default, it removes the 'dist' and 'logs' directories.
  *   Custom directories can be specified as command-line arguments.
  *   Works on all platforms using Node.js path normalization.

@@ -3,7 +3,6 @@
 /**
  * @fileoverview Generates a visual tree representation of the project's directory structure.
  * @module scripts/tree
- * @description
  *   Respects .gitignore patterns and common exclusions (e.g., node_modules).
  *   Saves the tree to a markdown file (default: docs/tree.md).
  *   Supports custom output path and depth limitation.

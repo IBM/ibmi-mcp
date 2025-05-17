@@ -3,7 +3,6 @@
 /**
  * @fileoverview Utility script to make files executable (chmod +x) on Unix-like systems.
  * @module scripts/make-executable
- * @description
  *   On Windows, this script does nothing but exits successfully.
  *   Useful for CLI applications where built output needs executable permissions.
  *   Default target (if no args): dist/index.js.

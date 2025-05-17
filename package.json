@@ -24,7 +24,7 @@
     "start:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio node dist/index.js",
     "start:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http node dist/index.js",
     "rebuild": "ts-node --esm scripts/clean.ts && npm run build",
-    "docs:generate": "typedoc",
+    "docs:generate": "typedoc --tsconfig ./tsconfig.typedoc.json",
     "tree": "ts-node --esm scripts/tree.ts",
     "fetch-spec": "ts-node --esm scripts/fetch-openapi-spec.ts",
     "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\"",
