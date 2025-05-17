@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2025-05-17
+
+### Fixed
+
+- **Build Process & Documentation**:
+  - Resolved `tsc` build errors related to `rootDir` conflicts by adjusting `tsconfig.json` to include only `src/**/*` for the main build.
+  - Fixed TypeDoc warnings for script files (`scripts/*.ts`) not being under `rootDir` by:
+    - Creating `tsconfig.typedoc.json` with `rootDir: "."` and including both `src` and `scripts`.
+    - Updating the `docs:generate` script in `package.json` to use `tsconfig.typedoc.json`.
+  - Corrected TSDoc comments in script files (`scripts/clean.ts`, `scripts/fetch-openapi-spec.ts`, `scripts/make-executable.ts`, `scripts/tree.ts`) by removing non-standard `@description` block tags, resolving TypeDoc warnings.
+
+### Changed
+
+- **Configuration & Deployment**:
+  - **Dockerfile**: Set default `MCP_TRANSPORT_TYPE` to `http` and exposed port `3010` for containerized deployments.
+  - **Smithery**: Updated `smithery.yaml` to allow Smithery package users to configure `MCP_TRANSPORT_TYPE`, `MCP_HTTP_PORT`, and `MCP_LOG_LEVEL`.
+  - **Local Development**: Adjusted `mcp.json` to default to HTTP transport on port `3010` for local server execution via MCP CLI.
+
+### Changed
+
+- **Dependencies**:
+  - Updated `@modelcontextprotocol/sdk` from `^1.11.2` to `^1.11.4`.
+  - Updated `@types/express` from `^5.0.1` to `^5.0.2`.
+  - Updated `openai` from `^4.98.0` to `^4.100.0`.
+- **Code Quality & Documentation**:
+  - Refactored JSDoc comments across the codebase to be more concise and focused, removing unnecessary verbosity and improving overall readability. We now rely on the TypeDoc type inference system for documentation generation. This includes:
+    - Core configuration (`src/config/index.ts`).
+    - Main application entry point and server logic (`src/index.ts`, `src/mcp-server/server.ts`).
+    - Echo resource and tool implementations (`src/mcp-server/resources/echoResource/`, `src/mcp-server/tools/echoTool/`).
+    - Transport layers and authentication middleware (`src/mcp-server/transports/`).
+    - Services (`src/services/openRouterProvider.ts`) and global type definitions (`src/types-global/errors.ts`).
+    - Polished JSDoc comments in `src/mcp-client/` (`client.ts`, `configLoader.ts`, `index.ts`, `transport.ts`) to align with TypeDoc best practices, remove redundant type annotations, and ensure correct `@module` tags.
+- **Documentation Files**:
+  - Updated `docs/tree.md` generation timestamp.
+  - Added `docs/api-references/typedoc-reference.md` to provide a guide for TypeDoc usage.
+- **Internal Utilities**:
+  - **Logger**:
+    - Simplified project root determination in `logger.ts` by using `process.cwd()`.
+    - Enhanced safety check for the logs directory path.
+    - Ensured application startup fails if the logs directory cannot be created by re-throwing the error.
+  - **IdGenerator**:
+    - Removed logging from `idGenerator.ts` to prevent circular dependencies with `requestContextService`.
+    - Updated JSDoc comments to reflect this change and its rationale.
+- **Build**:
+  - Bumped version to `1.2.2` in `package.json` and `package-lock.json`.
+
 ## [1.2.1] - 2025-05-15
 
 ### Added

@@ -3,18 +3,18 @@
  * This module defines Zod schemas for the configuration structure, provides functions
  * to load configuration from `mcp-config.json` (with a fallback to `mcp-config.json.example`),
  * and retrieves specific server configurations.
- * @module mcp-client/configLoader
+ * @module src/mcp-client/configLoader
  */
 import { existsSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
+import { BaseErrorCode, McpError } from "../types-global/errors.js";
 import {
   logger,
   RequestContext,
   requestContextService,
 } from "../utils/index.js";
-import { BaseErrorCode, McpError } from "../types-global/errors.js";
 
 // --- Zod Schemas for Configuration Validation ---
 
@@ -34,7 +34,6 @@ const EnvSchema = z
  * Zod schema for a single MCP server's configuration entry.
  * Defines the command, arguments, environment variables, and transport type for an MCP server.
  * For HTTP transport, `command` holds the base URL.
- * @type {z.ZodObject<...>}
  */
 export const McpServerConfigEntrySchema = z.object({
   command: z.string().min(1, "Server command or HTTP base URL cannot be empty"),
@@ -56,18 +55,12 @@ export const McpServerConfigEntrySchema = z.object({
 /**
  * Represents the configuration for a single MCP server.
  * This type is inferred from the {@link McpServerConfigEntrySchema}.
- * @typedef {object} McpServerConfigEntry
- * @property {string} command - The command to launch the server (stdio) or its base URL (http).
- * @property {string[]} args - Arguments for the server command (stdio only).
- * @property {Record<string, string>} [env] - Environment variables for the server.
- * @property {'stdio' | 'http'} transportType - The transport type.
  */
 export type McpServerConfigEntry = z.infer<typeof McpServerConfigEntrySchema>;
 
 /**
  * Zod schema for the root structure of the `mcp-config.json` file.
  * It expects a top-level key `mcpServers` containing a map of server names to their configurations.
- * @type {z.ZodObject<...>}
  */
 export const McpClientConfigFileSchema = z.object({
   mcpServers: z
@@ -78,9 +71,6 @@ export const McpClientConfigFileSchema = z.object({
 /**
  * Represents the entire structure of the MCP client configuration file (`mcp-config.json`).
  * This type is inferred from the {@link McpClientConfigFileSchema}.
- * @typedef {object} McpClientConfigFile
- * @property {Record<string, McpServerConfigEntry>} mcpServers - A map where keys are server names
- *                                                              and values are their configurations.
  */
 export type McpClientConfigFile = z.infer<typeof McpClientConfigFileSchema>;
 
@@ -98,10 +88,9 @@ let loadedConfigPath: string | null = null;
  * or `mcp-config.json.example`.
  * The configuration is validated against {@link McpClientConfigFileSchema}.
  *
- * @param {RequestContext | null} [parentContext] - Optional parent request context for logging and tracing.
- * @returns {McpClientConfigFile} The loaded and validated MCP server configurations object.
+ * @param parentContext - Optional parent request context for logging and tracing.
+ * @returns The loaded and validated MCP server configurations object.
  * @throws {McpError} If neither config file can be read, or if parsing or validation fails.
- * @public
  */
 export function loadMcpClientConfig(
   parentContext?: RequestContext | null,
@@ -241,11 +230,10 @@ export function loadMcpClientConfig(
  * Retrieves a copy of the configuration entry for a specific MCP server by its name.
  * This function ensures the main configuration is loaded before accessing server details.
  *
- * @param {string} serverName - The name/identifier of the server as defined in the configuration file.
- * @param {RequestContext | null} [parentContext] - Optional parent request context for consistent logging.
- * @returns {McpServerConfigEntry} A copy of the configuration for the specified server.
+ * @param serverName - The name/identifier of the server as defined in the configuration file.
+ * @param parentContext - Optional parent request context for consistent logging.
+ * @returns A copy of the configuration for the specified server.
  * @throws {McpError} If the main configuration cannot be loaded, or if the specified `serverName` is not found.
- * @public
  */
 export function getMcpServerConfig(
   serverName: string,

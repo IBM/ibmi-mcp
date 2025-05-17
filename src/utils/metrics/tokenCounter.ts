@@ -8,27 +8,24 @@
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { encoding_for_model, Tiktoken, TiktokenModel } from "tiktoken";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { ErrorHandler, logger, RequestContext } from "../index.js"; // Centralized internal imports
+import { ErrorHandler, logger, RequestContext } from "../index.js";
 
 /**
  * The specific Tiktoken model used for all tokenization operations in this module.
- * This ensures consistent token counting, regardless of the model used for inference.
+ * This ensures consistent token counting.
  * @private
- * @type {TiktokenModel}
  */
 const TOKENIZATION_MODEL: TiktokenModel = "gpt-4o";
 
 /**
  * Calculates the number of tokens for a given text string using the
- * tokenizer specified by `TOKENIZATION_MODEL` (currently 'gpt-4o').
- * This function wraps the tokenization logic in `ErrorHandler.tryCatch`
- * for robust error management.
+ * tokenizer specified by `TOKENIZATION_MODEL`.
+ * Wraps tokenization in `ErrorHandler.tryCatch` for robust error management.
  *
- * @param {string} text - The input text to tokenize.
- * @param {RequestContext} [context] - Optional request context for logging and error handling.
- * @returns {Promise<number>} A promise that resolves with the number of tokens in the text.
- * @throws {McpError} Throws an `McpError` if tokenization fails (e.g., issues with the `tiktoken` library).
- * @public
+ * @param text - The input text to tokenize.
+ * @param context - Optional request context for logging and error handling.
+ * @returns A promise that resolves with the number of tokens in the text.
+ * @throws {McpError} If tokenization fails.
  */
 export async function countTokens(
   text: string,
@@ -42,37 +39,31 @@ export async function countTokens(
         const tokens = encoding.encode(text);
         return tokens.length;
       } finally {
-        encoding?.free(); // Ensure the encoder is freed if it was successfully created
+        encoding?.free();
       }
     },
     {
       operation: "countTokens",
       context: context,
-      input: { textSample: text.substring(0, 50) + "..." }, // Log a sample of the input
-      errorCode: BaseErrorCode.INTERNAL_ERROR, // Default for external library issues
+      input: { textSample: text.substring(0, 50) + "..." },
+      errorCode: BaseErrorCode.INTERNAL_ERROR,
     },
   );
 }
 
 /**
- * Calculates the estimated number of tokens for an array of chat messages,
- * adhering to the `ChatCompletionMessageParam` structure. It uses the tokenizer
- * specified by `TOKENIZATION_MODEL` (currently 'gpt-4o') and accounts for
- * special tokens and message overhead according to OpenAI's guidelines for
- * gpt-4/gpt-3.5-turbo models.
+ * Calculates the estimated number of tokens for an array of chat messages.
+ * Uses the tokenizer specified by `TOKENIZATION_MODEL` and accounts for
+ * special tokens and message overhead according to OpenAI's guidelines.
  *
- * This implementation considers tokens for roles, content (string or multi-part),
- * names (if present), and tool calls. For multi-part content, only text parts
- * are currently tokenized; non-text parts (e.g., images) are logged with a warning
- * but do not contribute to the token count in this simplified version.
+ * For multi-part content, only text parts are currently tokenized.
  *
  * Reference: {@link https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb}
  *
- * @param {ReadonlyArray<ChatCompletionMessageParam>} messages - An array of chat messages.
- * @param {RequestContext} [context] - Optional request context for logging and error handling.
- * @returns {Promise<number>} A promise that resolves with the estimated total number of tokens for the messages.
- * @throws {McpError} Throws an `McpError` if tokenization fails.
- * @public
+ * @param messages - An array of chat messages.
+ * @param context - Optional request context for logging and error handling.
+ * @returns A promise that resolves with the estimated total number of tokens.
+ * @throws {McpError} If tokenization fails.
  */
 export async function countChatTokens(
   messages: ReadonlyArray<ChatCompletionMessageParam>,
@@ -86,7 +77,7 @@ export async function countChatTokens(
         encoding = encoding_for_model(TOKENIZATION_MODEL);
 
         const tokens_per_message = 3; // For gpt-4o, gpt-4, gpt-3.5-turbo
-        const tokens_per_name = 1; // For gpt-4o, gpt-4, gpt-3.5-turbo
+        const tokens_per_name = 1;    // For gpt-4o, gpt-4, gpt-3.5-turbo
 
         for (const message of messages) {
           num_tokens += tokens_per_message;
@@ -146,7 +137,7 @@ export async function countChatTokens(
     {
       operation: "countChatTokens",
       context: context,
-      input: { messageCount: messages.length }, // Log message count
+      input: { messageCount: messages.length },
       errorCode: BaseErrorCode.INTERNAL_ERROR,
     },
   );

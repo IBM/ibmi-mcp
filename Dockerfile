@@ -41,7 +41,8 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 # Expose port if the application runs a server (adjust if needed)
-# EXPOSE 3000
+ENV MCP_TRANSPORT_TYPE=http
+EXPOSE 3010
 
 # Command to run the application
 CMD ["node", "dist/index.js"]

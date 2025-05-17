@@ -2,10 +2,27 @@ startCommand:
   type: stdio
   configSchema:
     type: object
-    properties: {}  # No specific configuration parameters needed for this template
+    properties:
+      MCP_TRANSPORT_TYPE:
+        type: string
+        enum: ["stdio", "http"]
+        default: "stdio"
+        description: "MCP communication transport ('stdio' or 'http')."
+      MCP_HTTP_PORT:
+        type: integer
+        default: 3010
+        description: "HTTP server port (if MCP_TRANSPORT_TYPE is 'http')."
+      MCP_LOG_LEVEL:
+        type: string
+        default: "info"
+        description: "Minimum logging level."
   commandFunction: |
     (config) => ({
       "command": "node",
       "args": ["dist/index.js"],
-      "env": {} # No environment variables needed from the config object
+      "env": {
+        "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
+        "MCP_HTTP_PORT": config.MCP_HTTP_PORT,
+        "MCP_LOG_LEVEL": config.MCP_LOG_LEVEL
+      }
     })

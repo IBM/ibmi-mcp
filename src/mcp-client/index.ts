@@ -1,8 +1,9 @@
 /**
- * Barrel file for the MCP Client module (`src/mcp-client`).
+ * @fileoverview Barrel file for the MCP Client module (`src/mcp-client`).
  * This file re-exports the primary functions and types related to creating,
  * configuring, connecting, and managing MCP client instances based on the
  * MCP 2025-03-26 specification and the high-level TypeScript SDK.
+ * @module src/mcp-client/index
  */
 
 // Export core client connection management functions and the connected client type alias.

@@ -20,14 +20,13 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-// Import core utilities: ErrorHandler for centralized error management, logger for logging, and RequestContext for typing.
 import { ErrorHandler, logger, RequestContext } from "../../utils/index.js";
 
 /**
- * Connects a given `McpServer` instance (from `@modelcontextprotocol/sdk`) to the Stdio transport.
- * This function is asynchronous. It initializes the SDK's `StdioServerTransport`,
- * which manages communication over `process.stdin` and `process.stdout`
- * according to the MCP stdio transport specification.
+ * Connects a given `McpServer` instance to the Stdio transport.
+ * This function initializes the SDK's `StdioServerTransport`, which manages
+ * communication over `process.stdin` and `process.stdout` according to the
+ * MCP stdio transport specification.
  *
  * MCP Spec Points Covered by SDK's `StdioServerTransport`:
  * - Reads JSON-RPC messages (requests, notifications, responses, batches) from stdin.
@@ -35,14 +34,13 @@ import { ErrorHandler, logger, RequestContext } from "../../utils/index.js";
  * - Handles newline delimiters and ensures no embedded newlines in output messages.
  * - Ensures only valid MCP messages are written to stdout.
  *
- * Note: Logging via the `logger` utility MAY result in output to stderr, which is
+ * Logging via the `logger` utility MAY result in output to stderr, which is
  * permitted by the spec for logging purposes.
  *
- * @param {McpServer} server - The `McpServer` instance containing the core server logic (tools, resources, etc.).
- * @param {RequestContext} parentContext - The logging and tracing context from the calling function (e.g., server startup).
- * @returns {Promise<void>} A promise that resolves when the Stdio transport is successfully connected and listening.
- * @throws {Error} Throws an error if the connection fails during setup (e.g., issues connecting the server to the transport).
- * @public
+ * @param server - The `McpServer` instance.
+ * @param parentContext - The logging and tracing context from the calling function.
+ * @returns A promise that resolves when the Stdio transport is successfully connected.
+ * @throws {Error} If the connection fails during setup.
  */
 export async function connectStdioTransport(
   server: McpServer,
@@ -76,6 +74,6 @@ export async function connectStdioTransport(
     }
   } catch (err) {
     ErrorHandler.handleError(err, { ...operationContext, critical: true });
-    throw err;
+    throw err; // Re-throw after handling to allow caller to react if necessary
   }
 }

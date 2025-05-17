@@ -1,34 +1,19 @@
 #!/usr/bin/env node
 
 /**
- * Fetch OpenAPI Specification Script (Generic)
- * ==========================================
+ * @fileoverview Fetches an OpenAPI specification (YAML/JSON) from a URL,
+ * parses it, and saves it locally in both YAML and JSON formats.
+ * @module scripts/fetch-openapi-spec
+ *   Includes fallback logic for common OpenAPI file names (openapi.yaml, openapi.json).
+ *   Ensures output paths are within the project directory for security.
  *
- * Description:
- *   Fetches an OpenAPI specification (YAML or JSON) from a given URL, parses it,
- *   and saves it in both YAML and JSON formats to a specified output file path.
- *   Includes fallback logic to try appending '/openapi.yaml' or '/openapi.json'
- *   if the initial URL doesn't yield a valid spec.
+ * @example
+ * // Fetch spec and save to docs/api/my_api.yaml and docs/api/my_api.json
+ * // ts-node --esm scripts/fetch-openapi-spec.ts https://api.example.com/v1 docs/api/my_api
  *
- * Usage:
- *   ts-node --esm scripts/fetch-openapi-spec.ts <url> <output-base-path> [--help]
- *
- * Arguments:
- *   <url>                The base URL to fetch the OpenAPI spec from.
- *                        (e.g., https://api.example.com/v1 or https://api.example.com/v1/openapi.yaml)
- *   <output-base-path>   The base path for the output files (relative to project root).
- *                        The script will append '.yaml' and '.json' to this path.
- *                        (e.g., docs/api/example_spec)
- *   --help               Show this help message.
- *
- * Example:
- *   ts-node --esm scripts/fetch-openapi-spec.ts https://petstore3.swagger.io/api/v3 docs/api/petstore_v3
- *   -> Fetches from https://petstore3.swagger.io/api/v3/openapi.yaml (or .json)
- *   -> Saves to docs/api/petstore_v3.yaml and docs/api/petstore_v3.json
- *
- * Dependencies:
- *   - axios: For making HTTP requests.
- *   - js-yaml: For parsing and dumping YAML content.
+ * @example
+ * // Fetch spec from a direct file URL
+ * // ts-node --esm scripts/fetch-openapi-spec.ts https://petstore3.swagger.io/api/v3/openapi.json docs/api/petstore_v3
  */
 
 import axios, { AxiosError } from "axios";
@@ -38,7 +23,6 @@ import path from "path";
 
 const projectRoot = process.cwd();
 
-// --- Argument Parsing ---
 const args = process.argv.slice(2);
 const helpFlag = args.includes("--help");
 const urlArg = args[0];
@@ -68,99 +52,116 @@ const yamlOutputPath = `${outputBasePathAbsolute}.yaml`;
 const jsonOutputPath = `${outputBasePathAbsolute}.json`;
 const outputDirAbsolute = path.dirname(outputBasePathAbsolute);
 
-// --- Security Check: Ensure output paths are within project root ---
+// Security Check: Ensure output paths are within project root
 if (
   !outputDirAbsolute.startsWith(projectRoot + path.sep) ||
   !yamlOutputPath.startsWith(projectRoot + path.sep) ||
   !jsonOutputPath.startsWith(projectRoot + path.sep)
 ) {
   console.error(
-    `× Security Error: Output path "${outputBaseArg}" resolves outside the project directory.`,
+    `Error: Output path "${outputBaseArg}" resolves outside the project directory. Aborting.`,
   );
   process.exit(1);
 }
-// --- End Security Check ---
 
 /**
- * Attempts to fetch content from a URL.
+ * Attempts to fetch content from a given URL.
+ * @param url - The URL to fetch data from.
+ * @returns A promise resolving to an object with data and content type, or null if fetch fails.
  */
 async function tryFetch(
   url: string,
 ): Promise<{ data: string; contentType: string | null } | null> {
   try {
-    console.log(`Attempting to fetch from ${url}...`);
+    console.log(`Attempting to fetch from: ${url}`);
     const response = await axios.get(url, {
       responseType: "text",
-      validateStatus: (status) => status >= 200 && status < 300, // Only consider 2xx successful
+      validateStatus: (status) => status >= 200 && status < 300,
     });
     const contentType = response.headers["content-type"] || null;
     console.log(
-      `  Success (Status: ${response.status}, Content-Type: ${contentType})`,
+      `Successfully fetched (Status: ${response.status}, Content-Type: ${contentType || "N/A"})`,
     );
     return { data: response.data, contentType };
   } catch (error) {
+    let status = "Unknown";
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError;
-      if (axiosError.response) {
-        console.warn(`  Failed (Status: ${axiosError.response.status})`);
-      } else {
-        console.warn(`  Failed (Network Error: ${axiosError.message})`);
-      }
-    } else {
-      console.warn(
-        `  Failed (Unknown Error: ${error instanceof Error ? error.message : String(error)})`,
-      );
+      status = axiosError.response ? String(axiosError.response.status) : "Network Error";
     }
+    console.warn(`Failed to fetch from ${url} (Status: ${status})`);
     return null;
   }
 }
 
 /**
- * Parses fetched data as YAML or JSON.
+ * Parses fetched data as YAML or JSON, attempting to infer from content type or by trying both.
+ * @param data - The raw string data fetched from the URL.
+ * @param contentType - The content type header from the HTTP response, if available.
+ * @returns The parsed OpenAPI specification as an object, or null if parsing fails.
  */
 function parseSpec(data: string, contentType: string | null): object | null {
   try {
-    if (contentType?.includes("yaml") || contentType?.includes("yml")) {
-      console.log("Parsing as YAML...");
+    const lowerContentType = contentType?.toLowerCase();
+    if (lowerContentType?.includes("yaml") || lowerContentType?.includes("yml")) {
+      console.log("Parsing content as YAML based on Content-Type...");
       return yaml.load(data) as object;
-    } else if (contentType?.includes("json")) {
-      console.log("Parsing as JSON...");
+    } else if (lowerContentType?.includes("json")) {
+      console.log("Parsing content as JSON based on Content-Type...");
       return JSON.parse(data);
     } else {
-      // Attempt YAML first, then JSON if content-type is ambiguous or missing
-      console.log("Ambiguous content type, attempting YAML parse...");
+      console.log(
+        "Content-Type is ambiguous or missing. Attempting to parse as YAML first...",
+      );
       try {
         const parsedYaml = yaml.load(data) as object;
-        if (parsedYaml && typeof parsedYaml === "object") return parsedYaml;
+        // Basic validation: check if it's a non-null object.
+        if (parsedYaml && typeof parsedYaml === "object") {
+          console.log("Successfully parsed as YAML.");
+          return parsedYaml;
+        }
       } catch (yamlError) {
-        console.log("YAML parse failed, attempting JSON parse...");
+        console.log("YAML parsing failed. Attempting to parse as JSON...");
         try {
           const parsedJson = JSON.parse(data);
-          if (parsedJson && typeof parsedJson === "object") return parsedJson;
+          if (parsedJson && typeof parsedJson === "object") {
+            console.log("Successfully parsed as JSON.");
+            return parsedJson;
+          }
         } catch (jsonError) {
-          console.warn("Could not parse content as YAML or JSON.");
+          console.warn("Could not parse content as YAML or JSON after attempting both.");
           return null;
         }
       }
+      // If YAML parsing resulted in a non-object (e.g. string, number) but didn't throw
+      console.warn("Content parsed as YAML but was not a valid object structure. Trying JSON.");
+       try {
+          const parsedJson = JSON.parse(data);
+          if (parsedJson && typeof parsedJson === "object") {
+            console.log("Successfully parsed as JSON on second attempt for non-object YAML.");
+            return parsedJson;
+          }
+        } catch (jsonError) {
+          console.warn("Could not parse content as YAML or JSON after attempting both.");
+          return null;
+        }
     }
   } catch (parseError) {
     console.error(
-      `× Error parsing specification: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+      `Error parsing specification: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
     );
   }
   return null;
 }
 
 /**
- * Main function to fetch, parse, and save the specification.
+ * Main orchestrator function. Fetches the OpenAPI spec from the provided URL (with fallbacks),
+ * parses it, and saves it to the specified output paths in both YAML and JSON formats.
  */
-async function fetchAndProcessSpec() {
-  let fetchedData: { data: string; contentType: string | null } | null = null;
-  const potentialUrls = [
-    urlArg, // Try the original URL first
-  ];
+async function fetchAndProcessSpec(): Promise<void> {
+  let fetchedResult: { data: string; contentType: string | null } | null = null;
+  const potentialUrls: string[] = [urlArg];
 
-  // Add fallback URLs if the original doesn't explicitly end with .yaml or .json
   if (
     !urlArg.endsWith(".yaml") &&
     !urlArg.endsWith(".yml") &&
@@ -173,74 +174,68 @@ async function fetchAndProcessSpec() {
     potentialUrls.push(`${urlWithoutTrailingSlash}/openapi.json`);
   }
 
-  // Try fetching from potential URLs
   for (const url of potentialUrls) {
-    fetchedData = await tryFetch(url);
-    if (fetchedData) break; // Stop if fetch is successful
+    fetchedResult = await tryFetch(url);
+    if (fetchedResult) break;
   }
 
-  if (!fetchedData) {
+  if (!fetchedResult) {
     console.error(
-      `× Failed to fetch specification from all attempted URLs: ${potentialUrls.join(", ")}`,
+      `Error: Failed to fetch specification from all attempted URLs: ${potentialUrls.join(", ")}. Aborting.`,
     );
     process.exit(1);
   }
 
-  // Parse the fetched data
-  const openapiSpec = parseSpec(fetchedData.data, fetchedData.contentType);
+  const openapiSpec = parseSpec(fetchedResult.data, fetchedResult.contentType);
 
   if (!openapiSpec || typeof openapiSpec !== "object") {
     console.error(
-      "× Failed to parse specification content or content is not a valid object.",
+      "Error: Failed to parse specification content or content is not a valid object. Aborting.",
     );
     process.exit(1);
   }
 
-  // Ensure the output directory exists
   try {
     await fs.access(outputDirAbsolute);
   } catch (error: any) {
     if (error.code === "ENOENT") {
-      console.log(`Creating output directory: ${outputDirAbsolute}`);
+      console.log(`Output directory not found. Creating: ${outputDirAbsolute}`);
       await fs.mkdir(outputDirAbsolute, { recursive: true });
     } else {
       console.error(
-        `× Error accessing output directory ${outputDirAbsolute}: ${error.message}`,
+        `Error accessing output directory ${outputDirAbsolute}: ${error.message}. Aborting.`,
       );
       process.exit(1);
     }
   }
 
-  // Save as YAML
   try {
-    console.log(`Saving YAML spec to ${yamlOutputPath}...`);
+    console.log(`Saving YAML specification to: ${yamlOutputPath}`);
     await fs.writeFile(yamlOutputPath, yaml.dump(openapiSpec), "utf8");
-    console.log(`✓ YAML saved.`);
+    console.log(`Successfully saved YAML specification.`);
   } catch (error) {
     console.error(
-      `× Error saving YAML to ${yamlOutputPath}: ${error instanceof Error ? error.message : String(error)}`,
+      `Error saving YAML to ${yamlOutputPath}: ${error instanceof Error ? error.message : String(error)}. Aborting.`,
     );
     process.exit(1);
   }
 
-  // Save as JSON
   try {
-    console.log(`Saving JSON spec to ${jsonOutputPath}...`);
+    console.log(`Saving JSON specification to: ${jsonOutputPath}`);
     await fs.writeFile(
       jsonOutputPath,
       JSON.stringify(openapiSpec, null, 2),
       "utf8",
     );
-    console.log(`✓ JSON saved.`);
+    console.log(`Successfully saved JSON specification.`);
   } catch (error) {
     console.error(
-      `× Error saving JSON to ${jsonOutputPath}: ${error instanceof Error ? error.message : String(error)}`,
+      `Error saving JSON to ${jsonOutputPath}: ${error instanceof Error ? error.message : String(error)}. Aborting.`,
     );
     process.exit(1);
   }
 
-  console.log("✓ OpenAPI specification processed successfully.");
+  console.log("OpenAPI specification processed and saved successfully.");
 }
 
-// Execute the main function
 fetchAndProcessSpec();

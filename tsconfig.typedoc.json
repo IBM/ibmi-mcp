@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "."
+  },
+  "include": [
+    "src/**/*",
+    "scripts/**/*.ts"
+  ]
+  // The 'exclude' is also inherited.
+}
