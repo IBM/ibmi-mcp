@@ -2,11 +2,16 @@
  * @fileoverview Provides a utility class `IdGenerator` for creating customizable, prefixed unique identifiers,
  * and a standalone `generateUUID` function for generating standard UUIDs.
  * The `IdGenerator` supports entity-specific prefixes, custom character sets, and lengths.
+ *
+ * Note: Logging has been removed from this module to prevent circular dependencies
+ * with the `requestContextService`, which itself uses `generateUUID` from this module.
+ * This was causing `ReferenceError: Cannot access 'generateUUID' before initialization`
+ * during application startup.
  * @module utils/security/idGenerator
  */
 import { randomBytes, randomUUID as cryptoRandomUUID } from "crypto";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, requestContextService } from "../index.js"; // Added logger and requestContextService
+// Removed: import { logger, requestContextService } from "../index.js";
 
 /**
  * Defines the structure for configuring entity prefixes.
@@ -62,8 +67,7 @@ export class IdGenerator {
    * @param entityPrefixes - An initial map of entity types to their prefixes.
    */
   constructor(entityPrefixes: EntityPrefixConfig = {}) {
-    const context = requestContextService.createRequestContext({ operation: "IdGenerator.constructor" });
-    logger.debug("IdGenerator instance created.", { ...context, initialPrefixCount: Object.keys(entityPrefixes).length });
+    // Logging removed to prevent circular dependency with requestContextService.
     this.setEntityPrefixes(entityPrefixes);
   }
 
@@ -72,8 +76,7 @@ export class IdGenerator {
    * @param entityPrefixes - A map where keys are entity type names and values are their desired ID prefixes.
    */
   public setEntityPrefixes(entityPrefixes: EntityPrefixConfig): void {
-    const context = requestContextService.createRequestContext({ operation: "IdGenerator.setEntityPrefixes" });
-    const oldPrefixCount = Object.keys(this.entityPrefixes).length;
+    // Logging removed.
     this.entityPrefixes = { ...entityPrefixes };
 
     this.prefixToEntityType = Object.entries(this.entityPrefixes).reduce(
@@ -83,7 +86,6 @@ export class IdGenerator {
       },
       {} as Record<string, string>,
     );
-    logger.debug("Entity prefixes updated.", { ...context, newPrefixCount: Object.keys(this.entityPrefixes).length, oldPrefixCount });
   }
 
   /**
@@ -119,7 +121,7 @@ export class IdGenerator {
    * @returns A unique identifier string.
    */
   public generate(prefix?: string, options: IdGenerationOptions = {}): string {
-    const context = requestContextService.createRequestContext({ operation: "IdGenerator.generate" });
+    // Logging removed.
     const {
       length = IdGenerator.DEFAULT_LENGTH,
       separator = IdGenerator.DEFAULT_SEPARATOR,
@@ -128,7 +130,6 @@ export class IdGenerator {
 
     const randomPart = this.generateRandomString(length, charset);
     const generatedId = prefix ? `${prefix}${separator}${randomPart}` : randomPart;
-    logger.debug("ID generated.", { ...context, prefix: prefix || "none", length, idSample: generatedId.substring(0,10) + "..." });
     return generatedId;
   }
 
@@ -265,7 +266,8 @@ export const idGenerator = new IdGenerator();
 
 /**
  * Generates a standard Version 4 UUID (Universally Unique Identifier).
- * Uses the Node.js `crypto` module.
+ * Uses the Node.js `crypto` module. This function is independent of the IdGenerator instance
+ * to prevent circular dependencies when used by other utilities like requestContextService.
  * @returns A new UUID string.
  */
 export const generateUUID = (): string => {
