@@ -148,17 +148,18 @@ Servers expose functionality via:
 
 Comprehensive code documentation is crucial for maintainability and collaboration. This project utilizes JSDoc for documenting JavaScript and TypeScript code.
 
-- **Purpose**: JSDoc comments are used to describe the purpose, parameters, return values, and other relevant details of functions, classes, methods, and variables.
-- **Standard Tags**: A consistent set of JSDoc tags should be used to ensure clarity and compatibility with documentation generation tools. For this project, key tags like `@fileoverview`, `@module`, `@type`, `@typedef`, `@function`, `@template`, `@property`, `@class`, `@static`, `@private`, and `@constant` are explicitly defined in `tsdoc.json`. This configuration ensures they are recognized by TypeDoc (our documentation generator) and helps maintain consistency.
-- **File-Level Documentation**: Each file should begin with a JSDoc block providing an overview of its contents, using tags like `@fileoverview` and `@module` as defined in `tsdoc.json`.
-- **Detailed Reference**: For a comprehensive list of standard JSDoc tags (including those configured in `tsdoc.json`) and their usage, refer to the [JSDoc Standard Tags Reference](./docs/api-references/jsdoc-standard-tags.md).
-- **Code Formatting**: This project uses Prettier for consistent code formatting. Run `npm run format` to format the codebase.
+- **Purpose**: JSDoc comments are used to describe the purpose, high-level behavior, and important considerations of functions, classes, methods, and variables. While detailed parameter and return type annotations are supported, the primary goal is to complement TypeScript's strong typing.
+- **Standard Tags**: A consistent set of JSDoc tags should be used. Key tags like `@fileoverview`, `@module`, `@type`, `@typedef`, `@function`, `@template`, `@property`, `@class`, `@static`, `@private`, and `@constant` are defined in `tsdoc.json` for TypeDoc compatibility.
+- **File-Level Documentation**: Each file should begin with a JSDoc block providing an overview of its contents, using `@fileoverview` and `@module`.
+- **Detailed Reference**: For standard JSDoc tags, see [JSDoc Standard Tags Reference](./docs/api-references/jsdoc-standard-tags.md) and the [TypeDoc documentation](https://typedoc.org/guides/doccomments/).
+- **Code Formatting**: This project uses Prettier. Run `npm run format`.
 - **Best Practices**:
-    - Document all public APIs (functions, classes, methods).
-    - Clearly describe parameters, including their types and purpose.
-    - Specify return types and what the function returns.
+    - Document all public APIs.
+    - **Focus on "why" and "how"**: Explain the purpose, algorithm, or important context that isn't obvious from the code or types.
+    - **Leverage TypeDoc & TypeScript**: Rely on TypeDoc's ability to infer types from TypeScript. Explicit `@param` and `@returns` JSDoc tags are often unnecessary if TypeScript signatures are clear and descriptive. Use them primarily to add detail beyond what the type conveys (e.g., constraints, specific meanings of parameters).
+    - **Conciseness**: Keep comments brief and to the point. Avoid restating what is obvious from the code or type signatures. The goal is to reduce verbosity and improve readability.
     - Document any thrown exceptions using `@throws`.
-    - Use `@example` to provide usage scenarios.
+    - Use `@example` to provide clear usage scenarios.
     - Keep documentation synchronized with code changes.
 
 ## Core Utilities Integration
