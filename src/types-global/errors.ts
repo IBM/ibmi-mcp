@@ -13,20 +13,6 @@ import { z } from "zod";
  * within MCP servers, tools, or related operations. These codes are designed to help
  * clients and developers programmatically understand the nature of an error, facilitating
  * more precise error handling and debugging.
- *
- * @property {string} UNAUTHORIZED - Access denied due to invalid credentials or lack of authentication.
- * @property {string} FORBIDDEN - Access denied despite valid authentication, due to insufficient permissions.
- * @property {string} NOT_FOUND - The requested resource, entity, or path could not be found.
- * @property {string} CONFLICT - The request could not be completed due to a conflict with the current state of the resource (e.g., version mismatch, resource already exists).
- * @property {string} VALIDATION_ERROR - The request failed because input parameters, data, or payload did not meet validation criteria.
- * @property {string} PARSING_ERROR - An error occurred while parsing input data, such as a malformed JSON string, an invalid date format, or incorrect data structure.
- * @property {string} RATE_LIMITED - The request was rejected because the client has exceeded predefined rate limits for API calls or resource usage.
- * @property {string} TIMEOUT - The request timed out before a response could be generated or the operation could complete.
- * @property {string} SERVICE_UNAVAILABLE - The service is temporarily unavailable, possibly due to maintenance, overload, or other transient issues.
- * @property {string} INTERNAL_ERROR - An unexpected error occurred on the server side that prevented the request from being fulfilled. This usually indicates a bug or unhandled exception.
- * @property {string} UNKNOWN_ERROR - An error occurred, but the specific cause is unknown or cannot be categorized under other defined error codes.
- * @property {string} CONFIGURATION_ERROR - An error occurred during the loading, validation, or processing of configuration data for the server or a specific module.
- * @property {string} INITIALIZATION_FAILED - An error occurred during the initialization phase of a service, module, or the server itself.
  */
 export enum BaseErrorCode {
   /** Access denied due to invalid credentials or lack of authentication. */
@@ -64,68 +50,45 @@ export enum BaseErrorCode {
  *
  * This class is central to error handling within the MCP framework, allowing for
  * consistent error creation and propagation.
- *
- * @class McpError
  */
 export class McpError extends Error {
   /**
    * The standardized error code from {@link BaseErrorCode}.
-   * This property is public and read-only after instantiation.
-   * @public
-   * @readonly
-   * @type {BaseErrorCode}
    */
   public readonly code: BaseErrorCode;
 
   /**
    * Optional additional details or context about the error.
    * This can be any structured data that helps in understanding or debugging the error.
-   * This property is public and read-only after instantiation.
-   * @public
-   * @readonly
-   * @type {Record<string, unknown> | undefined}
    */
   public readonly details?: Record<string, unknown>;
 
   /**
    * Creates an instance of McpError.
    *
-   * @param {BaseErrorCode} code - The standardized error code (from {@link BaseErrorCode}) that categorizes the error.
-   * @param {string} message - A human-readable description of the error. This message will be the `Error.message` property.
-   * @param {Record<string, unknown>} [details] - Optional. A record containing additional structured details about the error,
-   *                                              useful for debugging or providing more context to the client.
+   * @param code - The standardized error code that categorizes the error.
+   * @param message - A human-readable description of the error.
+   * @param details - Optional. A record containing additional structured details about the error.
    */
   constructor(
     code: BaseErrorCode,
     message: string,
     details?: Record<string, unknown>,
   ) {
-    // Call the parent Error constructor with the message
     super(message);
 
-    // Assign the custom properties
     this.code = code;
     this.details = details;
-
-    // Set the error name for easier identification and type checking (e.g., `error instanceof McpError`)
     this.name = "McpError";
 
-    // Maintain a proper prototype chain. This is important for `instanceof` checks and stack trace correctness.
-    // It ensures that instances of McpError are correctly identified as such.
+    // Maintain a proper prototype chain.
     Object.setPrototypeOf(this, McpError.prototype);
 
     // Capture the stack trace, excluding the constructor call from it, if available.
-    // This is more common in Node.js environments.
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, McpError);
     }
   }
-
-  // Note: The toResponse() method was previously here.
-  // As per the .clinerules and modern SDK design, error formatting for JSON-RPC
-  // or other transport-specific responses is typically handled by the MCP SDK
-  // or the transport layer itself, not by the error class. This keeps the error
-  // class focused on representing the error state.
 }
 
 /**
@@ -136,8 +99,6 @@ export class McpError extends Error {
  *
  * The schema enforces the presence of a `code` (from {@link BaseErrorCode}) and a `message`,
  * and allows for optional `details`.
- *
- * @constant {z.ZodObject} ErrorSchema
  */
 export const ErrorSchema = z
   .object({
@@ -175,10 +136,5 @@ export const ErrorSchema = z
  * TypeScript type inferred from the {@link ErrorSchema}.
  * This type represents the structure of a validated error object, commonly used
  * for error responses or when passing error information within the application.
- *
- * @typedef {z.infer<typeof ErrorSchema>} ErrorResponse
- * @property {BaseErrorCode} code - The standardized error code.
- * @property {string} message - A human-readable description of the error.
- * @property {Record<string, unknown>} [details] - Optional additional details about the error.
  */
 export type ErrorResponse = z.infer<typeof ErrorSchema>;

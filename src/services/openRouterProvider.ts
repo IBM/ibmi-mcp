@@ -1,7 +1,8 @@
 /**
  * @fileoverview Provides a service class (`OpenRouterProvider`) for interacting with the
  * OpenRouter API, using the OpenAI SDK for chat completions. It handles API key
- * configuration, default parameters, rate limiting, and error handling.
+ * configuration, default parameters, rate limiting, model-specific parameter adjustments,
+ * and error handling.
  * @module services/openRouterProvider
  */
 import OpenAI from "openai";
@@ -24,28 +25,22 @@ import {
 import { rateLimiter } from "../utils/security/rateLimiter.js";
 import { sanitization } from "../utils/security/sanitization.js";
 
-// Use the updated config properties
 const YOUR_SITE_URL = config.openrouterAppUrl;
 const YOUR_SITE_NAME = config.openrouterAppName;
 
 /**
  * Defines the parameters for an OpenRouter chat completion request.
- * This type extends the standard OpenAI chat completion parameters
- * (`ChatCompletionCreateParamsNonStreaming` or `ChatCompletionCreateParamsStreaming` from the `openai` SDK)
- * and includes additional fields specific to OpenRouter or for custom behavior.
+ * This type extends standard OpenAI chat completion parameters and includes
+ * OpenRouter-specific fields.
  *
- * @typedef {object} OpenRouterChatParams
- * @property {number} [top_k] - OpenRouter specific: Sample from the k most likely next tokens at each step.
- * @property {number} [min_p] - OpenRouter specific: Minimum probability for a token to be considered.
- * @property {string[]} [transforms] - OpenRouter specific: Apply transformations to the request or response.
- * @property {string[]} [models] - OpenRouter specific: A list of models to use, often for fallback or routing.
- * @property {'fallback'} [route] - OpenRouter specific: Specifies routing strategy, e.g., 'fallback'.
- * @property {Record<string, any>} [provider] - OpenRouter specific: Provider-specific parameters or routing preferences.
- *                                              Example: `{ sort: 'throughput' }`.
- * @property {boolean} [stream] - If true, the response will be a stream of `ChatCompletionChunk` objects (from `openai` SDK).
- *                                If false or undefined, a single `ChatCompletion` object (from `openai` SDK) is returned.
- * @see ChatCompletionCreateParamsNonStreaming (from `openai` SDK)
- * @see ChatCompletionCreateParamsStreaming (from `openai` SDK)
+ * @property top_k - OpenRouter specific: Sample from the k most likely next tokens.
+ * @property min_p - OpenRouter specific: Minimum probability for a token to be considered.
+ * @property transforms - OpenRouter specific: Apply transformations to the request or response.
+ * @property models - OpenRouter specific: A list of models to use, often for fallback or routing.
+ * @property route - OpenRouter specific: Specifies routing strategy, e.g., 'fallback'.
+ * @property provider - OpenRouter specific: Provider-specific parameters or routing preferences.
+ * @property stream - If true, the response will be a stream of `ChatCompletionChunk` objects.
+ *   If false or undefined, a single `ChatCompletion` object is returned.
  */
 export type OpenRouterChatParams = (
   | ChatCompletionCreateParamsNonStreaming
@@ -57,22 +52,18 @@ export type OpenRouterChatParams = (
   models?: string[];
   route?: "fallback";
   provider?: Record<string, any>;
-  // Add other potential non-standard params here
 };
 
 /**
  * Service class for interacting with the OpenRouter API.
- * It uses the OpenAI SDK for chat completions, configured to point to OpenRouter's base URL.
- * Handles API key management, default headers, and provides methods for chat completions and listing models.
- * The service status (`unconfigured`, `initializing`, `ready`, `error`) indicates its usability.
- * @class OpenRouterProvider
+ * Uses the OpenAI SDK for chat completions, configured for OpenRouter.
+ * Handles API key management, default headers, model-specific parameter adjustments,
+ * and provides methods for chat completions and listing models.
  */
 class OpenRouterProvider {
   /**
    * The OpenAI SDK client instance configured for OpenRouter.
-   * Undefined if the service is not configured (e.g., missing API key).
    * @private
-   * @type {OpenAI | undefined}
    */
   private client?: OpenAI;
   /**
@@ -81,15 +72,11 @@ class OpenRouterProvider {
    * - `initializing`: Constructor is running.
    * - `ready`: Client initialized successfully and service is usable.
    * - `error`: An error occurred during initialization.
-   * @readonly
-   * @type {'unconfigured' | 'initializing' | 'ready' | 'error'}
    */
   public readonly status: "unconfigured" | "initializing" | "ready" | "error";
   /**
    * Stores any error that occurred during client initialization.
-   * Null if initialization was successful or not yet attempted.
    * @private
-   * @type {Error | null}
    */
   private initializationError: Error | null = null;
 
@@ -97,8 +84,8 @@ class OpenRouterProvider {
    * Constructs an `OpenRouterProvider` instance.
    * Initializes the OpenAI client for OpenRouter if an API key is provided.
    * Sets default headers required by OpenRouter.
-   * @param {string | undefined} apiKey - The OpenRouter API key. If undefined, the service remains 'unconfigured'.
-   * @param {OperationContext} [parentOpContext] - Optional parent operation context for linked logging.
+   * @param apiKey - The OpenRouter API key. If undefined, the service remains 'unconfigured'.
+   * @param parentOpContext - Optional parent operation context for linked logging.
    */
   constructor(apiKey: string | undefined, parentOpContext?: OperationContext) {
     const operationName = parentOpContext?.operation
@@ -147,9 +134,8 @@ class OpenRouterProvider {
 
   /**
    * Checks if the service is ready to make API calls.
-   * Throws an `McpError` if the service is not in a 'ready' state.
-   * @param {string} operation - The name of the operation attempting to use the service.
-   * @param {RequestContext} context - The request context for logging.
+   * @param operation - The name of the operation attempting to use the service.
+   * @param context - The request context for logging.
    * @throws {McpError} If the service is not ready.
    * @private
    */
@@ -175,6 +161,7 @@ class OpenRouterProvider {
       });
     }
     if (!this.client) {
+      // This should ideally not happen if status is 'ready', but as a safeguard:
       logger.error(
         `[${operation}] Service status is ready, but client is missing.`,
         { ...context },
@@ -189,18 +176,13 @@ class OpenRouterProvider {
 
   /**
    * Creates a chat completion using the OpenRouter API.
-   * This method can return either a single chat completion response or an async iterable stream
-   * of chat completion chunks, based on the `stream` parameter.
-   * It applies rate limiting and handles API errors by throwing `McpError`.
+   * Can return either a single response or a stream of chunks.
+   * Applies rate limiting and handles model-specific parameter adjustments.
    *
-   * @param {OpenRouterChatParams} params - The parameters for the chat completion request. This includes standard
-   *                                        OpenAI parameters as well as OpenRouter-specific fields.
-   * @param {RequestContext} context - The request context for logging, error handling, and rate limiting.
-   * @returns {Promise<ChatCompletion | Stream<ChatCompletionChunk>>} A promise that resolves with either
-   *          a `ChatCompletion` object (if `params.stream` is false or undefined) or a
-   *          `Stream<ChatCompletionChunk>` (if `params.stream` is true). These types are from the `openai` SDK.
-   * @throws {McpError} If the service is not ready, if rate limiting is exceeded, or if the API call fails.
-   * @public
+   * @param params - Parameters for the chat completion request.
+   * @param context - Request context for logging, error handling, and rate limiting.
+   * @returns A promise resolving with either a `ChatCompletion` or a `Stream<ChatCompletionChunk>`.
+   * @throws {McpError} If service not ready, rate limit exceeded, or API call fails.
    */
   async chatCompletion(
     params: OpenRouterChatParams,
@@ -210,11 +192,13 @@ class OpenRouterProvider {
     this.checkReady(operation, context);
 
     const isStreaming = params.stream === true;
+    const effectiveModelId = params.model || config.llmDefaultModel;
+
     const standardParams: Partial<
       | ChatCompletionCreateParamsStreaming
       | ChatCompletionCreateParamsNonStreaming
     > = {
-      model: params.model || config.llmDefaultModel,
+      model: effectiveModelId,
       messages: params.messages,
       ...(params.temperature !== undefined ||
       config.llmDefaultTemperature !== undefined
@@ -225,12 +209,6 @@ class OpenRouterProvider {
         : {}),
       ...(params.presence_penalty !== undefined
         ? { presence_penalty: params.presence_penalty }
-        : {}),
-      // Note: OpenAI SDK marks `max_tokens` as deprecated in favor of `max_completion_tokens` for their direct API.
-      // However, OpenRouter API still uses `max_tokens`. We use `max_tokens` here for OpenRouter compatibility.
-      ...(params.max_tokens !== undefined ||
-      config.llmDefaultMaxTokens !== undefined
-        ? { max_tokens: params.max_tokens ?? config.llmDefaultMaxTokens }
         : {}),
       ...(params.stream !== undefined && { stream: params.stream }),
       ...(params.tools !== undefined && { tools: params.tools }),
@@ -255,7 +233,8 @@ class OpenRouterProvider {
     for (const key in params) {
       if (
         Object.prototype.hasOwnProperty.call(params, key) &&
-        !standardKeys.has(key)
+        !standardKeys.has(key) &&
+        key !== "max_tokens"
       ) {
         extraBody[key] = (params as any)[key];
       }
@@ -267,26 +246,39 @@ class OpenRouterProvider {
     if (extraBody.min_p === undefined && config.llmDefaultMinP !== undefined) {
       extraBody.min_p = config.llmDefaultMinP;
     }
-
     if (extraBody.provider && typeof extraBody.provider === "object") {
-      if (!extraBody.provider.sort) {
-        extraBody.provider.sort = "throughput";
-        logger.debug(
-          `[${operation}] Merged 'sort: throughput' into existing provider preferences.`,
+      if (!extraBody.provider.sort) extraBody.provider.sort = "throughput";
+    } else if (extraBody.provider === undefined) {
+      extraBody.provider = { sort: "throughput" };
+    }
+
+    // Conditional logic for max_tokens vs max_completion_tokens
+    // Certain underlying models (e.g., newer OpenAI models like the o1 series)
+    // may require `max_completion_tokens` instead of `max_tokens`.
+    // This client sends `max_completion_tokens` in `extra_body` for these models if a limit is specified.
+    // For other models, `max_tokens` is used as a standard parameter.
+    const modelsRequiringMaxCompletionTokens = ["openai/o1", "openai/gpt-4.1"];
+    const needsMaxCompletionTokens = modelsRequiringMaxCompletionTokens.some(
+      (modelPrefix) => effectiveModelId.startsWith(modelPrefix),
+    );
+    const effectiveMaxTokensValue = params.max_tokens ?? config.llmDefaultMaxTokens;
+
+    if (effectiveMaxTokensValue !== undefined) {
+      if (needsMaxCompletionTokens) {
+        extraBody.max_completion_tokens = effectiveMaxTokensValue;
+        logger.info(
+          `[${operation}] Using 'max_completion_tokens: ${effectiveMaxTokensValue}' for model ${effectiveModelId} (sent via extra_body).`,
           context,
         );
       } else {
-        logger.debug(
-          `[${operation}] Provider 'sort' preference already exists, respecting provided value: ${extraBody.provider.sort}`,
+        // For models not in the list, or if OpenRouter handles the mapping transparently,
+        // send max_tokens as a standard parameter.
+        standardParams.max_tokens = effectiveMaxTokensValue;
+        logger.info(
+          `[${operation}] Using 'max_tokens: ${effectiveMaxTokensValue}' for model ${effectiveModelId}.`,
           context,
         );
       }
-    } else if (extraBody.provider === undefined) {
-      extraBody.provider = { sort: "throughput" };
-      logger.debug(
-        `[${operation}] Added 'provider: { sort: 'throughput' }' preferences.`,
-        context,
-      );
     }
 
     const allEffectiveParams = { ...standardParams, ...extraBody };
@@ -316,7 +308,7 @@ class OpenRouterProvider {
     return await ErrorHandler.tryCatch(
       async () => {
         if (!this.client)
-          throw new Error("Client missing despite ready status"); // Should be caught by checkReady
+          throw new Error("Client missing despite ready status");
 
         const apiParams: any = { ...standardParams };
         if (Object.keys(extraBody).length > 0) {
@@ -375,7 +367,7 @@ class OpenRouterProvider {
           }
           throw new McpError(
             BaseErrorCode.INTERNAL_ERROR,
-            `OpenRouter API error (${error.status}): ${error.message}`,
+            `OpenRouter API error (${error.status || "unknown status"}): ${error.message}`,
             errorDetails,
           );
         }
@@ -391,14 +383,11 @@ class OpenRouterProvider {
 
   /**
    * Lists available models from the OpenRouter API.
-   * This method makes a direct `fetch` call to the `/models` endpoint, as the standard
-   * OpenAI SDK does not support listing models from a custom base URL like OpenRouter's.
+   * Makes a direct `fetch` call to the `/models` endpoint.
    *
-   * @param {RequestContext} context - The request context for logging and error handling.
-   * @returns {Promise<any>} A promise that resolves with the JSON response from the OpenRouter API,
-   *                         typically an object containing a `data` array of model objects.
-   * @throws {McpError} If the service is not ready, or if the API call fails (e.g., network error, non-OK response).
-   * @public
+   * @param context - Request context for logging and error handling.
+   * @returns A promise resolving with the JSON response from the OpenRouter API.
+   * @throws {McpError} If the service is not ready, or if the API call fails.
    */
   async listModels(context: RequestContext): Promise<any> {
     const operation = "OpenRouterProvider.listModels";
@@ -412,6 +401,8 @@ class OpenRouterProvider {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
+              // Authorization header might be needed if OpenRouter changes their /models endpoint access
+              // "Authorization": `Bearer ${this.client?.apiKey}`, // apiKey is private on OpenAI client
             },
           });
 
@@ -461,10 +452,7 @@ class OpenRouterProvider {
 
 /**
  * Singleton instance of the `OpenRouterProvider`.
- * This instance is initialized with the OpenRouter API key from the application configuration.
- * Consumers should check its `status` property or handle errors from its methods to ensure
- * the service is ready before use.
- * @type {OpenRouterProvider}
+ * Initialized with the OpenRouter API key from application configuration.
  */
 const openRouterProviderInstance = new OpenRouterProvider(
   config.openrouterApiKey,
@@ -475,6 +463,6 @@ export { openRouterProviderInstance as openRouterProvider };
 /**
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
- * @typedef {OpenRouterProvider} OpenRouterProviderType
  */
-export type { OpenRouterProvider };
+  export type { OpenRouterProvider };
+
