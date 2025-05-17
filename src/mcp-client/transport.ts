@@ -2,7 +2,7 @@
  * @fileoverview Provides functions for creating and configuring MCP client transports.
  * This module supports creating Stdio (Standard Input/Output) and Streamable HTTP transports
  * based on server configurations loaded via `configLoader.ts`.
- * @module mcp-client/transport
+ * @module src/mcp-client/transport
  */
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -19,12 +19,6 @@ import { getMcpServerConfig } from "./configLoader.js";
  * (from the `@modelcontextprotocol/sdk`).
  * This includes the command to execute the server process, arguments to pass to it,
  * and optional environment variables for the server's execution context.
- * @typedef {object} StdioTransportConfig
- * @property {string} command - The command or path to the executable that starts the MCP server.
- * @property {string[]} args - An array of string arguments to pass to the server command.
- * @property {Record<string, string>} [env] - Optional key-value pairs representing environment variables
- *                                            to set for the server process. These are merged with,
- *                                            and take precedence over, the client's current environment.
  */
 export interface StdioTransportConfig {
   command: string;
@@ -36,13 +30,12 @@ export interface StdioTransportConfig {
  * Creates and configures a `StdioClientTransport` instance (from the `@modelcontextprotocol/sdk`)
  * for launching and communicating with an MCP server process via its standard input and output streams.
  *
- * @param {StdioTransportConfig} transportConfig - Configuration containing the command, arguments,
+ * @param transportConfig - Configuration containing the command, arguments,
  *                                                 and environment variables for the server process.
- * @param {RequestContext | null} [parentContext] - Optional parent request context for logging and tracing.
- * @returns {StdioClientTransport} A configured `StdioClientTransport` instance, ready to be connected.
+ * @param parentContext - Optional parent request context for logging and tracing.
+ * @returns A configured `StdioClientTransport` instance, ready to be connected.
  * @throws {McpError} If the provided `transportConfig` is invalid (e.g., missing command)
  *                    or if the transport fails to initialize for other reasons.
- * @public
  */
 export function createStdioClientTransport(
   transportConfig: StdioTransportConfig,
@@ -129,12 +122,11 @@ export function createStdioClientTransport(
  * based on the `transportType` specified in the server's configuration.
  * This function acts as a factory for client transport instances.
  *
- * @param {string} serverName - The name of the MCP server, as defined in the `mcp-config.json` file.
- * @param {RequestContext | null} [parentContext] - Optional parent request context for logging and tracing.
- * @returns {StdioClientTransport | StreamableHTTPClientTransport} A configured transport instance.
+ * @param serverName - The name of the MCP server, as defined in the `mcp-config.json` file.
+ * @param parentContext - Optional parent request context for logging and tracing.
+ * @returns A configured transport instance.
  * @throws {McpError} If the server configuration is missing or invalid, if an unsupported
  *                    transport type is specified, or if transport creation fails.
- * @public
  */
 export function getClientTransport(
   serverName: string,

@@ -33,6 +33,7 @@ All notable changes to this project will be documented in this file.
     - Echo resource and tool implementations (`src/mcp-server/resources/echoResource/`, `src/mcp-server/tools/echoTool/`).
     - Transport layers and authentication middleware (`src/mcp-server/transports/`).
     - Services (`src/services/openRouterProvider.ts`) and global type definitions (`src/types-global/errors.ts`).
+    - Polished JSDoc comments in `src/mcp-client/` (`client.ts`, `configLoader.ts`, `index.ts`, `transport.ts`) to align with TypeDoc best practices, remove redundant type annotations, and ensure correct `@module` tags.
 - **Documentation Files**:
   - Updated `docs/tree.md` generation timestamp.
   - Added `docs/api-references/typedoc-reference.md` to provide a guide for TypeDoc usage.
