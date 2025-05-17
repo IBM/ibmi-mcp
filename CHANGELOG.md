@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2025-05-17
+
+### Changed
+
+- **Dependencies**:
+  - Updated `@modelcontextprotocol/sdk` from `^1.11.2` to `^1.11.4`.
+  - Updated `@types/express` from `^5.0.1` to `^5.0.2`.
+  - Updated `openai` from `^4.98.0` to `^4.100.0`.
+- **Code Quality & Documentation**:
+  - Refactored JSDoc comments across the codebase to be more concise and focused, removing unnecessary verbosity and improving overall readability. We now rely on the TypeDoc type inference system for documentation generation. This includes:
+    - Core configuration (`src/config/index.ts`).
+    - Main application entry point and server logic (`src/index.ts`, `src/mcp-server/server.ts`).
+    - Echo resource and tool implementations (`src/mcp-server/resources/echoResource/`, `src/mcp-server/tools/echoTool/`).
+    - Transport layers and authentication middleware (`src/mcp-server/transports/`).
+    - Services (`src/services/openRouterProvider.ts`) and global type definitions (`src/types-global/errors.ts`).
+- **Documentation Files**:
+  - Updated `docs/tree.md` generation timestamp.
+  - Added `docs/api-references/typedoc-reference.md` to provide a guide for TypeDoc usage.
+
 ## [1.2.1] - 2025-05-15
 
 ### Added
