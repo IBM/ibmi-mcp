@@ -20,6 +20,16 @@ All notable changes to this project will be documented in this file.
 - **Documentation Files**:
   - Updated `docs/tree.md` generation timestamp.
   - Added `docs/api-references/typedoc-reference.md` to provide a guide for TypeDoc usage.
+- **Internal Utilities**:
+  - **Logger**:
+    - Simplified project root determination in `logger.ts` by using `process.cwd()`.
+    - Enhanced safety check for the logs directory path.
+    - Ensured application startup fails if the logs directory cannot be created by re-throwing the error.
+  - **IdGenerator**:
+    - Removed logging from `idGenerator.ts` to prevent circular dependencies with `requestContextService`.
+    - Updated JSDoc comments to reflect this change and its rationale.
+- **Build**:
+  - Bumped version to `1.2.2` in `package.json` and `package-lock.json`.
 
 ## [1.2.1] - 2025-05-15
 
