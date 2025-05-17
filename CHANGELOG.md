@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [1.2.2] - 2025-05-17
 
+### Fixed
+
+- **Build Process & Documentation**:
+  - Resolved `tsc` build errors related to `rootDir` conflicts by adjusting `tsconfig.json` to include only `src/**/*` for the main build.
+  - Fixed TypeDoc warnings for script files (`scripts/*.ts`) not being under `rootDir` by:
+    - Creating `tsconfig.typedoc.json` with `rootDir: "."` and including both `src` and `scripts`.
+    - Updating the `docs:generate` script in `package.json` to use `tsconfig.typedoc.json`.
+  - Corrected TSDoc comments in script files (`scripts/clean.ts`, `scripts/fetch-openapi-spec.ts`, `scripts/make-executable.ts`, `scripts/tree.ts`) by removing non-standard `@description` block tags, resolving TypeDoc warnings.
+
+### Changed
+
+- **Configuration & Deployment**:
+  - **Dockerfile**: Set default `MCP_TRANSPORT_TYPE` to `http` and exposed port `3010` for containerized deployments.
+  - **Smithery**: Updated `smithery.yaml` to allow Smithery package users to configure `MCP_TRANSPORT_TYPE`, `MCP_HTTP_PORT`, and `MCP_LOG_LEVEL`.
+  - **Local Development**: Adjusted `mcp.json` to default to HTTP transport on port `3010` for local server execution via MCP CLI.
+
 ### Changed
 
 - **Dependencies**:
