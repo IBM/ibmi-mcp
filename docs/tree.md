@@ -1,13 +1,14 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-15 08:39:48
+Generated on: 2025-05-17 11:01:35
 
 
 ```
 mcp-ts-template
 ├── docs
     ├── api-references
-    │   └── jsdoc-standard-tags.md
+    │   ├── jsdoc-standard-tags.md
+    │   └── typedoc-reference.md
     ├── .DS_Store
     └── tree.md
 ├── scripts
