@@ -6,7 +6,6 @@
  */
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import winston from "winston";
 import TransportStream from "winston-transport";
 import { config } from "../../config/index.js";
@@ -103,24 +102,19 @@ export type McpNotificationSender = (
   loggerName?: string,
 ) => void;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const isRunningFromDist = __dirname.includes(path.sep + "dist" + path.sep);
-const levelsToGoUp = isRunningFromDist ? 3 : 2;
-const pathSegments = Array(levelsToGoUp).fill("..");
-const projectRoot = path.resolve(__dirname, ...pathSegments);
-
+const projectRoot = process.cwd(); // Use current working directory as project root
 const logsDir = path.join(projectRoot, "logs");
 
-const resolvedLogsDir = path.resolve(logsDir);
-const isLogsDirSafe =
-  resolvedLogsDir === projectRoot ||
-  resolvedLogsDir.startsWith(projectRoot + path.sep);
+// Security check for the logs directory path
+const resolvedLogsDir = path.resolve(logsDir); // Should be projectRoot/logs
+const isLogsDirSafe = resolvedLogsDir.startsWith(projectRoot + path.sep) && resolvedLogsDir !== projectRoot;
+
 if (!isLogsDirSafe) {
+  // This case should ideally not be hit if logsDir is simply projectRoot + /logs
+  // But it's a safeguard if path.join or path.resolve behaves unexpectedly or logsDir is manipulated.
   if (process.stdout.isTTY) {
     console.error(
-      `FATAL: logs directory "${resolvedLogsDir}" is outside project root "${projectRoot}". File logging disabled.`,
+      `FATAL: Resolved logs directory "${resolvedLogsDir}" is not safely within project root "${projectRoot}". File logging will be disabled.`,
     );
   }
 }
@@ -215,6 +209,8 @@ export class Logger {
             `Error creating logs directory at ${resolvedLogsDir}: ${errorMessage}. File logging disabled.`,
           );
         }
+        // Rethrow the error to ensure startup fails if logs directory cannot be created
+        throw err; 
       }
     }
 

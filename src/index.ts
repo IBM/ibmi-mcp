@@ -23,11 +23,11 @@
  * @module src/index
  */
 
-import { logger, McpLogLevel } from "./utils/internal/logger.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { config, environment } from "./config/index.js";
 import { initializeAndStartServer } from "./mcp-server/server.js";
 import { requestContextService } from "./utils/index.js";
+import { logger, McpLogLevel } from "./utils/internal/logger.js";
 
 /**
  * Holds the main MCP server instance, primarily for STDIO transport.
