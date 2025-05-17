@@ -56,7 +56,9 @@ const makeExecutable = async (): Promise<void> => {
       return;
     }
 
-    console.log(`Attempting to make files executable: ${targetFiles.join(", ")}`);
+    console.log(
+      `Attempting to make files executable: ${targetFiles.join(", ")}`,
+    );
 
     const results = await Promise.allSettled(
       targetFiles.map(async (targetFile): Promise<ExecutableResult> => {

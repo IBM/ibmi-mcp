@@ -3,9 +3,6 @@
   "compilerOptions": {
     "rootDir": "."
   },
-  "include": [
-    "src/**/*",
-    "scripts/**/*.ts"
-  ]
+  "include": ["src/**/*", "scripts/**/*.ts"]
   // The 'exclude' is also inherited.
 }

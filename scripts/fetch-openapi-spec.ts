@@ -87,7 +87,9 @@ async function tryFetch(
     let status = "Unknown";
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError;
-      status = axiosError.response ? String(axiosError.response.status) : "Network Error";
+      status = axiosError.response
+        ? String(axiosError.response.status)
+        : "Network Error";
     }
     console.warn(`Failed to fetch from ${url} (Status: ${status})`);
     return null;
@@ -103,7 +105,10 @@ async function tryFetch(
 function parseSpec(data: string, contentType: string | null): object | null {
   try {
     const lowerContentType = contentType?.toLowerCase();
-    if (lowerContentType?.includes("yaml") || lowerContentType?.includes("yml")) {
+    if (
+      lowerContentType?.includes("yaml") ||
+      lowerContentType?.includes("yml")
+    ) {
       console.log("Parsing content as YAML based on Content-Type...");
       return yaml.load(data) as object;
     } else if (lowerContentType?.includes("json")) {
@@ -129,22 +134,30 @@ function parseSpec(data: string, contentType: string | null): object | null {
             return parsedJson;
           }
         } catch (jsonError) {
-          console.warn("Could not parse content as YAML or JSON after attempting both.");
+          console.warn(
+            "Could not parse content as YAML or JSON after attempting both.",
+          );
           return null;
         }
       }
       // If YAML parsing resulted in a non-object (e.g. string, number) but didn't throw
-      console.warn("Content parsed as YAML but was not a valid object structure. Trying JSON.");
-       try {
-          const parsedJson = JSON.parse(data);
-          if (parsedJson && typeof parsedJson === "object") {
-            console.log("Successfully parsed as JSON on second attempt for non-object YAML.");
-            return parsedJson;
-          }
-        } catch (jsonError) {
-          console.warn("Could not parse content as YAML or JSON after attempting both.");
-          return null;
+      console.warn(
+        "Content parsed as YAML but was not a valid object structure. Trying JSON.",
+      );
+      try {
+        const parsedJson = JSON.parse(data);
+        if (parsedJson && typeof parsedJson === "object") {
+          console.log(
+            "Successfully parsed as JSON on second attempt for non-object YAML.",
+          );
+          return parsedJson;
         }
+      } catch (jsonError) {
+        console.warn(
+          "Could not parse content as YAML or JSON after attempting both.",
+        );
+        return null;
+      }
     }
   } catch (parseError) {
     console.error(

@@ -388,8 +388,8 @@ export async function disconnectAllMcpClients(
     context,
   );
 
-  const disconnectionPromises: Promise<void>[] = serverNames.map((serverName) =>
-    disconnectMcpClient(serverName, context), // Pass down the aggregate operation's context for consistent logging
+  const disconnectionPromises: Promise<void>[] = serverNames.map(
+    (serverName) => disconnectMcpClient(serverName, context), // Pass down the aggregate operation's context for consistent logging
   );
 
   // Use Promise.allSettled to ensure all disconnection attempts are made,
@@ -413,7 +413,8 @@ export async function disconnectAllMcpClients(
             result.reason instanceof Error
               ? result.reason.message
               : String(result.reason), // Get the error message
-          stack: // Include stack trace if available
+          // Include stack trace if available
+          stack:
             result.reason instanceof Error ? result.reason.stack : undefined,
         },
       );

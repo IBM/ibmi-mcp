@@ -265,7 +265,7 @@ export class Todo {
     id: number,
     title: string,
     description: string,
-    isCompleted: boolean
+    isCompleted: boolean,
   ) {
     this.id = id;
     this.title = title;
