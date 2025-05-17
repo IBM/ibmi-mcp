@@ -2,7 +2,7 @@
  * @fileoverview Barrel file for internal utility modules.
  * This file re-exports core internal utilities related to error handling,
  * logging, and request context management.
- * @module utils/internal
+ * @module src/utils/internal
  */
 
 export * from "./errorHandler.js";

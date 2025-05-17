@@ -11,7 +11,7 @@
  * - Lifecycle: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/lifecycle.mdx
  * - Overview (Capabilities): https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/index.mdx
  * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
- * @module mcp-server/server
+ * @module src/mcp-server/server
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

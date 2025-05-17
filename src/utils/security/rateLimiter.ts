@@ -1,7 +1,7 @@
 /**
  * @fileoverview Provides a generic `RateLimiter` class for implementing rate limiting logic.
  * It supports configurable time windows, request limits, and automatic cleanup of expired entries.
- * @module utils/security/rateLimiter
+ * @module src/utils/security/rateLimiter
  */
 import { environment } from "../../config/index.js";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
@@ -242,5 +242,5 @@ export class RateLimiter {
  */
 export const rateLimiter = new RateLimiter({
   windowMs: 15 * 60 * 1000, // Default: 15 minutes
-  maxRequests: 100,        // Default: 100 requests per window
+  maxRequests: 100, // Default: 100 requests per window
 });

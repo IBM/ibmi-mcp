@@ -3,7 +3,7 @@
  * It defines structures for error context, options for handling errors,
  * and mappings for classifying errors. The main `ErrorHandler` class
  * offers static methods for consistent error processing, logging, and transformation.
- * @module utils/internal/errorHandler
+ * @module src/utils/internal/errorHandler
  */
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import { generateUUID, sanitizeInputForLogging } from "../index.js";

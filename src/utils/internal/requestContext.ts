@@ -3,11 +3,11 @@
  * A request context is an object carrying a unique ID, timestamp, and other
  * relevant data for logging, tracing, and processing. It also defines
  * configuration and operational context structures.
- * @module utils/internal/requestContext
+ * @module src/utils/internal/requestContext
  */
 
-import { logger } from "./logger.js";
 import { generateUUID } from "../index.js";
+import { logger } from "./logger.js";
 
 /**
  * Defines the core structure for context information associated with a request or operation.

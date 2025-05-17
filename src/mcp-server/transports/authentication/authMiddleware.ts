@@ -11,7 +11,7 @@
  * If the token is missing, invalid, or expired, it sends an HTTP 401 Unauthorized response.
  *
  * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
- * @module mcp-server/transports/authentication/authMiddleware
+ * @module src/mcp-server/transports/authentication/authMiddleware
  */
 
 import { NextFunction, Request, Response } from "express";
@@ -78,7 +78,10 @@ export function mcpAuthMiddleware(
         scopes: ["dev-scope"],
       };
       // Log dev mode details separately, not attaching to req.auth if not part of AuthInfo
-      logger.debug("Dev mode auth object created.", { ...context, authDetails: req.auth });
+      logger.debug("Dev mode auth object created.", {
+        ...context,
+        authDetails: req.auth,
+      });
       return next();
     } else {
       logger.error(
@@ -107,7 +110,9 @@ export function mcpAuthMiddleware(
   const tokenParts = authHeader.split(" ");
   if (tokenParts.length !== 2 || tokenParts[0] !== "Bearer" || !tokenParts[1]) {
     logger.warning("Authentication failed: Malformed Bearer token.", context);
-    res.status(401).json({ error: "Unauthorized: Malformed authentication token." });
+    res
+      .status(401)
+      .json({ error: "Unauthorized: Malformed authentication token." });
     return;
   }
   const rawToken = tokenParts[1];
@@ -120,32 +125,51 @@ export function mcpAuthMiddleware(
         "Authentication failed: JWT decoded to a string, expected an object payload.",
         context,
       );
-      res.status(401).json({ error: "Unauthorized: Invalid token payload format." });
+      res
+        .status(401)
+        .json({ error: "Unauthorized: Invalid token payload format." });
       return;
     }
 
     // Extract and validate fields for SDK's AuthInfo
-    const clientIdFromToken = typeof decoded.cid === 'string' ? decoded.cid : (typeof decoded.client_id === 'string' ? decoded.client_id : undefined);
+    const clientIdFromToken =
+      typeof decoded.cid === "string"
+        ? decoded.cid
+        : typeof decoded.client_id === "string"
+          ? decoded.client_id
+          : undefined;
     if (!clientIdFromToken) {
       logger.warning(
         "Authentication failed: JWT 'cid' or 'client_id' claim is missing or not a string.",
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
-      res.status(401).json({ error: "Unauthorized: Invalid token, missing client identifier." });
+      res.status(401).json({
+        error: "Unauthorized: Invalid token, missing client identifier.",
+      });
       return;
     }
 
     let scopesFromToken: string[];
-    if (Array.isArray(decoded.scp) && decoded.scp.every(s => typeof s === 'string')) {
+    if (
+      Array.isArray(decoded.scp) &&
+      decoded.scp.every((s) => typeof s === "string")
+    ) {
       scopesFromToken = decoded.scp as string[];
-    } else if (typeof decoded.scope === 'string' && decoded.scope.trim() !== '') {
-      scopesFromToken = decoded.scope.split(' ').filter(s => s);
-      if (scopesFromToken.length === 0 && decoded.scope.trim() !== '') { // handles case " " -> [""]
-         scopesFromToken = [decoded.scope.trim()];
-      } else if (scopesFromToken.length === 0 && decoded.scope.trim() === '') {
-         // If scope is an empty string, treat as no scopes rather than erroring, or use a default.
-         // Depending on strictness, could also error here. For now, allow empty array if scope was empty string.
-         logger.debug("JWT 'scope' claim was an empty string, resulting in empty scopes array.", context);
+    } else if (
+      typeof decoded.scope === "string" &&
+      decoded.scope.trim() !== ""
+    ) {
+      scopesFromToken = decoded.scope.split(" ").filter((s) => s);
+      if (scopesFromToken.length === 0 && decoded.scope.trim() !== "") {
+        // handles case " " -> [""]
+        scopesFromToken = [decoded.scope.trim()];
+      } else if (scopesFromToken.length === 0 && decoded.scope.trim() === "") {
+        // If scope is an empty string, treat as no scopes rather than erroring, or use a default.
+        // Depending on strictness, could also error here. For now, allow empty array if scope was empty string.
+        logger.debug(
+          "JWT 'scope' claim was an empty string, resulting in empty scopes array.",
+          context,
+        );
       }
     } else {
       // If scopes are strictly mandatory and not found or invalid format
@@ -154,11 +178,11 @@ export function mcpAuthMiddleware(
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
       scopesFromToken = []; // Default to empty array if scopes are mandatory but not found/invalid
-                           // Or, if truly mandatory and must be non-empty:
-                           // res.status(401).json({ error: "Unauthorized: Invalid token, missing or invalid scopes." });
-                           // return;
+      // Or, if truly mandatory and must be non-empty:
+      // res.status(401).json({ error: "Unauthorized: Invalid token, missing or invalid scopes." });
+      // return;
     }
-    
+
     // Construct req.auth with only the properties defined in SDK's AuthInfo
     // All other claims from 'decoded' are not part of req.auth for type safety.
     req.auth = {
@@ -168,23 +192,38 @@ export function mcpAuthMiddleware(
     };
 
     // Log separately if other JWT claims like 'sub' (sessionId) are needed for app logic
-    const subClaimForLogging = typeof decoded.sub === 'string' ? decoded.sub : undefined;
-    logger.debug("JWT verified successfully. AuthInfo attached to request.", { ...context, mcpSessionIdContext: subClaimForLogging, clientId: req.auth.clientId, scopes: req.auth.scopes });
+    const subClaimForLogging =
+      typeof decoded.sub === "string" ? decoded.sub : undefined;
+    logger.debug("JWT verified successfully. AuthInfo attached to request.", {
+      ...context,
+      mcpSessionIdContext: subClaimForLogging,
+      clientId: req.auth.clientId,
+      scopes: req.auth.scopes,
+    });
     next();
   } catch (error: unknown) {
     let errorMessage = "Invalid token";
     if (error instanceof jwt.TokenExpiredError) {
       errorMessage = "Token expired";
-      logger.warning("Authentication failed: Token expired.", { ...context, expiredAt: error.expiredAt });
+      logger.warning("Authentication failed: Token expired.", {
+        ...context,
+        expiredAt: error.expiredAt,
+      });
     } else if (error instanceof jwt.JsonWebTokenError) {
       errorMessage = `Invalid token: ${error.message}`;
       logger.warning(`Authentication failed: ${errorMessage}`, { ...context });
     } else if (error instanceof Error) {
       errorMessage = `Verification error: ${error.message}`;
-      logger.error("Authentication failed: Unexpected error during token verification.", { ...context, error: error.message });
+      logger.error(
+        "Authentication failed: Unexpected error during token verification.",
+        { ...context, error: error.message },
+      );
     } else {
       errorMessage = "Unknown verification error";
-      logger.error("Authentication failed: Unexpected non-error exception during token verification.", { ...context, error });
+      logger.error(
+        "Authentication failed: Unexpected non-error exception during token verification.",
+        { ...context, error },
+      );
     }
     res.status(401).json({ error: `Unauthorized: ${errorMessage}.` });
   }

@@ -4,7 +4,7 @@
  * and the main processing function that constructs the resource response.
  * The echo resource is designed to return a message, typically extracted from the
  * request URI's path or query parameters, along with a timestamp.
- * @module mcp-server/resources/echoResource/echoResourceLogic
+ * @module src/mcp-server/resources/echoResource/echoResourceLogic
  */
 
 import { z } from "zod";

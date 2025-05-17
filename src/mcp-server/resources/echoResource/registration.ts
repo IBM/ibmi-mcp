@@ -4,7 +4,7 @@
  * and the asynchronous handler function that processes `resources/read` requests matching the template.
  * It utilizes the MCP SDK's `server.resource()` method for registration and integrates
  * robust error handling using the project's `ErrorHandler` utility.
- * @module mcp-server/resources/echoResource/registration
+ * @module src/mcp-server/resources/echoResource/registration
  */
 
 import {

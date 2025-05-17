@@ -2,7 +2,7 @@
  * @fileoverview Provides a singleton Logger class that wraps Winston for file logging
  * and supports sending MCP (Model Context Protocol) `notifications/message`.
  * It handles different log levels compliant with RFC 5424 and MCP specifications.
- * @module utils/internal/logger
+ * @module src/utils/internal/logger
  */
 import fs from "fs";
 import path from "path";
@@ -107,7 +107,9 @@ const logsDir = path.join(projectRoot, "logs");
 
 // Security check for the logs directory path
 const resolvedLogsDir = path.resolve(logsDir); // Should be projectRoot/logs
-const isLogsDirSafe = resolvedLogsDir.startsWith(projectRoot + path.sep) && resolvedLogsDir !== projectRoot;
+const isLogsDirSafe =
+  resolvedLogsDir.startsWith(projectRoot + path.sep) &&
+  resolvedLogsDir !== projectRoot;
 
 if (!isLogsDirSafe) {
   // This case should ideally not be hit if logsDir is simply projectRoot + /logs
@@ -210,7 +212,7 @@ export class Logger {
           );
         }
         // Rethrow the error to ensure startup fails if logs directory cannot be created
-        throw err; 
+        throw err;
       }
     }
 

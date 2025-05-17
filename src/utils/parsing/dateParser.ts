@@ -1,7 +1,7 @@
 /**
  * @fileoverview Provides utility functions for parsing natural language date strings
  * into Date objects or detailed parsing results using the `chrono-node` library.
- * @module utils/parsing/dateParser
+ * @module src/utils/parsing/dateParser
  */
 import * as chrono from "chrono-node";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";

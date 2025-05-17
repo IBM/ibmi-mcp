@@ -8,7 +8,7 @@
  *
  * Consuming modules should import from this barrel file to access
  * the echo resource's registration capabilities.
- * @module mcp-server/resources/echoResource/index
+ * @module src/mcp-server/resources/echoResource/index
  */
 
 export { registerEchoResource } from "./registration.js";

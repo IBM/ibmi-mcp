@@ -3,7 +3,7 @@
  * using the `tiktoken` library, specifically configured for 'gpt-4o' tokenization.
  * These functions are essential for managing token limits and estimating costs
  * when interacting with language models.
- * @module utils/metrics/tokenCounter
+ * @module src/utils/metrics/tokenCounter
  */
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { encoding_for_model, Tiktoken, TiktokenModel } from "tiktoken";
@@ -77,7 +77,7 @@ export async function countChatTokens(
         encoding = encoding_for_model(TOKENIZATION_MODEL);
 
         const tokens_per_message = 3; // For gpt-4o, gpt-4, gpt-3.5-turbo
-        const tokens_per_name = 1;    // For gpt-4o, gpt-4, gpt-3.5-turbo
+        const tokens_per_name = 1; // For gpt-4o, gpt-4, gpt-3.5-turbo
 
         for (const message of messages) {
           num_tokens += tokens_per_message;

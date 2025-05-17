@@ -7,9 +7,9 @@
  * with the `requestContextService`, which itself uses `generateUUID` from this module.
  * This was causing `ReferenceError: Cannot access 'generateUUID' before initialization`
  * during application startup.
- * @module utils/security/idGenerator
+ * @module src/utils/security/idGenerator
  */
-import { randomBytes, randomUUID as cryptoRandomUUID } from "crypto";
+import { randomUUID as cryptoRandomUUID, randomBytes } from "crypto";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 // Removed: import { logger, requestContextService } from "../index.js";
 
@@ -129,7 +129,9 @@ export class IdGenerator {
     } = options;
 
     const randomPart = this.generateRandomString(length, charset);
-    const generatedId = prefix ? `${prefix}${separator}${randomPart}` : randomPart;
+    const generatedId = prefix
+      ? `${prefix}${separator}${randomPart}`
+      : randomPart;
     return generatedId;
   }
 

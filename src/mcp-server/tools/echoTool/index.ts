@@ -7,7 +7,7 @@
  *
  * Consuming modules should import from this barrel file to access
  * the echo tool's registration capabilities.
- * @module mcp-server/tools/echoTool/index
+ * @module src/mcp-server/tools/echoTool/index
  */
 
 export { registerEchoTool } from "./registration.js";

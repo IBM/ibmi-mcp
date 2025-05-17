@@ -12,7 +12,7 @@
  * - Construct and export a comprehensive `config` object.
  * - Export individual configuration values like `logLevel` and `environment` for convenience.
  *
- * @module config/index
+ * @module src/config/index
  */
 
 import dotenv from "dotenv";

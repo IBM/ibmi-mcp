@@ -2,7 +2,7 @@
  * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
  * This module includes input validation using Zod, type definitions for input and output,
  * and the main processing function that handles message formatting and repetition.
- * @module mcp-server/tools/echoTool/echoToolLogic
+ * @module src/mcp-server/tools/echoTool/echoToolLogic
  */
 
 import { z } from "zod";

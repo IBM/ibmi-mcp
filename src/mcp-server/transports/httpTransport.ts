@@ -8,7 +8,7 @@
  *
  * Specification Reference:
  * https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx#streamable-http
- * @module mcp-server/transports/httpTransport
+ * @module src/mcp-server/transports/httpTransport
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

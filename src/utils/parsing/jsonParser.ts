@@ -2,7 +2,7 @@
  * @fileoverview Provides a utility class for parsing potentially partial JSON strings.
  * It wraps the 'partial-json' npm library and includes functionality to handle
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
- * @module utils/parsing/jsonParser
+ * @module src/utils/parsing/jsonParser
  */
 import {
   parse as parsePartialJson,
@@ -73,9 +73,16 @@ export class JsonParser {
       const thinkContent = match[1].trim();
       const restOfString = match[2];
 
-      const logContext = context || requestContextService.createRequestContext({ operation: "JsonParser.thinkBlock" });
+      const logContext =
+        context ||
+        requestContextService.createRequestContext({
+          operation: "JsonParser.thinkBlock",
+        });
       if (thinkContent) {
-        logger.debug("LLM <think> block detected and logged.", {...logContext, thinkContent });
+        logger.debug("LLM <think> block detected and logged.", {
+          ...logContext,
+          thinkContent,
+        });
       } else {
         logger.debug("Empty LLM <think> block detected.", logContext);
       }
@@ -95,7 +102,11 @@ export class JsonParser {
     try {
       return parsePartialJson(stringToParse, allowPartial) as T;
     } catch (error: any) {
-      const errorLogContext = context || requestContextService.createRequestContext({ operation: "JsonParser.parseError" });
+      const errorLogContext =
+        context ||
+        requestContextService.createRequestContext({
+          operation: "JsonParser.parseError",
+        });
       logger.error("Failed to parse JSON content.", {
         ...errorLogContext,
         errorDetails: error.message,

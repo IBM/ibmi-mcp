@@ -15,7 +15,7 @@
  * controlling the server process. This implementation follows that guideline.
  *
  * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
- * @module mcp-server/transports/stdioTransport
+ * @module src/mcp-server/transports/stdioTransport
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

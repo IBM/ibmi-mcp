@@ -4,7 +4,7 @@
  * and the asynchronous handler function that processes tool invocation requests.
  * It leverages the MCP SDK's `server.tool()` method for registration and integrates
  * robust error handling using the project's `ErrorHandler` utility.
- * @module mcp-server/tools/echoTool/registration
+ * @module src/mcp-server/tools/echoTool/registration
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

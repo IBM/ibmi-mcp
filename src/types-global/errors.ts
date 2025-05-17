@@ -3,7 +3,7 @@
  * for handling errors within the Model Context Protocol (MCP) server and its components.
  * This module provides a structured way to represent and communicate errors, ensuring
  * consistency and clarity for both server-side operations and client-side error handling.
- * @module types-global/errors
+ * @module src/types-global/errors
  */
 
 import { z } from "zod";

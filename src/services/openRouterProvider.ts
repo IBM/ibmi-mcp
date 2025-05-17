@@ -3,7 +3,7 @@
  * OpenRouter API, using the OpenAI SDK for chat completions. It handles API key
  * configuration, default parameters, rate limiting, model-specific parameter adjustments,
  * and error handling.
- * @module services/openRouterProvider
+ * @module src/services/openRouterProvider
  */
 import OpenAI from "openai";
 import {
@@ -261,7 +261,8 @@ class OpenRouterProvider {
     const needsMaxCompletionTokens = modelsRequiringMaxCompletionTokens.some(
       (modelPrefix) => effectiveModelId.startsWith(modelPrefix),
     );
-    const effectiveMaxTokensValue = params.max_tokens ?? config.llmDefaultMaxTokens;
+    const effectiveMaxTokensValue =
+      params.max_tokens ?? config.llmDefaultMaxTokens;
 
     if (effectiveMaxTokensValue !== undefined) {
       if (needsMaxCompletionTokens) {
@@ -464,5 +465,4 @@ export { openRouterProviderInstance as openRouterProvider };
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
  */
-  export type { OpenRouterProvider };
-
+export type { OpenRouterProvider };

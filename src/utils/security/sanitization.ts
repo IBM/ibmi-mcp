@@ -2,7 +2,7 @@
  * @fileoverview Provides a comprehensive `Sanitization` class for various input cleaning and validation tasks.
  * This module includes utilities for sanitizing HTML, strings, URLs, file paths, JSON, numbers,
  * and for redacting sensitive information from data intended for logging.
- * @module utils/security/sanitization
+ * @module src/utils/security/sanitization
  */
 import path from "path";
 import sanitizeHtml from "sanitize-html";
@@ -78,8 +78,19 @@ export class Sanitization {
    * @private
    */
   private sensitiveFields: string[] = [
-    "password", "token", "secret", "key", "apiKey", "auth",
-    "credential", "jwt", "ssn", "credit", "card", "cvv", "authorization",
+    "password",
+    "token",
+    "secret",
+    "key",
+    "apiKey",
+    "auth",
+    "credential",
+    "jwt",
+    "ssn",
+    "credit",
+    "card",
+    "cvv",
+    "authorization",
   ];
 
   /**
@@ -88,9 +99,33 @@ export class Sanitization {
    */
   private defaultHtmlSanitizeConfig: HtmlSanitizeConfig = {
     allowedTags: [
-      "h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "ul", "ol", "li",
-      "b", "i", "strong", "em", "strike", "code", "hr", "br", "div",
-      "table", "thead", "tbody", "tr", "th", "td", "pre",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "p",
+      "a",
+      "ul",
+      "ol",
+      "li",
+      "b",
+      "i",
+      "strong",
+      "em",
+      "strike",
+      "code",
+      "hr",
+      "br",
+      "div",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+      "pre",
     ],
     allowedAttributes: {
       a: ["href", "name", "target"],
@@ -129,7 +164,10 @@ export class Sanitization {
       operation: "Sanitization.setSensitiveFields",
       newSensitiveFieldCount: this.sensitiveFields.length,
     });
-    logger.debug("Updated sensitive fields list for log sanitization", logContext);
+    logger.debug(
+      "Updated sensitive fields list for log sanitization",
+      logContext,
+    );
   }
 
   /**
@@ -186,18 +224,35 @@ export class Sanitization {
       case "attribute":
         return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
       case "url":
-        if (!validator.isURL(input, { protocols: ["http", "https"], require_protocol: true, require_host: true })) {
-          logger.warning("Potentially invalid URL detected during string sanitization (context: url)",
-            requestContextService.createRequestContext({ operation: "Sanitization.sanitizeString.urlWarning", invalidUrlAttempt: input })
+        if (
+          !validator.isURL(input, {
+            protocols: ["http", "https"],
+            require_protocol: true,
+            require_host: true,
+          })
+        ) {
+          logger.warning(
+            "Potentially invalid URL detected during string sanitization (context: url)",
+            requestContextService.createRequestContext({
+              operation: "Sanitization.sanitizeString.urlWarning",
+              invalidUrlAttempt: input,
+            }),
           );
           return "";
         }
         return validator.trim(input);
       case "javascript":
-        logger.error("Attempted JavaScript sanitization via sanitizeString, which is disallowed.",
-          requestContextService.createRequestContext({ operation: "Sanitization.sanitizeString.jsAttempt", inputSnippet: input.substring(0, 50) })
+        logger.error(
+          "Attempted JavaScript sanitization via sanitizeString, which is disallowed.",
+          requestContextService.createRequestContext({
+            operation: "Sanitization.sanitizeString.jsAttempt",
+            inputSnippet: input.substring(0, 50),
+          }),
         );
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "JavaScript sanitization is not supported through sanitizeString due to security risks.");
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          "JavaScript sanitization is not supported through sanitizeString due to security risks.",
+        );
       case "text":
       default:
         return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
@@ -229,7 +284,13 @@ export class Sanitization {
   ): string {
     try {
       const trimmedInput = input.trim();
-      if (!validator.isURL(trimmedInput, { protocols: allowedProtocols, require_protocol: true, require_host: true })) {
+      if (
+        !validator.isURL(trimmedInput, {
+          protocols: allowedProtocols,
+          require_protocol: true,
+          require_host: true,
+        })
+      ) {
         throw new Error("Invalid URL format or protocol not in allowed list.");
       }
       if (trimmedInput.toLowerCase().startsWith("javascript:")) {
@@ -237,7 +298,13 @@ export class Sanitization {
       }
       return trimmedInput;
     } catch (error) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, error instanceof Error ? error.message : "Invalid or unsafe URL provided.", { input });
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        error instanceof Error
+          ? error.message
+          : "Invalid or unsafe URL provided.",
+        { input },
+      );
     }
   }
 
@@ -263,8 +330,10 @@ export class Sanitization {
     let convertedToRelative = false;
 
     try {
-      if (!input || typeof input !== "string") throw new Error("Invalid path input: must be a non-empty string.");
-      if (input.includes("\0")) throw new Error("Path contains null byte, which is disallowed.");
+      if (!input || typeof input !== "string")
+        throw new Error("Invalid path input: must be a non-empty string.");
+      if (input.includes("\0"))
+        throw new Error("Path contains null byte, which is disallowed.");
 
       let normalized = path.normalize(input);
       wasAbsoluteInitially = path.isAbsolute(normalized);
@@ -277,18 +346,32 @@ export class Sanitization {
 
       if (effectiveOptions.rootDir) {
         const fullPath = path.resolve(effectiveOptions.rootDir, normalized);
-        if (!fullPath.startsWith(effectiveOptions.rootDir + path.sep) && fullPath !== effectiveOptions.rootDir) {
-          throw new Error("Path traversal detected: attempts to escape the defined root directory.");
+        if (
+          !fullPath.startsWith(effectiveOptions.rootDir + path.sep) &&
+          fullPath !== effectiveOptions.rootDir
+        ) {
+          throw new Error(
+            "Path traversal detected: attempts to escape the defined root directory.",
+          );
         }
         finalSanitizedPath = path.relative(effectiveOptions.rootDir, fullPath);
-        finalSanitizedPath = finalSanitizedPath === "" ? "." : finalSanitizedPath;
-        if (path.isAbsolute(finalSanitizedPath) && !effectiveOptions.allowAbsolute) {
-          throw new Error("Path resolved to absolute outside root when absolute paths are disallowed.");
+        finalSanitizedPath =
+          finalSanitizedPath === "" ? "." : finalSanitizedPath;
+        if (
+          path.isAbsolute(finalSanitizedPath) &&
+          !effectiveOptions.allowAbsolute
+        ) {
+          throw new Error(
+            "Path resolved to absolute outside root when absolute paths are disallowed.",
+          );
         }
       } else {
         if (path.isAbsolute(normalized)) {
           if (!effectiveOptions.allowAbsolute) {
-            finalSanitizedPath = normalized.replace(/^(?:[A-Za-z]:)?[/\\]+/, "");
+            finalSanitizedPath = normalized.replace(
+              /^(?:[A-Za-z]:)?[/\\]+/,
+              "",
+            );
             convertedToRelative = true;
           } else {
             finalSanitizedPath = normalized;
@@ -296,8 +379,13 @@ export class Sanitization {
         } else {
           const resolvedAgainstCwd = path.resolve(normalized);
           const currentWorkingDir = path.resolve(".");
-          if (!resolvedAgainstCwd.startsWith(currentWorkingDir + path.sep) && resolvedAgainstCwd !== currentWorkingDir) {
-            throw new Error("Relative path traversal detected (escapes current working directory context).");
+          if (
+            !resolvedAgainstCwd.startsWith(currentWorkingDir + path.sep) &&
+            resolvedAgainstCwd !== currentWorkingDir
+          ) {
+            throw new Error(
+              "Relative path traversal detected (escapes current working directory context).",
+            );
           }
           finalSanitizedPath = normalized;
         }
@@ -307,17 +395,29 @@ export class Sanitization {
         sanitizedPath: finalSanitizedPath,
         originalInput,
         wasAbsolute: wasAbsoluteInitially,
-        convertedToRelative: wasAbsoluteInitially && !path.isAbsolute(finalSanitizedPath) && !effectiveOptions.allowAbsolute,
+        convertedToRelative:
+          wasAbsoluteInitially &&
+          !path.isAbsolute(finalSanitizedPath) &&
+          !effectiveOptions.allowAbsolute,
         optionsUsed: effectiveOptions,
       };
     } catch (error) {
-      logger.warning("Path sanitization error", requestContextService.createRequestContext({
-        operation: "Sanitization.sanitizePath.error",
-        originalPathInput: originalInput,
-        pathOptionsUsed: effectiveOptions,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      }));
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, error instanceof Error ? error.message : "Invalid or unsafe path provided.", { input: originalInput });
+      logger.warning(
+        "Path sanitization error",
+        requestContextService.createRequestContext({
+          operation: "Sanitization.sanitizePath.error",
+          originalPathInput: originalInput,
+          pathOptionsUsed: effectiveOptions,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        error instanceof Error
+          ? error.message
+          : "Invalid or unsafe path provided.",
+        { input: originalInput },
+      );
     }
   }
 
@@ -332,14 +432,26 @@ export class Sanitization {
    */
   public sanitizeJson<T = unknown>(input: string, maxSize?: number): T {
     try {
-      if (typeof input !== "string") throw new Error("Invalid input: expected a JSON string.");
+      if (typeof input !== "string")
+        throw new Error("Invalid input: expected a JSON string.");
       if (maxSize !== undefined && Buffer.byteLength(input, "utf8") > maxSize) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, `JSON string exceeds maximum allowed size of ${maxSize} bytes.`, { actualSize: Buffer.byteLength(input, "utf8"), maxSize });
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `JSON string exceeds maximum allowed size of ${maxSize} bytes.`,
+          { actualSize: Buffer.byteLength(input, "utf8"), maxSize },
+        );
       }
       return JSON.parse(input) as T;
     } catch (error) {
       if (error instanceof McpError) throw error;
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, error instanceof Error ? error.message : "Invalid JSON format.", { inputPreview: input.length > 100 ? `${input.substring(0, 100)}...` : input });
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        error instanceof Error ? error.message : "Invalid JSON format.",
+        {
+          inputPreview:
+            input.length > 100 ? `${input.substring(0, 100)}...` : input,
+        },
+      );
     }
   }
 
@@ -361,17 +473,29 @@ export class Sanitization {
     if (typeof input === "string") {
       const trimmedInput = input.trim();
       if (trimmedInput === "" || !validator.isNumeric(trimmedInput)) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Invalid number format: input is empty or not numeric.", { input });
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          "Invalid number format: input is empty or not numeric.",
+          { input },
+        );
       }
       value = parseFloat(trimmedInput);
     } else if (typeof input === "number") {
       value = input;
     } else {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Invalid input type: expected number or string.", { input: String(input) });
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        "Invalid input type: expected number or string.",
+        { input: String(input) },
+      );
     }
 
     if (isNaN(value) || !isFinite(value)) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Invalid number value (NaN or Infinity).", { input });
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        "Invalid number value (NaN or Infinity).",
+        { input },
+      );
     }
 
     let clamped = false;
@@ -385,14 +509,17 @@ export class Sanitization {
       clamped = true;
     }
     if (clamped) {
-      logger.debug("Number clamped to range.", requestContextService.createRequestContext({
-        operation: "Sanitization.sanitizeNumber.clamped",
-        originalInput: String(input),
-        parsedValue: originalValueForLog,
-        minValue: min,
-        maxValue: max,
-        clampedValue: value,
-      }));
+      logger.debug(
+        "Number clamped to range.",
+        requestContextService.createRequestContext({
+          operation: "Sanitization.sanitizeNumber.clamped",
+          originalInput: String(input),
+          parsedValue: originalValueForLog,
+          minValue: min,
+          maxValue: max,
+          clampedValue: value,
+        }),
+      );
     }
     return value;
   }
@@ -409,14 +536,20 @@ export class Sanitization {
     try {
       if (!input || typeof input !== "object") return input;
 
-      const clonedInput = typeof structuredClone === "function" ? structuredClone(input) : JSON.parse(JSON.stringify(input));
+      const clonedInput =
+        typeof structuredClone === "function"
+          ? structuredClone(input)
+          : JSON.parse(JSON.stringify(input));
       this.redactSensitiveFields(clonedInput);
       return clonedInput;
     } catch (error) {
-      logger.error("Error during log sanitization, returning placeholder.", requestContextService.createRequestContext({
-        operation: "Sanitization.sanitizeForLogging.error",
-        errorMessage: error instanceof Error ? error.message : String(error),
-      }));
+      logger.error(
+        "Error during log sanitization, returning placeholder.",
+        requestContextService.createRequestContext({
+          operation: "Sanitization.sanitizeForLogging.error",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }),
+      );
       return "[Log Sanitization Failed]";
     }
   }
@@ -438,7 +571,9 @@ export class Sanitization {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = (obj as Record<string, unknown>)[key];
         const lowerKey = key.toLowerCase();
-        const isSensitive = this.sensitiveFields.some((field) => lowerKey.includes(field));
+        const isSensitive = this.sensitiveFields.some((field) =>
+          lowerKey.includes(field),
+        );
 
         if (isSensitive) {
           (obj as Record<string, unknown>)[key] = "[REDACTED]";
