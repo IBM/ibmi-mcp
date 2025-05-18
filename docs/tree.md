@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-17 11:24:18
+Generated on: 2025-05-18 07:11:26
 
 ```
 mcp-ts-template
@@ -44,7 +44,10 @@ mcp-ts-template
 │   │   ├── .DS_Store
 │   │   └── server.ts
 │   ├── services
-│   │   └── openRouterProvider.ts
+│   │   ├── llm-providers
+│   │   │   ├── index.ts
+│   │   │   └── openRouterProvider.ts
+│   │   └── index.ts
 │   ├── types-global
 │   │   └── errors.ts
 │   ├── utils
@@ -80,6 +83,7 @@ mcp-ts-template
 ├── repomix.config.json
 ├── smithery.yaml
 ├── tsconfig.json
+├── tsconfig.typedoc.json
 ├── tsdoc.json
 └── typedoc.json
 ```
