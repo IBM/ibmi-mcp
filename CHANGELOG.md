@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.4] - 2025-05-18
+
+### Changed
+
+- **Build**: Bumped version to `1.2.4` in `package.json`, `package-lock.json`, and `README.md`.
+- **Services**: Refactored the OpenRouter provider for organization by moving its logic from `src/services/openRouterProvider.ts` to a new `src/services/llm-providers/` directory. Added `src/services/index.ts` to manage service exports.
+- **Documentation**: Updated `docs/tree.md` to reflect the new directory structure in `src/services/`.
+
 ## [1.2.3] - 2025-05-17
 
 ### Changed
