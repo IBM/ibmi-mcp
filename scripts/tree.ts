@@ -132,8 +132,18 @@ function isIgnored(
   ignorePatterns: GitignorePattern[],
 ): boolean {
   const relativePath = path.relative(projectRoot, entryPath);
+  const baseName = path.basename(relativePath); // Get the file/directory name
 
-  if (DEFAULT_IGNORE_PATTERNS.some((p) => relativePath.startsWith(p))) {
+  // Check default patterns:
+  // - If the baseName itself is in DEFAULT_IGNORE_PATTERNS (e.g., ".DS_Store")
+  // - Or if the relativePath starts with a default pattern that is a directory (e.g., "node_modules/")
+  //   followed by a path separator, or if the relativePath exactly matches the pattern.
+  if (DEFAULT_IGNORE_PATTERNS.some(p => {
+    if (p === baseName) return true; // Matches ".DS_Store" as a filename anywhere
+    // For directory-like patterns in DEFAULT_IGNORE_PATTERNS (e.g. "node_modules", ".git")
+    if (relativePath.startsWith(p + path.sep) || relativePath === p) return true;
+    return false;
+  })) {
     return true;
   }
 

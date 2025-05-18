@@ -1,14 +1,16 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-18 07:11:26
+Generated on: 2025-05-18 18:37:22
 
 ```
 mcp-ts-template
+├── .github
+│   └── workflows
+│       └── publish.yml
 ├── docs
 │   ├── api-references
 │   │   ├── jsdoc-standard-tags.md
 │   │   └── typedoc-reference.md
-│   ├── .DS_Store
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
@@ -41,7 +43,6 @@ mcp-ts-template
 │   │   │   │   └── authMiddleware.ts
 │   │   │   ├── httpTransport.ts
 │   │   │   └── stdioTransport.ts
-│   │   ├── .DS_Store
 │   │   └── server.ts
 │   ├── services
 │   │   ├── llm-providers
@@ -69,10 +70,10 @@ mcp-ts-template
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   └── index.ts
-│   ├── .DS_Store
 │   └── index.ts
 ├── .clinerules
 ├── .dockerignore
+├── .gitignore
 ├── CHANGELOG.md
 ├── Dockerfile
 ├── LICENSE
