@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6] - 2025-05-22
+
+### Added
+- **Services**:
+  - Integrated Google Gemini API provider (`@google/generative-ai`) under `src/services/llm-providers/geminiAPI/`.
+- **Dependencies**:
+  - Added `@google/generative-ai` (v0.24.1) to `package.json` and `package-lock.json`.
+
+### Changed
+- **Services**:
+  - Refactored LLM provider organization:
+    - Moved OpenRouter provider logic from `src/services/llm-providers/openRouterProvider.ts` to a dedicated directory `src/services/llm-providers/openRouter/openRouterProvider.ts`.
+    - Updated barrel files (`src/services/index.ts`, `src/services/llm-providers/index.ts`) to export services from their new locations.
+- **Documentation**:
+  - Updated `README.md` to reflect the new LLM provider structure and added Gemini API to the features list.
+  - Updated `docs/tree.md` with the new directory structure for LLM providers.
+- **Build**:
+  - Updated `package.json` and `package-lock.json` to reflect new dependencies and potentially version bump (though version will be 1.2.6).
+
 ## [1.2.5] - 2025-05-22
 
 ### Changed

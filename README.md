@@ -38,7 +38,7 @@ This template is already powering several MCP servers, demonstrating its flexibi
 | [**git-mcp-server**](https://github.com/cyanheads/git-mcp-server)                                         | Provides an enterprise-ready MCP interface for Git operations. Allows LLM agents to initialize, clone, branch, commit, and manage repositories via STDIO & Streamable HTTP.                                                  | Actively using this template.                                                                                                            |
 | [**obsidian-mcp-server**](https://github.com/cyanheads/obsidian-mcp-server/tree/mcp-ts-template-refactor) | Enables LLMs to interact securely with Obsidian vaults via MCP. Offers token-aware tools for searching, navigating, and updating Obsidian notes, facilitating seamless knowledge base management with Properties management. | Refactor in progress using this template ([see branch](https://github.com/cyanheads/obsidian-mcp-server/tree/mcp-ts-template-refactor)). |
 | [**filesystem-mcp-server**](https://github.com/cyanheads/filesystem-mcp-server)                           | Offers platform-agnostic file system capabilities for AI agents via MCP. Enables reading, writing, updating, and managing files/directories, featuring advanced search/replace and directory traversal.                      | Actively using this template.                                                                                                            |
-| [**atlas-mcp-server**](https://github.com/cyanheads/atlas-mcp-server)                                   | Advanced task and knowledge management system with Neo4j backend, enabling structured data organization and complex querying for AI agents. | Aligned with this template (as of v2.8.8).                                                                                      |
+| [**atlas-mcp-server**](https://github.com/cyanheads/atlas-mcp-server)                                     | Advanced task and knowledge management system with Neo4j backend, enabling structured data organization and complex querying for AI agents.                                                                                  | Aligned with this template (as of v2.8.8).                                                                                               |
 
 _Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server) was initially built using an older version of this template and is pending updates to the latest structure._
 
@@ -109,7 +109,7 @@ Configure the MCP server's behavior using these environment variables:
 | `LOGS_DIR`                | Directory for log files.                                                                            | `logs/` (in project root)                  |
 | `NODE_ENV`                | Runtime environment (`development`, `production`).                                                  | `development`                              |
 | `MCP_AUTH_SECRET_KEY`     | **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). | (none - **MUST be set in production**)     |
-| `OPENROUTER_APP_URL`      | URL of the application (used by OpenRouter service for HTTP Referer).                               | `http://localhost:3000`                  |
+| `OPENROUTER_APP_URL`      | URL of the application (used by OpenRouter service for HTTP Referer).                               | `http://localhost:3000`                    |
 | `OPENROUTER_APP_NAME`     | Name of the application (used by OpenRouter service for X-Title header).                            | 'mcp-ts-template'                          |
 | `OPENROUTER_API_KEY`      | API key for OpenRouter.ai service. Optional, but service will be unconfigured without it.           | (none)                                     |
 | `LLM_DEFAULT_MODEL`       | Default model to use for LLM calls via OpenRouter.                                                  | `google/gemini-2.5-flash-preview:thinking` |
@@ -174,7 +174,10 @@ The `src/` directory is organized for clarity:
   - `tools/`: Example tool implementations (e.g., EchoTool).
   - `transports/`: Handles `stdio` and `http` communication for the server.
 - `services/`: Contains service integrations.
-  - `llm-providers/`: Providers for Large Language Models (e.g., OpenRouter).
+  - `llm-providers/`: API Providers for Large Language Models.
+    - `openRouter/`: OpenRouter provider implementation.
+    - `geminiAPI/`: Gemini API provider implementation.
+    - `index.ts`: Barrel file for all LLM providers.
   - `index.ts`: Barrel file for services.
 - `types-global/`: Shared TypeScript definitions (Errors, MCP types).
 - `utils/`: Reusable utilities (logging, errors, security, parsing, etc.). Exported via `index.ts`.
@@ -215,37 +218,38 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 
 ## Detailed Features Table
 
-| Category                 | Feature                         | Description                                                                                                  | Location(s)                                      |
-| :----------------------- | :------------------------------ | :----------------------------------------------------------------------------------------------------------- | :----------------------------------------------- |
-| **Core Components**      | MCP Server                      | Core server logic, tool/resource registration, transport handling. Includes Echo Tool & Resource examples.   | `src/mcp-server/`                                |
-|                          | MCP Client                      | Logic for connecting to external MCP servers (updated to **MCP 2025-03-26 spec**).                           | `src/mcp-client/`                                |
-|                          | Configuration                   | Environment-aware settings with Zod validation.                                                              | `src/config/`, `src/mcp-client/configLoader.ts`  |
-|                          | HTTP Transport                  | Express-based server with SSE, session management, CORS, port retries.                                       | `src/mcp-server/transports/httpTransport.ts`     |
-|                          | Stdio Transport                 | Handles MCP communication over standard input/output.                                                        | `src/mcp-server/transports/stdioTransport.ts`    |
-| **Utilities (Core)**     | Logger                          | Structured, context-aware logging (files with rotation & MCP notifications).                                 | `src/utils/internal/logger.ts`                   |
-|                          | ErrorHandler                    | Centralized error processing, classification, and logging.                                                   | `src/utils/internal/errorHandler.ts`             |
-|                          | RequestContext                  | Request/operation tracking and correlation.                                                                  | `src/utils/internal/requestContext.ts`           |
-| **Utilities (Metrics)**  | TokenCounter                    | Estimates token counts using `tiktoken`.                                                                     | `src/utils/metrics/tokenCounter.ts`              |
-| **Utilities (Parsing)**  | DateParser                      | Parses natural language date strings using `chrono-node`.                                                    | `src/utils/parsing/dateParser.ts`                |
-|                          | JsonParser                      | Parses potentially partial JSON, handles `<think>` blocks.                                                   | `src/utils/parsing/jsonParser.ts`                |
-| **Utilities (Security)** | IdGenerator                     | Generates unique IDs (prefixed or UUIDs).                                                                    | `src/utils/security/idGenerator.ts`              |
-|                          | RateLimiter                     | Request throttling based on keys.                                                                            | `src/utils/security/rateLimiter.ts`              |
-|                          | Sanitization                    | Input validation/cleaning (HTML, paths, URLs, numbers, JSON) & log redaction (`validator`, `sanitize-html`). | `src/utils/security/sanitization.ts`             |
-| **Services**             | OpenRouter Provider             | Service for interacting with OpenRouter API via OpenAI SDK compatibility.                                    | `src/services/llm-providers/openRouterProvider.ts`             |
-| **Type Safety**          | Global Types                    | Shared TypeScript definitions for consistent interfaces (Errors, MCP types).                                 | `src/types-global/`                              |
-|                          | Zod Schemas                     | Used for robust validation of configuration files and tool/resource inputs.                                  | Throughout (`config`, `mcp-client`, tools, etc.) |
-| **Error Handling**       | Pattern-Based Classification    | Automatically categorize errors based on message patterns.                                                   | `src/utils/internal/errorHandler.ts`             |
-|                          | Consistent Formatting           | Standardized error responses with additional context.                                                        | `src/utils/internal/errorHandler.ts`             |
-|                          | Safe Try/Catch Patterns         | Centralized error processing helpers (`ErrorHandler.tryCatch`).                                              | `src/utils/internal/errorHandler.ts`             |
-|                          | Client/Transport Error Handling | Specific handlers for MCP client and transport error handling.                                               | `src/mcp-client/client.ts`, `transport.ts`       |
-| **Security**             | Input Validation                | Using `validator` and `zod` for various data type checks.                                                    | `src/utils/security/sanitization.ts`, etc.       |
-|                          | Input Sanitization              | Using `sanitize-html` to prevent injection attacks.                                                          | `src/utils/security/sanitization.ts`             |
-|                          | Sensitive Data Redaction        | Automatic redaction in logs.                                                                                 | `src/utils/security/sanitization.ts`             |
-|                          | Configuration Fallback          | Safely falls back to `mcp-config.json.example` if primary client config is missing.                          | `src/mcp-client/configLoader.ts`                 |
-| **Scripts**              | Clean Script                    | Removes `dist` and `logs` directories (or custom targets).                                                   | `scripts/clean.ts`                               |
-|                          | Make Executable Script          | Sets executable permissions (`chmod +x`) on specified files (Unix-like only).                                | `scripts/make-executable.ts`                     |
-|                          | Tree Script                     | Generates a directory structure tree, respecting `.gitignore`.                                               | `scripts/tree.ts`                                |
-|                          | Fetch OpenAPI Spec Script       | Fetches an OpenAPI spec (YAML/JSON) from a URL with fallbacks, saves locally.                                | `scripts/fetch-openapi-spec.ts`                  |
+| Category                 | Feature                         | Description                                                                                                  | Location(s)                                        |
+| :----------------------- | :------------------------------ | :----------------------------------------------------------------------------------------------------------- | :------------------------------------------------- |
+| **Core Components**      | MCP Server                      | Core server logic, tool/resource registration, transport handling. Includes Echo Tool & Resource examples.   | `src/mcp-server/`                                  |
+|                          | MCP Client                      | Logic for connecting to external MCP servers (updated to **MCP 2025-03-26 spec**).                           | `src/mcp-client/`                                  |
+|                          | Configuration                   | Environment-aware settings with Zod validation.                                                              | `src/config/`, `src/mcp-client/configLoader.ts`    |
+|                          | HTTP Transport                  | Express-based server with SSE, session management, CORS, port retries.                                       | `src/mcp-server/transports/httpTransport.ts`       |
+|                          | Stdio Transport                 | Handles MCP communication over standard input/output.                                                        | `src/mcp-server/transports/stdioTransport.ts`      |
+| **Utilities (Core)**     | Logger                          | Structured, context-aware logging (files with rotation & MCP notifications).                                 | `src/utils/internal/logger.ts`                     |
+|                          | ErrorHandler                    | Centralized error processing, classification, and logging.                                                   | `src/utils/internal/errorHandler.ts`               |
+|                          | RequestContext                  | Request/operation tracking and correlation.                                                                  | `src/utils/internal/requestContext.ts`             |
+| **Utilities (Metrics)**  | TokenCounter                    | Estimates token counts using `tiktoken`.                                                                     | `src/utils/metrics/tokenCounter.ts`                |
+| **Utilities (Parsing)**  | DateParser                      | Parses natural language date strings using `chrono-node`.                                                    | `src/utils/parsing/dateParser.ts`                  |
+|                          | JsonParser                      | Parses potentially partial JSON, handles `<think>` blocks.                                                   | `src/utils/parsing/jsonParser.ts`                  |
+| **Utilities (Security)** | IdGenerator                     | Generates unique IDs (prefixed or UUIDs).                                                                    | `src/utils/security/idGenerator.ts`                |
+|                          | RateLimiter                     | Request throttling based on keys.                                                                            | `src/utils/security/rateLimiter.ts`                |
+|                          | Sanitization                    | Input validation/cleaning (HTML, paths, URLs, numbers, JSON) & log redaction (`validator`, `sanitize-html`). | `src/utils/security/sanitization.ts`               |
+| **Services**             | OpenRouter Provider             | Service for interacting with OpenRouter API via OpenAI SDK compatibility.                                    | `src/services/llm-providers/openRouter/openRouterProvider.ts` |
+|                          | Gemini API Provider             | Service for interacting with Google's Gemini API (google/genai).                                                            | `src/services/llm-providers/geminiAPI/geminiService.ts`               |
+| **Type Safety**          | Global Types                    | Shared TypeScript definitions for consistent interfaces (Errors, MCP types).                                 | `src/types-global/`                                |
+|                          | Zod Schemas                     | Used for robust validation of configuration files and tool/resource inputs.                                  | Throughout (`config`, `mcp-client`, tools, etc.)   |
+| **Error Handling**       | Pattern-Based Classification    | Automatically categorize errors based on message patterns.                                                   | `src/utils/internal/errorHandler.ts`               |
+|                          | Consistent Formatting           | Standardized error responses with additional context.                                                        | `src/utils/internal/errorHandler.ts`               |
+|                          | Safe Try/Catch Patterns         | Centralized error processing helpers (`ErrorHandler.tryCatch`).                                              | `src/utils/internal/errorHandler.ts`               |
+|                          | Client/Transport Error Handling | Specific handlers for MCP client and transport error handling.                                               | `src/mcp-client/client.ts`, `transport.ts`         |
+| **Security**             | Input Validation                | Using `validator` and `zod` for various data type checks.                                                    | `src/utils/security/sanitization.ts`, etc.         |
+|                          | Input Sanitization              | Using `sanitize-html` to prevent injection attacks.                                                          | `src/utils/security/sanitization.ts`               |
+|                          | Sensitive Data Redaction        | Automatic redaction in logs.                                                                                 | `src/utils/security/sanitization.ts`               |
+|                          | Configuration Fallback          | Safely falls back to `mcp-config.json.example` if primary client config is missing.                          | `src/mcp-client/configLoader.ts`                   |
+| **Scripts**              | Clean Script                    | Removes `dist` and `logs` directories (or custom targets).                                                   | `scripts/clean.ts`                                 |
+|                          | Make Executable Script          | Sets executable permissions (`chmod +x`) on specified files (Unix-like only).                                | `scripts/make-executable.ts`                       |
+|                          | Tree Script                     | Generates a directory structure tree, respecting `.gitignore`.                                               | `scripts/tree.ts`                                  |
+|                          | Fetch OpenAPI Spec Script       | Fetches an OpenAPI spec (YAML/JSON) from a URL with fallbacks, saves locally.                                | `scripts/fetch-openapi-spec.ts`                    |
 
 ---
 

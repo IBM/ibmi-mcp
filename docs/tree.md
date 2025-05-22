@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-19 01:18:54
+Generated on: 2025-05-22 11:58:43
 
 ```
 mcp-ts-template
@@ -46,8 +46,13 @@ mcp-ts-template
 │   │   └── server.ts
 │   ├── services
 │   │   ├── llm-providers
-│   │   │   ├── index.ts
-│   │   │   └── openRouterProvider.ts
+│   │   │   ├── geminiAPI
+│   │   │   │   ├── geminiService.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── openRouter
+│   │   │   │   ├── index.ts
+│   │   │   │   └── openRouterProvider.ts
+│   │   │   └── index.ts
 │   │   └── index.ts
 │   ├── types-global
 │   │   └── errors.ts
