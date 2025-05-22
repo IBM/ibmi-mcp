@@ -10,11 +10,11 @@
         "NEO4J_USER": "neo4j",
         "NEO4J_PASSWORD": "password123",
         "LOG_LEVEL": "debug",
-        "NODE_ENV": "development",
-        "GIT_USERNAME": "example-user",
-        "GIT_EMAIL": "user@example.com"
+        "NODE_ENV": "development"
       },
-      "transportType": "stdio" // Explicitly set transport type (default if omitted)
+      "transportType": "stdio",
+      "disabled": false,
+      "autoApprove": false
     },
     "github-mcp-server": {
       "command": "node",
@@ -24,17 +24,16 @@
       "env": {
         "GITHUB_TOKEN": "your-github-token"
       },
-      "transportType": "stdio" // Explicitly set transport type
+      "transportType": "stdio",
+      "disabled": false,
+      "autoApprove": false
     },
     "example-http-server": {
-      // For HTTP transport, 'command' is the base URL of the server.
       "command": "http://localhost:3010",
-      // 'args' are typically ignored for HTTP transport.
       "args": [],
-      // 'env' is also typically ignored for HTTP transport as the server runs independently.
-      "env": {},
-      // Must specify 'http' for the transport type.
-      "transportType": "http"
+      "transportType": "http",
+      "disabled": false,
+      "autoApprove": true
     }
   }
 }

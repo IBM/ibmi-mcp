@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-22 12:30:55
+Generated on: 2025-05-22 15:56:54
 
 ```
 mcp-ts-template
@@ -21,12 +21,20 @@ mcp-ts-template
 │   ├── config
 │   │   └── index.ts
 │   ├── mcp-client
-│   │   ├── client.ts
-│   │   ├── configLoader.ts
-│   │   ├── index.ts
-│   │   ├── mcp-config.json
-│   │   ├── mcp-config.json.example
-│   │   └── transport.ts
+│   │   ├── client-config
+│   │   │   ├── configLoader.ts
+│   │   │   ├── mcp-config.json
+│   │   │   └── mcp-config.json.example
+│   │   ├── core
+│   │   │   ├── clientCache.ts
+│   │   │   ├── clientConnectionLogic.ts
+│   │   │   └── clientManager.ts
+│   │   ├── transports
+│   │   │   ├── httpClientTransport.ts
+│   │   │   ├── index.ts
+│   │   │   ├── stdioClientTransport.ts
+│   │   │   └── transportFactory.ts
+│   │   └── index.ts
 │   ├── mcp-server
 │   │   ├── resources
 │   │   │   └── echoResource
@@ -46,9 +54,6 @@ mcp-ts-template
 │   │   └── server.ts
 │   ├── services
 │   │   ├── llm-providers
-│   │   │   ├── geminiAPI
-│   │   │   │   ├── geminiService.ts
-│   │   │   │   └── index.ts
 │   │   │   ├── openRouter
 │   │   │   │   ├── index.ts
 │   │   │   │   └── openRouterProvider.ts

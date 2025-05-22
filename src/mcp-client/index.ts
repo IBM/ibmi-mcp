@@ -11,18 +11,17 @@ export {
   connectMcpClient,
   disconnectAllMcpClients,
   disconnectMcpClient,
-  type ConnectedMcpClient, // Export the type alias for a connected client instance
-} from "./client.js";
+  type ConnectedMcpClient,
+} from "./core/clientManager.js";
 
 // Export configuration loading functions and related types.
 // These handle reading and validating server connection details from `mcp-config.json`.
 export {
   getMcpServerConfig,
-  loadMcpClientConfig,
-  type McpServerConfigEntry, // Export the type for a single server's config
-  type McpClientConfigFile, // Export the type for the entire config file structure
-} from "./configLoader.js";
+  loadMcpClientConfig, // Export the type for a single server's config
+  type McpClientConfigFile,
+  type McpServerConfigEntry,
+} from "./client-config/configLoader.js";
 
-// Export transport creation functions.
-// `getClientTransport` acts as a factory based on the server's configured `transportType`.
-export { createStdioClientTransport, getClientTransport } from "./transport.js";
+// Export transport creation functions and the transport factory.
+export * from "./transports/index.js";

@@ -2,15 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2025-05-22
+
+### Added
+
+- **MCP Client**:
+  - Introduced client connection caching (`src/mcp-client/core/clientCache.ts`) to reuse active connections.
+- **Dependencies**:
+  - Added `chalk` (`^5.4.1`) for improved terminal output styling.
+  - Added `cli-table3` (`^0.6.5`) for formatting tabular data in CLI outputs.
+
+### Changed
+
+- **MCP Client Refactor**:
+  - Major restructuring of the `src/mcp-client/` module for improved modularity, maintainability, and extensibility.
+  - Moved configuration loading to `src/mcp-client/client-config/configLoader.ts`.
+  - Centralized core client logic in `src/mcp-client/core/` including:
+    - `clientManager.ts`: Manages client instances and their lifecycle.
+    - `clientConnectionLogic.ts`: Handles connection and initialization.
+  - Reorganized transport handling into `src/mcp-client/transports/` with:
+    - `transportFactory.ts`: Creates Stdio or HTTP transport instances.
+    - `stdioClientTransport.ts`: Specific implementation for Stdio.
+    - `httpClientTransport.ts`: Specific implementation for HTTP.
+- **Services**:
+  - Updated `OpenRouterProvider` to use `llmFactory` for client instantiation.
+  - Updated `llmFactory.ts` to use the new `@google/genai` import.
+- **Configuration**:
+  - Minor improvements to logging and error handling in `src/config/index.ts`.
+- **Scripts**:
+  - Refined ignore logic in `scripts/tree.ts`.
+- **Logging**:
+  - Minor refinements in `src/utils/internal/logger.ts`.
+- **Documentation**:
+  - Updated `README.md` to reflect the MCP client refactor, new file paths, and version bump.
+  - Updated `docs/tree.md` to accurately represent the new `src/mcp-client/` directory structure.
+- **Build**:
+  - Updated project version to `1.3.0` in `package.json` and `package-lock.json`.
+
+### Fixed
+
+- Minor formatting issues in `src/mcp-server/transports/httpTransport.ts`.
+
 ## [1.2.7] - 2025-05-22
 
 ### Added
+
 - **Services**:
   - Introduced an LLM Provider Factory (`src/services/llm-providers/llmFactory.ts`) to centralize the creation and configuration of LLM clients.
 - **Configuration**:
   - Added `GEMINI_API_KEY` to `src/config/index.ts` for configuring the Google Gemini provider through the LLM Factory.
 
 ### Changed
+
 - **Dependencies**:
   - Upgraded Google Gemini SDK from `@google/generative-ai` (`^0.24.1`) to `@google/genai` (`^1.0.1`) in `package.json` and `package-lock.json`.
 - **Services**:
@@ -23,18 +66,21 @@ All notable changes to this project will be documented in this file.
   - Updated `package.json` and `package-lock.json` to version `1.2.7`.
 
 ### Removed
+
 - **Services**:
   - Deleted the standalone Gemini API service implementation (`src/services/llm-providers/geminiAPI/geminiService.ts` and `src/services/llm-providers/geminiAPI/index.ts`). Gemini API (google/genai) integration may be added later.
 
 ## [1.2.6] - 2025-05-22
 
 ### Added
+
 - **Services**:
   - Integrated Google Gemini API provider (`@google/generative-ai`) under `src/services/llm-providers/geminiAPI/`.
 - **Dependencies**:
   - Added `@google/generative-ai` (v0.24.1) to `package.json` and `package-lock.json`.
 
 ### Changed
+
 - **Services**:
   - Refactored LLM provider organization:
     - Moved OpenRouter provider logic from `src/services/llm-providers/openRouterProvider.ts` to a dedicated directory `src/services/llm-providers/openRouter/openRouterProvider.ts`.

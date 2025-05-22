@@ -1,20 +1,20 @@
 /**
- * @fileoverview Loads and validates MCP client configuration from JSON files.
+ * @fileoverview Loads and validates MCP client configuration from a JSON file.
  * This module defines Zod schemas for the configuration structure, provides functions
- * to load configuration from `mcp-config.json` (with a fallback to `mcp-config.json.example`),
- * and retrieves specific server configurations.
- * @module src/mcp-client/configLoader
+ * to load configuration from `mcp-config.json`, and retrieves specific server
+ * configurations.
+ * @module src/mcp-client/client-config/configLoader
  */
 import { existsSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
-import { BaseErrorCode, McpError } from "../types-global/errors.js";
+import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import {
   logger,
   RequestContext,
   requestContextService,
-} from "../utils/index.js";
+} from "../../utils/index.js";
 
 // --- Zod Schemas for Configuration Validation ---
 
@@ -48,8 +48,16 @@ export const McpServerConfigEntrySchema = z.object({
     .enum(["stdio", "http"])
     .default("stdio")
     .describe("Communication transport type ('stdio' or 'http')."),
-  // disabled: z.boolean().optional().describe("If true, this server configuration is ignored."),
-  // autoApprove: z.boolean().optional().describe("If true, skip user approval prompts for this server (use with caution)."),
+  disabled: z
+    .boolean()
+    .optional()
+    .describe("If true, this server configuration is ignored."),
+  autoApprove: z
+    .boolean()
+    .optional()
+    .describe(
+      "If true, skip user approval prompts for this server (use with caution).",
+    ),
 });
 
 /**
@@ -77,20 +85,21 @@ export type McpClientConfigFile = z.infer<typeof McpClientConfigFileSchema>;
 // --- Configuration Loading Logic ---
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const primaryConfigPath = join(__dirname, "mcp-config.json");
-const exampleConfigPath = join(__dirname, "mcp-config.json.example");
+// Path when running from dist: __dirname is .../dist/mcp-client/client-config
+// We want to reach: .../src/mcp-client/client-config/mcp-config.json
+const primaryConfigPath = join(__dirname, "../../../src/mcp-client/client-config/mcp-config.json");
+
 
 let loadedConfig: McpClientConfigFile | null = null;
 let loadedConfigPath: string | null = null;
 
 /**
- * Loads, validates, and caches the MCP client configuration from `mcp-config.json`
- * or `mcp-config.json.example`.
+ * Loads, validates, and caches the MCP client configuration from `mcp-config.json`.
  * The configuration is validated against {@link McpClientConfigFileSchema}.
  *
  * @param parentContext - Optional parent request context for logging and tracing.
  * @returns The loaded and validated MCP server configurations object.
- * @throws {McpError} If neither config file can be read, or if parsing or validation fails.
+ * @throws {McpError} If the config file cannot be read, or if parsing or validation fails.
  */
 export function loadMcpClientConfig(
   parentContext?: RequestContext | null,
@@ -108,79 +117,48 @@ export function loadMcpClientConfig(
     return loadedConfig;
   }
 
-  let fileContent: string | null = null;
-  let configPathToLog = "";
+  let fileContent: string;
+  const configPathToLog = primaryConfigPath; // Only attempt to load the primary config
 
-  if (existsSync(primaryConfigPath)) {
-    logger.info(
-      `Attempting to load primary MCP config: ${primaryConfigPath}`,
+  if (!existsSync(primaryConfigPath)) {
+    logger.error(`MCP client config file not found at ${primaryConfigPath}.`, {
+      ...context,
+      filePath: primaryConfigPath,
+    });
+    throw new McpError(
+      BaseErrorCode.CONFIGURATION_ERROR,
+      `MCP client config file not found: ${primaryConfigPath} does not exist.`,
       context,
-    );
-    try {
-      fileContent = readFileSync(primaryConfigPath, "utf-8");
-      configPathToLog = primaryConfigPath;
-      logger.info(`Successfully read primary config file.`, {
-        ...context,
-        filePath: configPathToLog,
-      });
-    } catch (readError) {
-      logger.warning(
-        `Failed to read primary config file at ${primaryConfigPath}, attempting fallback.`,
-        {
-          ...context,
-          filePath: primaryConfigPath,
-          error:
-            readError instanceof Error ? readError.message : String(readError),
-        },
-      );
-    }
-  } else {
-    logger.info(
-      `Primary config file not found at ${primaryConfigPath}, attempting fallback.`,
-      {
-        ...context,
-        filePath: primaryConfigPath,
-      },
     );
   }
 
-  if (!fileContent) {
-    if (existsSync(exampleConfigPath)) {
-      logger.info(
-        `Attempting to load example MCP config: ${exampleConfigPath}`,
-        context,
-      );
-      try {
-        fileContent = readFileSync(exampleConfigPath, "utf-8");
-        configPathToLog = exampleConfigPath;
-        logger.info(`Successfully read example config file.`, {
-          ...context,
-          filePath: configPathToLog,
-        });
-      } catch (readError) {
-        logger.error(`Failed to read example config file as well.`, {
-          ...context,
-          filePath: exampleConfigPath,
-          error:
-            readError instanceof Error ? readError.message : String(readError),
-        });
-        throw new McpError(
-          BaseErrorCode.CONFIGURATION_ERROR,
-          `Failed to read MCP client config: Neither ${primaryConfigPath} nor ${exampleConfigPath} could be read.`,
-          { originalError: readError },
-        );
-      }
-    } else {
-      logger.error(`Neither primary nor example config file found.`, {
+  logger.info(
+    `Attempting to load MCP config from: ${primaryConfigPath}`,
+    context,
+  );
+  try {
+    fileContent = readFileSync(primaryConfigPath, "utf-8");
+    logger.info(`Successfully read config file: ${primaryConfigPath}`, {
+      ...context,
+      filePath: configPathToLog,
+    });
+  } catch (readError) {
+    logger.error(
+      `Failed to read MCP client config file: ${primaryConfigPath}`,
+      {
         ...context,
-        primaryPath: primaryConfigPath,
-        examplePath: exampleConfigPath,
-      });
-      throw new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
-        `MCP client config file not found: Looked for ${primaryConfigPath} and ${exampleConfigPath}.`,
-      );
-    }
+        filePath: primaryConfigPath,
+        error:
+          readError instanceof Error ? readError.message : String(readError),
+      },
+    );
+    throw new McpError(
+      BaseErrorCode.CONFIGURATION_ERROR,
+      `Failed to read MCP client config file ${primaryConfigPath}: ${
+        readError instanceof Error ? readError.message : String(readError)
+      }`,
+      { originalError: readError, ...context },
+    );
   }
 
   try {
@@ -196,6 +174,7 @@ export function loadMcpClientConfig(
       const errorMessages = validationResult.error.errors
         .map((e) => `${e.path.join(".")}: ${e.message}`)
         .join("; ");
+      // The comment about ErrorHandlerOption was here, removing it.
       throw new Error(`Validation failed: ${errorMessages}`);
     }
 
@@ -221,7 +200,7 @@ export function loadMcpClientConfig(
     throw new McpError(
       BaseErrorCode.CONFIGURATION_ERROR,
       `Failed to load/validate MCP client config from ${configPathToLog}: ${errorMessage}`,
-      { originalError: error },
+      { originalError: error, ...context },
     );
   }
 }
@@ -258,6 +237,7 @@ export function getMcpServerConfig(
     throw new McpError(
       BaseErrorCode.CONFIGURATION_ERROR,
       `Configuration for MCP server "${serverName}" not found in ${configPath}.`,
+      context, // Pass context to McpError
     );
   }
 
@@ -265,5 +245,6 @@ export function getMcpServerConfig(
     `Retrieved configuration for server "${serverName}" from ${configPath}`,
     context,
   );
-  return { ...serverConfig }; // Return a copy
+  // Return a deep copy to prevent accidental modification of the cached config
+  return JSON.parse(JSON.stringify(serverConfig));
 }
