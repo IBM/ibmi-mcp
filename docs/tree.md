@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-22 11:58:43
+Generated on: 2025-05-22 12:30:55
 
 ```
 mcp-ts-template
@@ -52,7 +52,8 @@ mcp-ts-template
 │   │   │   ├── openRouter
 │   │   │   │   ├── index.ts
 │   │   │   │   └── openRouterProvider.ts
-│   │   │   └── index.ts
+│   │   │   ├── index.ts
+│   │   │   └── llmFactory.ts
 │   │   └── index.ts
 │   ├── types-global
 │   │   └── errors.ts
