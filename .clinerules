@@ -15,6 +15,16 @@ The server can run using different communication transports, configured via envi
 - **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "debug". Affects both file logging and MCP notifications.
 - **`LOGS_DIR`**: Directory for log files. Defaults to "`logs/`" in the project root. Configured via `src/config/index.ts`.
 - **`MCP_AUTH_SECRET_KEY`**: **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). Defaults to `undefined`. **MUST be set in production.**
+- **LLM Provider Configuration**: Environment variables for configuring Large Language Model (LLM) providers, primarily OpenRouter.
+    - **`OPENROUTER_API_KEY`**: API key for OpenRouter.
+    - **`OPENROUTER_APP_URL`**: Application URL to send to OpenRouter.
+    - **`OPENROUTER_APP_NAME`**: Application name to send to OpenRouter.
+    - **`LLM_DEFAULT_MODEL`**: Default LLM model to use (e.g., `google/gemini-2.5-flash-preview-05-20`).
+    - **`LLM_DEFAULT_TEMPERATURE`**: Default temperature for LLM responses.
+    - **`LLM_DEFAULT_TOP_P`**: Default top_p for LLM responses.
+    - **`LLM_DEFAULT_MAX_TOKENS`**: Default max tokens for LLM responses.
+    - **`LLM_DEFAULT_TOP_K`**: Default top_k for LLM responses.
+    - **`LLM_DEFAULT_MIN_P`**: Default min_p for LLM responses.
 
 ### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
 
@@ -210,7 +220,7 @@ logger.setLevel('debug' as McpLogLevel);
 ```typescript
 // Example assuming import from a file within src/
 import { ErrorHandler, RequestContext } from './utils/index.js'; // Import ErrorHandler and context type
-import { McpError, BaseErrorCode } from './types-global/errors.js'; // Import error types
+import { McpError, BaseErrorCode } from './types-global/errors.ts'; // Import error types
 
 async function performTask(input: any, context: RequestContext) {
   return await ErrorHandler.tryCatch(
@@ -427,7 +437,7 @@ This project includes several utility scripts located in the `scripts/` director
 
 1.  **Directory**: `src/mcp-server/tools/yourToolName/`
 2.  **Logic (`logic.ts`)**: Define input/output types, Zod schema, and core processing function.
-3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ErrorHandler`. **Use the high-level `server.tool(name, description, schemaShape, async handler => { ... })` (SDK v1.10.2+).** Ensure handler returns `CallToolResult` (`{ content: [...], isError: boolean }`). Wrap handler logic and registration in `ErrorHandler.tryCatch`.
+3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ErrorHandler`. **Use the high-level `server.tool(name, description, zodSchemaShape, async handler => { ... })` (SDK v1.10.2+).** Ensure handler returns `CallToolResult` (`{ content: [...], isError: boolean }`). Wrap handler logic and registration in `ErrorHandler.tryCatch`.
 4.  **Index (`index.ts`)**: Export registration function.
 5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `createMcpServerInstance`.
 
@@ -435,7 +445,7 @@ This project includes several utility scripts located in the `scripts/` director
 
 1.  **Directory**: `src/mcp-server/resources/yourResourceName/`
 2.  **Logic (`logic.ts`)**: Define params type, query schema (if needed), and core processing function (takes `uri: URL`, `params`).
-3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ResourceTemplate`, `ErrorHandler`. Define `ResourceTemplate`. **Use the high-level `server.resource(regName, template, metadata, async handler => { ... })`.** Handler should return `{ contents: [{ uri, blob, mimeType }] }` where `blob` is Base64 encoded content. Wrap handler logic and registration in `ErrorHandler.tryCatch`. If supporting subscriptions (`subscribe: true` capability), **MUST** also handle `resources/unsubscribe` request.
+3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ResourceTemplate`, `ErrorHandler`. Define `ResourceTemplate`. **Use the high-level `server.resource(regName, template, metadata, async handler => { ... }`).** Handler should return `{ contents: [{ uri, blob, mimeType }] }` where `blob` is Base64 encoded content. Wrap handler logic and registration in `ErrorHandler.tryCatch`. If supporting subscriptions (`subscribe: true` capability), **MUST** also handle `resources/unsubscribe` request.
 4.  **Index (`index.ts`)**: Export registration function.
 5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `createMcpServerInstance`.
 
@@ -449,6 +459,7 @@ This project includes several utility scripts located in the `scripts/` director
 - **Utilities**: `src/utils/` (Main barrel file `index.ts` exporting from subdirs: `internal`, `metrics`, `parsing`, `security`)
 - **Tools**: `src/mcp-server/tools/`
 - **Resources**: `src/mcp-server/resources/`
-- **Client Config**: `src/mcp-client/mcp-config.json` (Used for client connections, Zod validated)
+- **MCP Client**: `src/mcp-client/` (Contains all client-side logic, entirely self-contained, but utilizes shared utilities from `src/utils/`)
+- **Client Configuration**: `src/mcp-client/client-config/mcp-config.json` (Used for client connections, separate from the root config/ which is focused on the MCP Server side. Zod validated)
 
 Remember to keep this cheatsheet updated as the codebase evolves!
