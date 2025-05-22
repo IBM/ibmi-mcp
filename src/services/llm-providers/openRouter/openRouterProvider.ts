@@ -89,7 +89,10 @@ class OpenRouterProvider {
    * @param apiKey - The OpenRouter API key. If undefined, the service remains 'unconfigured'.
    * @param parentOpContext - Optional parent operation context for linked logging.
    */
-  constructor(options?: OpenRouterClientOptions, parentOpContext?: OperationContext) {
+  constructor(
+    options?: OpenRouterClientOptions,
+    parentOpContext?: OperationContext,
+  ) {
     const operationName = parentOpContext?.operation
       ? `${parentOpContext.operation}.OpenRouterProvider.constructor`
       : "OpenRouterProvider.constructor";
@@ -104,17 +107,18 @@ class OpenRouterProvider {
     // The 'unconfigured' status here might become less relevant if factory handles all key checks.
     // However, we can keep it for cases where the service is instantiated without attempting client creation immediately.
     if (!options?.apiKey && !config.openrouterApiKey) {
-        this.status = "unconfigured";
-        logger.warning(
-            "OpenRouter API key not provided in options or global config. Service is unconfigured.",
-            { ...opContext, service: "OpenRouterProvider" },
-        );
-        // Early return if no key is available at all, factory would fail anyway.
-        // Or, let the factory attempt and catch the error. For now, let's try to initialize.
+      this.status = "unconfigured";
+      logger.warning(
+        "OpenRouter API key not provided in options or global config. Service is unconfigured.",
+        { ...opContext, service: "OpenRouterProvider" },
+      );
+      // Early return if no key is available at all, factory would fail anyway.
+      // Or, let the factory attempt and catch the error. For now, let's try to initialize.
     }
 
-    llmFactory.getLlmClient('openrouter', opContext, options)
-      .then(client => {
+    llmFactory
+      .getLlmClient("openrouter", opContext, options)
+      .then((client) => {
         this.client = client as OpenAI; // Factory returns OpenAI for 'openrouter'
         this.status = "ready";
         logger.info("OpenRouter Service Initialized and Ready via LlmFactory", {
@@ -122,9 +126,12 @@ class OpenRouterProvider {
           service: "OpenRouterProvider",
         });
       })
-      .catch(error => {
+      .catch((error) => {
         this.status = "error";
-        this.initializationError = error instanceof Error ? error : new McpError(BaseErrorCode.INITIALIZATION_FAILED, String(error));
+        this.initializationError =
+          error instanceof Error
+            ? error
+            : new McpError(BaseErrorCode.INITIALIZATION_FAILED, String(error));
         logger.error("Failed to initialize OpenRouter client via LlmFactory", {
           ...opContext,
           service: "OpenRouterProvider",
@@ -471,4 +478,4 @@ export { openRouterProviderInstance as openRouterProvider };
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
  */
-  export type { OpenRouterProvider };
+export type { OpenRouterProvider };
