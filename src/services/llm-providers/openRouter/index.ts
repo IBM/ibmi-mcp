@@ -4,5 +4,5 @@
  * @module services/llm-providers/openRouter/index
  */
 
-export * from './openRouterProvider';
+export * from "./openRouterProvider";
 // Add other exports from this module if any in the future
