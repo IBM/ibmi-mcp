@@ -526,7 +526,11 @@ export async function startHttpTransport(
         ...baseSessionReqContext,
         sessionId,
       });
-      res.status(404).send("Session not found or expired");
+      res.status(404).json({
+        jsonrpc: "2.0",
+        error: { code: -32004, message: "Session not found or expired" },
+        id: null // Or a relevant request identifier if available from context
+      });
       return;
     }
 
@@ -551,7 +555,11 @@ export async function startHttpTransport(
         },
       );
       if (!res.headersSent) {
-        res.status(500).send("Internal Server Error");
+        res.status(500).json({
+            jsonrpc: "2.0",
+            error: { code: -32603, message: "Internal Server Error" },
+            id: null // Or a relevant request identifier
+        });
       }
     }
   };
@@ -572,11 +580,19 @@ export async function startHttpTransport(
       MAX_PORT_RETRIES,
       transportContext,
     );
-    const protocol = config.environment === "production" ? "https" : "http";
-    const serverAddress = `${protocol}://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
+    
+    let serverAddressLog = `http://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
+    let productionNote = "";
+    if (config.environment === "production") {
+      // The server itself runs HTTP, but it's expected to be behind an HTTPS proxy in production.
+      // The log reflects the effective public-facing URL.
+      serverAddressLog = `https://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
+      productionNote = ` (via HTTPS, ensure reverse proxy is configured)`;
+    }
+
     if (process.stdout.isTTY) {
       console.log(
-        `\n🚀 MCP Server running in HTTP mode at: ${serverAddress}\n   (MCP Spec: 2025-03-26 Streamable HTTP Transport)\n`,
+        `\n🚀 MCP Server running in HTTP mode at: ${serverAddressLog}${productionNote}\n   (MCP Spec: 2025-03-26 Streamable HTTP Transport)\n`,
       );
     }
   } catch (err) {
