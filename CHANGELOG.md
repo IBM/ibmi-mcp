@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.5] - 2025-05-22
+
+### Changed
+
+- **Configuration**:
+  - Implemented robust project root detection (`findProjectRoot`) in `src/config/index.ts` for more reliable path resolution.
+  - Introduced `LOGS_DIR` environment variable, allowing customization of the logs directory path. Added `ensureDirectory` utility to validate and create this directory securely within the project root.
+- **HTTP Transport**:
+  - Error responses for "Session not found" (404) and "Internal Server Error" (500) in `src/mcp-server/transports/httpTransport.ts` now return JSON-RPC compliant error objects.
+  - Clarified the server startup log message for HTTP transport to note that HTTPS is expected via a reverse proxy in production.
+- **Logging**:
+  - Refactored `src/utils/internal/logger.ts` to use the validated `config.logsPath` from `src/config/index.ts`, streamlining directory safety checks and creation.
+  - Improved console logging setup by refactoring it into a private `_configureConsoleTransport` method, enhancing organization.
+  - Updated log messages related to console logging status for clarity.
+  - Truncated error stack traces in MCP notifications to a maximum of 1024 characters.
+- **Build & Dependencies**:
+  - Updated `package.json` and `package-lock.json` to version `1.2.5`.
+  - Updated dependencies: `@modelcontextprotocol/sdk` to `^1.11.5`, `@types/node` to `^22.15.21`, `@types/validator` to `13.15.1`, `openai` to `^4.102.0`, and `zod` to `^3.25.20`.
+  - Added `exports` and `engines` fields to `package.json`. Updated author field.
+- **Documentation**:
+  - Updated version badge in `README.md` to `1.2.5`.
+  - Updated generation timestamp in `docs/tree.md`.
+
 ## [1.2.4] - 2025-05-18
 
 ### Changed
