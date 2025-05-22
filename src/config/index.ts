@@ -30,36 +30,39 @@ dotenv.config();
  * @returns The absolute path to the project root, or throws an error if not found.
  */
 const findProjectRoot = (startDir: string): string => {
-    let currentDir = startDir;
-    while (true) {
-        const packageJsonPath = join(currentDir, 'package.json');
-        if (existsSync(packageJsonPath)) {
-            return currentDir;
-        }
-        const parentDir = dirname(currentDir);
-        if (parentDir === currentDir) {
-            // Reached the root of the filesystem without finding package.json
-            throw new Error(`Could not find project root (package.json) starting from ${startDir}`);
-        }
-        currentDir = parentDir;
+  let currentDir = startDir;
+  while (true) {
+    const packageJsonPath = join(currentDir, "package.json");
+    if (existsSync(packageJsonPath)) {
+      return currentDir;
     }
+    const parentDir = dirname(currentDir);
+    if (parentDir === currentDir) {
+      // Reached the root of the filesystem without finding package.json
+      throw new Error(
+        `Could not find project root (package.json) starting from ${startDir}`,
+      );
+    }
+    currentDir = parentDir;
+  }
 };
 
 let projectRoot: string;
 try {
-    // For ESM, __dirname is not available directly.
-    // import.meta.url gives the URL of the current module.
-    const currentModuleDir = dirname(fileURLToPath(import.meta.url));
-    projectRoot = findProjectRoot(currentModuleDir);
+  // For ESM, __dirname is not available directly.
+  // import.meta.url gives the URL of the current module.
+  const currentModuleDir = dirname(fileURLToPath(import.meta.url));
+  projectRoot = findProjectRoot(currentModuleDir);
 } catch (error: any) {
-    console.error(`FATAL: Error determining project root: ${error.message}`);
-    // Fallback to process.cwd() if project root cannot be determined.
-    // This might happen in unusual execution environments.
-    projectRoot = process.cwd(); 
-    console.warn(`Warning: Using process.cwd() (${projectRoot}) as fallback project root.`);
+  console.error(`FATAL: Error determining project root: ${error.message}`);
+  // Fallback to process.cwd() if project root cannot be determined.
+  // This might happen in unusual execution environments.
+  projectRoot = process.cwd();
+  console.warn(
+    `Warning: Using process.cwd() (${projectRoot}) as fallback project root.`,
+  );
 }
 // --- End Determine Project Root ---
-
 
 const pkgPath = join(projectRoot, "package.json"); // Use determined projectRoot
 let pkg = { name: "mcp-ts-template", version: "0.0.0" };
@@ -185,13 +188,24 @@ const env = parsedEnv.success ? parsedEnv.data : EnvSchema.parse({});
  * @param dirName The name of the directory type for logging (e.g., "logs").
  * @returns The validated, absolute path to the directory, or null if invalid.
  */
-const ensureDirectory = (dirPath: string, rootDir: string, dirName: string): string | null => {
-  const resolvedDirPath = path.isAbsolute(dirPath) ? dirPath : path.resolve(rootDir, dirPath);
+const ensureDirectory = (
+  dirPath: string,
+  rootDir: string,
+  dirName: string,
+): string | null => {
+  const resolvedDirPath = path.isAbsolute(dirPath)
+    ? dirPath
+    : path.resolve(rootDir, dirPath);
 
   // Ensure the resolved path is within the project root boundary
-  if (!resolvedDirPath.startsWith(rootDir + path.sep) && resolvedDirPath !== rootDir) {
+  if (
+    !resolvedDirPath.startsWith(rootDir + path.sep) &&
+    resolvedDirPath !== rootDir
+  ) {
     if (process.stdout.isTTY) {
-      console.error(`Error: ${dirName} path "${dirPath}" resolves to "${resolvedDirPath}", which is outside the project boundary "${rootDir}".`);
+      console.error(
+        `Error: ${dirName} path "${dirPath}" resolves to "${resolvedDirPath}", which is outside the project boundary "${rootDir}".`,
+      );
     }
     return null;
   }
@@ -205,24 +219,30 @@ const ensureDirectory = (dirPath: string, rootDir: string, dirName: string): str
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (process.stdout.isTTY) {
-        console.error(`Error creating ${dirName} directory at ${resolvedDirPath}: ${errorMessage}`);
+        console.error(
+          `Error creating ${dirName} directory at ${resolvedDirPath}: ${errorMessage}`,
+        );
       }
       return null;
     }
   } else {
     try {
-        const stats = statSync(resolvedDirPath);
-        if (!stats.isDirectory()) {
-            if (process.stdout.isTTY) {
-              console.error(`Error: ${dirName} path ${resolvedDirPath} exists but is not a directory.`);
-            }
-            return null;
-        }
-    } catch (statError: any) {
+      const stats = statSync(resolvedDirPath);
+      if (!stats.isDirectory()) {
         if (process.stdout.isTTY) {
-          console.error(`Error accessing ${dirName} path ${resolvedDirPath}: ${statError.message}`);
+          console.error(
+            `Error: ${dirName} path ${resolvedDirPath} exists but is not a directory.`,
+          );
         }
         return null;
+      }
+    } catch (statError: any) {
+      if (process.stdout.isTTY) {
+        console.error(
+          `Error accessing ${dirName} path ${resolvedDirPath}: ${statError.message}`,
+        );
+      }
+      return null;
     }
   }
   return resolvedDirPath;
@@ -233,13 +253,14 @@ const ensureDirectory = (dirPath: string, rootDir: string, dirName: string): str
 const validatedLogsPath = ensureDirectory(env.LOGS_DIR, projectRoot, "logs");
 
 if (!validatedLogsPath) {
-    if (process.stdout.isTTY) {
-      console.error("FATAL: Logs directory configuration is invalid or could not be created. Please check permissions and path. Exiting.");
-    }
-    process.exit(1); // Exit if logs directory is not usable
+  if (process.stdout.isTTY) {
+    console.error(
+      "FATAL: Logs directory configuration is invalid or could not be created. Please check permissions and path. Exiting.",
+    );
+  }
+  process.exit(1); // Exit if logs directory is not usable
 }
 // --- End Logs Directory Handling ---
-
 
 /**
  * Main application configuration object.

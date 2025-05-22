@@ -103,7 +103,7 @@ export type McpNotificationSender = (
 ) => void;
 
 // The logsPath from config is already resolved and validated by src/config/index.ts
-const resolvedLogsDir = config.logsPath; 
+const resolvedLogsDir = config.logsPath;
 const isLogsDirSafe = !!resolvedLogsDir; // If logsPath is set, it's considered safe by config logic.
 
 /**
@@ -190,24 +190,24 @@ export class Logger {
       // but that's complex. For now, we assume config handled it.
       // If resolvedLogsDir is set, config ensures it exists.
       if (!fs.existsSync(resolvedLogsDir)) {
-         // This case should ideally not be hit if config.logsPath is correctly set up and validated.
-         // However, if it somehow occurs (e.g. dir deleted after config init but before logger init),
-         // we attempt to create it.
+        // This case should ideally not be hit if config.logsPath is correctly set up and validated.
+        // However, if it somehow occurs (e.g. dir deleted after config init but before logger init),
+        // we attempt to create it.
         try {
-            await fs.promises.mkdir(resolvedLogsDir, { recursive: true });
-            logsDirCreatedMessage = `Re-created logs directory (should have been created by config): ${resolvedLogsDir}`;
+          await fs.promises.mkdir(resolvedLogsDir, { recursive: true });
+          logsDirCreatedMessage = `Re-created logs directory (should have been created by config): ${resolvedLogsDir}`;
         } catch (err: unknown) {
-            if (process.stdout.isTTY) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                console.error(
-                    `Error creating logs directory at ${resolvedLogsDir}: ${errorMessage}. File logging disabled.`,
-                );
-            }
-            throw err; // Critical if logs dir cannot be ensured
+          if (process.stdout.isTTY) {
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
+            console.error(
+              `Error creating logs directory at ${resolvedLogsDir}: ${errorMessage}. File logging disabled.`,
+            );
+          }
+          throw err; // Critical if logs dir cannot be ensured
         }
       }
     }
-
 
     const fileFormat = winston.format.combine(
       winston.format.timestamp(),
@@ -272,7 +272,8 @@ export class Logger {
       requestId: "logger-init-deferred",
       timestamp: new Date().toISOString(),
     };
-    if (logsDirCreatedMessage) { // Log if we had to re-create it
+    if (logsDirCreatedMessage) {
+      // Log if we had to re-create it
       this.info(logsDirCreatedMessage, initialContext);
     }
     if (consoleStatus.message) {
@@ -334,8 +335,9 @@ export class Logger {
     const oldLevel = this.currentMcpLevel;
     this.currentMcpLevel = newLevel;
     this.currentWinstonLevel = mcpToWinstonLevel[newLevel];
-    if (this.winstonLogger) { // Ensure winstonLogger is defined
-        this.winstonLogger.level = this.currentWinstonLevel;
+    if (this.winstonLogger) {
+      // Ensure winstonLogger is defined
+      this.winstonLogger.level = this.currentWinstonLevel;
     }
 
     const consoleStatus = this._configureConsoleTransport();
@@ -345,7 +347,10 @@ export class Logger {
         `Log level changed. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${consoleStatus.enabled ? "enabled" : "disabled"}`,
         setLevelContext,
       );
-      if (consoleStatus.message && consoleStatus.message !== "Console logging status unchanged.") {
+      if (
+        consoleStatus.message &&
+        consoleStatus.message !== "Console logging status unchanged."
+      ) {
         this.info(consoleStatus.message, setLevelContext);
       }
     }
@@ -357,15 +362,22 @@ export class Logger {
    * @returns {{ enabled: boolean, message: string | null }} Status of console logging.
    * @private
    */
-  private _configureConsoleTransport(): { enabled: boolean; message: string | null } {
+  private _configureConsoleTransport(): {
+    enabled: boolean;
+    message: string | null;
+  } {
     if (!this.winstonLogger) {
-      return { enabled: false, message: "Cannot configure console: Winston logger not initialized." };
+      return {
+        enabled: false,
+        message: "Cannot configure console: Winston logger not initialized.",
+      };
     }
 
     const consoleTransport = this.winstonLogger.transports.find(
       (t) => t instanceof winston.transports.Console,
     );
-    const shouldHaveConsole = this.currentMcpLevel === "debug" && process.stdout.isTTY;
+    const shouldHaveConsole =
+      this.currentMcpLevel === "debug" && process.stdout.isTTY;
     let message: string | null = null;
 
     if (shouldHaveConsole && !consoleTransport) {
@@ -448,7 +460,10 @@ export class Logger {
         mcpDataPayload.error = { message: error.message };
         // Include stack trace in debug mode for MCP notifications, truncated for brevity
         if (this.currentMcpLevel === "debug" && error.stack) {
-          mcpDataPayload.error.stack = error.stack.substring(0, this.MCP_NOTIFICATION_STACK_TRACE_MAX_LENGTH);
+          mcpDataPayload.error.stack = error.stack.substring(
+            0,
+            this.MCP_NOTIFICATION_STACK_TRACE_MAX_LENGTH,
+          );
         }
       }
       try {

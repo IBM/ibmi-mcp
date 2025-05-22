@@ -529,7 +529,7 @@ export async function startHttpTransport(
       res.status(404).json({
         jsonrpc: "2.0",
         error: { code: -32004, message: "Session not found or expired" },
-        id: null // Or a relevant request identifier if available from context
+        id: null, // Or a relevant request identifier if available from context
       });
       return;
     }
@@ -556,9 +556,9 @@ export async function startHttpTransport(
       );
       if (!res.headersSent) {
         res.status(500).json({
-            jsonrpc: "2.0",
-            error: { code: -32603, message: "Internal Server Error" },
-            id: null // Or a relevant request identifier
+          jsonrpc: "2.0",
+          error: { code: -32603, message: "Internal Server Error" },
+          id: null, // Or a relevant request identifier
         });
       }
     }
@@ -580,7 +580,7 @@ export async function startHttpTransport(
       MAX_PORT_RETRIES,
       transportContext,
     );
-    
+
     let serverAddressLog = `http://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
     let productionNote = "";
     if (config.environment === "production") {
