@@ -1,7 +1,7 @@
 # MCP TypeScript Template 🚀
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-1.11.4-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-1.11.5-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
 [![Version](https://img.shields.io/badge/Version-1.2.5-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -104,10 +104,11 @@ Configure the MCP server's behavior using these environment variables:
 | `MCP_ALLOWED_ORIGINS`     | Comma-separated allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                            | (none)                                     |
 | `MCP_SERVER_NAME`         | Optional server name (used in MCP initialization).                                                  | (from package.json)                        |
 | `MCP_SERVER_VERSION`      | Optional server version (used in MCP initialization).                                               | (from package.json)                        |
-| `MCP_LOG_LEVEL`           | Server logging level (`debug`, `info`, `warning`, `error`, etc.).                                   | `info`                                     |
+| `MCP_LOG_LEVEL`           | Server logging level (`debug`, `info`, `warning`, `error`, etc.).                                   | `debug`                                    |
+| `LOGS_DIR`                | Directory for log files.                                                                            | `logs/` (in project root)                  |
 | `NODE_ENV`                | Runtime environment (`development`, `production`).                                                  | `development`                              |
 | `MCP_AUTH_SECRET_KEY`     | **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). | (none - **MUST be set in production**)     |
-| `OPENROUTER_APP_URL`      | URL of the application (used by OpenRouter service for HTTP Referer).                               | `https://caseyjhand.com`                   |
+| `OPENROUTER_APP_URL`      | URL of the application (used by OpenRouter service for HTTP Referer).                               | `http://localhost:3000`                  |
 | `OPENROUTER_APP_NAME`     | Name of the application (used by OpenRouter service for X-Title header).                            | 'mcp-ts-template'                          |
 | `OPENROUTER_API_KEY`      | API key for OpenRouter.ai service. Optional, but service will be unconfigured without it.           | (none)                                     |
 | `LLM_DEFAULT_MODEL`       | Default model to use for LLM calls via OpenRouter.                                                  | `google/gemini-2.5-flash-preview:thinking` |
@@ -171,6 +172,9 @@ The `src/` directory is organized for clarity:
   - `resources/`: Example resource implementations (e.g., EchoResource).
   - `tools/`: Example tool implementations (e.g., EchoTool).
   - `transports/`: Handles `stdio` and `http` communication for the server.
+- `services/`: Contains service integrations.
+  - `llm-providers/`: Providers for Large Language Models (e.g., OpenRouter).
+  - `index.ts`: Barrel file for services.
 - `types-global/`: Shared TypeScript definitions (Errors, MCP types).
 - `utils/`: Reusable utilities (logging, errors, security, parsing, etc.). Exported via `index.ts`.
 
@@ -226,7 +230,7 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 | **Utilities (Security)** | IdGenerator                     | Generates unique IDs (prefixed or UUIDs).                                                                    | `src/utils/security/idGenerator.ts`              |
 |                          | RateLimiter                     | Request throttling based on keys.                                                                            | `src/utils/security/rateLimiter.ts`              |
 |                          | Sanitization                    | Input validation/cleaning (HTML, paths, URLs, numbers, JSON) & log redaction (`validator`, `sanitize-html`). | `src/utils/security/sanitization.ts`             |
-| **Services**             | OpenRouter Provider             | Service for interacting with OpenRouter API via OpenAI SDK compatibility.                                    | `src/services/openRouterProvider.ts`             |
+| **Services**             | OpenRouter Provider             | Service for interacting with OpenRouter API via OpenAI SDK compatibility.                                    | `src/services/llm-providers/openRouterProvider.ts`             |
 | **Type Safety**          | Global Types                    | Shared TypeScript definitions for consistent interfaces (Errors, MCP types).                                 | `src/types-global/`                              |
 |                          | Zod Schemas                     | Used for robust validation of configuration files and tool/resource inputs.                                  | Throughout (`config`, `mcp-client`, tools, etc.) |
 | **Error Handling**       | Pattern-Based Classification    | Automatically categorize errors based on message patterns.                                                   | `src/utils/internal/errorHandler.ts`             |

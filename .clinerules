@@ -12,7 +12,8 @@ The server can run using different communication transports, configured via envi
 - **`MCP_HTTP_PORT`**: Port for the HTTP server (Default: `3010`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "info". Affects both file logging and MCP notifications.
+- **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "debug". Affects both file logging and MCP notifications.
+- **`LOGS_DIR`**: Directory for log files. Defaults to "`logs/`" in the project root. Configured via `src/config/index.ts`.
 - **`MCP_AUTH_SECRET_KEY`**: **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). Defaults to `undefined`. **MUST be set in production.**
 
 ### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
