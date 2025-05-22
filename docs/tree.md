@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-22 15:56:54
+Generated on: 2025-05-22 17:15:25
 
 ```
 mcp-ts-template
@@ -86,6 +86,7 @@ mcp-ts-template
 ├── .dockerignore
 ├── .gitignore
 ├── CHANGELOG.md
+├── CLAUDE.md
 ├── Dockerfile
 ├── LICENSE
 ├── mcp.json

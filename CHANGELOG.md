@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2025-05-22
+
+### Added
+
+- **LLM Provider Configuration**:
+  - Documented new environment variables for OpenRouter LLM provider in `.clinerules` and `README.md`.
+- **Documentation**:
+  - Added `CLAUDE.md` to the project root.
+
+### Changed
+
+- **Documentation**:
+  - Updated client configuration path in `README.md` and `.clinerules` from `src/mcp-client/mcp-config.json` to `src/mcp-client/client-config/mcp-config.json`.
+  - Corrected typo "Focuss" to "Focuses" in `.clinerules`.
+  - Updated import path for error types from `.js` to `.ts` in `.clinerules`.
+  - Refreshed `docs/tree.md` to reflect the latest directory structure and file additions.
+
 ## [1.3.0] - 2025-05-22
 
 ### Added
