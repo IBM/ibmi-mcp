@@ -16,15 +16,52 @@
  */
 
 import dotenv from "dotenv";
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, mkdirSync, readFileSync, statSync } from "fs";
+import path, { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 
 dotenv.config();
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkgPath = join(__dirname, "../../package.json");
+// --- Determine Project Root ---
+/**
+ * Finds the project root directory by searching upwards for package.json.
+ * @param startDir The directory to start searching from.
+ * @returns The absolute path to the project root, or throws an error if not found.
+ */
+const findProjectRoot = (startDir: string): string => {
+    let currentDir = startDir;
+    while (true) {
+        const packageJsonPath = join(currentDir, 'package.json');
+        if (existsSync(packageJsonPath)) {
+            return currentDir;
+        }
+        const parentDir = dirname(currentDir);
+        if (parentDir === currentDir) {
+            // Reached the root of the filesystem without finding package.json
+            throw new Error(`Could not find project root (package.json) starting from ${startDir}`);
+        }
+        currentDir = parentDir;
+    }
+};
+
+let projectRoot: string;
+try {
+    // For ESM, __dirname is not available directly.
+    // import.meta.url gives the URL of the current module.
+    const currentModuleDir = dirname(fileURLToPath(import.meta.url));
+    projectRoot = findProjectRoot(currentModuleDir);
+} catch (error: any) {
+    console.error(`FATAL: Error determining project root: ${error.message}`);
+    // Fallback to process.cwd() if project root cannot be determined.
+    // This might happen in unusual execution environments.
+    projectRoot = process.cwd(); 
+    console.warn(`Warning: Using process.cwd() (${projectRoot}) as fallback project root.`);
+}
+// --- End Determine Project Root ---
+
+
+const pkgPath = join(projectRoot, "package.json"); // Use determined projectRoot
 let pkg = { name: "mcp-ts-template", version: "0.0.0" };
 
 try {
@@ -50,6 +87,8 @@ const EnvSchema = z.object({
   MCP_SERVER_VERSION: z.string().optional(),
   /** Minimum logging level. See `McpLogLevel` in logger utility. Default: "debug". */
   MCP_LOG_LEVEL: z.string().default("debug"),
+  /** Directory for log files. Defaults to "logs" in project root. */
+  LOGS_DIR: z.string().default(path.join(projectRoot, "logs")),
   /** Runtime environment (e.g., "development", "production"). Default: "development". */
   NODE_ENV: z.string().default("development"),
   /** MCP communication transport ("stdio" or "http"). Default: "stdio". */
@@ -136,6 +175,70 @@ if (!parsedEnv.success) {
 
 const env = parsedEnv.success ? parsedEnv.data : EnvSchema.parse({});
 
+// --- Directory Ensurance Function ---
+/**
+ * Ensures a directory exists and is within the project root.
+ * @param dirPath The desired path for the directory (can be relative or absolute).
+ * @param rootDir The root directory of the project to contain the directory.
+ * @param dirName The name of the directory type for logging (e.g., "logs").
+ * @returns The validated, absolute path to the directory, or null if invalid.
+ */
+const ensureDirectory = (dirPath: string, rootDir: string, dirName: string): string | null => {
+  const resolvedDirPath = path.isAbsolute(dirPath) ? dirPath : path.resolve(rootDir, dirPath);
+
+  // Ensure the resolved path is within the project root boundary
+  if (!resolvedDirPath.startsWith(rootDir + path.sep) && resolvedDirPath !== rootDir) {
+    if (process.stdout.isTTY) {
+      console.error(`Error: ${dirName} path "${dirPath}" resolves to "${resolvedDirPath}", which is outside the project boundary "${rootDir}".`);
+    }
+    return null;
+  }
+
+  if (!existsSync(resolvedDirPath)) {
+    try {
+      mkdirSync(resolvedDirPath, { recursive: true });
+      if (process.stdout.isTTY) {
+        console.log(`Created ${dirName} directory: ${resolvedDirPath}`);
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (process.stdout.isTTY) {
+        console.error(`Error creating ${dirName} directory at ${resolvedDirPath}: ${errorMessage}`);
+      }
+      return null;
+    }
+  } else {
+    try {
+        const stats = statSync(resolvedDirPath);
+        if (!stats.isDirectory()) {
+            if (process.stdout.isTTY) {
+              console.error(`Error: ${dirName} path ${resolvedDirPath} exists but is not a directory.`);
+            }
+            return null;
+        }
+    } catch (statError: any) {
+        if (process.stdout.isTTY) {
+          console.error(`Error accessing ${dirName} path ${resolvedDirPath}: ${statError.message}`);
+        }
+        return null;
+    }
+  }
+  return resolvedDirPath;
+};
+// --- End Directory Ensurance Function ---
+
+// --- Logs Directory Handling ---
+const validatedLogsPath = ensureDirectory(env.LOGS_DIR, projectRoot, "logs");
+
+if (!validatedLogsPath) {
+    if (process.stdout.isTTY) {
+      console.error("FATAL: Logs directory configuration is invalid or could not be created. Please check permissions and path. Exiting.");
+    }
+    process.exit(1); // Exit if logs directory is not usable
+}
+// --- End Logs Directory Handling ---
+
+
 /**
  * Main application configuration object.
  * Aggregates settings from validated environment variables and `package.json`.
@@ -147,6 +250,8 @@ export const config = {
   mcpServerVersion: env.MCP_SERVER_VERSION || pkg.version,
   /** Logging level. From `MCP_LOG_LEVEL` env var. Default: "debug". */
   logLevel: env.MCP_LOG_LEVEL,
+  /** Absolute path to the logs directory. From `LOGS_DIR` env var. */
+  logsPath: validatedLogsPath,
   /** Runtime environment. From `NODE_ENV` env var. Default: "development". */
   environment: env.NODE_ENV,
   /** MCP transport type ('stdio' or 'http'). From `MCP_TRANSPORT_TYPE` env var. Default: "stdio". */
