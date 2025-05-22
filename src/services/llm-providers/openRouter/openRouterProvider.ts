@@ -3,7 +3,7 @@
  * OpenRouter API, using the OpenAI SDK for chat completions. It handles API key
  * configuration, default parameters, rate limiting, model-specific parameter adjustments,
  * and error handling.
- * @module src/services/openRouterProvider
+ * @module src/services/llm-providers/openRouter/openRouterProvider
  */
 import OpenAI from "openai";
 import {
@@ -13,17 +13,17 @@ import {
   ChatCompletionCreateParamsStreaming,
 } from "openai/resources/chat/completions";
 import { Stream } from "openai/streaming";
-import { config } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { ErrorHandler } from "../../utils/internal/errorHandler.js";
-import { logger } from "../../utils/internal/logger.js";
+import { config } from "../../../config/index.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { ErrorHandler } from "../../../utils/internal/errorHandler.js";
+import { logger } from "../../../utils/internal/logger.js";
 import {
   OperationContext,
   RequestContext,
   requestContextService,
-} from "../../utils/internal/requestContext.js";
-import { rateLimiter } from "../../utils/security/rateLimiter.js";
-import { sanitization } from "../../utils/security/sanitization.js";
+} from "../../../utils/internal/requestContext.js";
+import { rateLimiter } from "../../../utils/security/rateLimiter.js";
+import { sanitization } from "../../../utils/security/sanitization.js";
 
 const YOUR_SITE_URL = config.openrouterAppUrl;
 const YOUR_SITE_NAME = config.openrouterAppName;
@@ -465,4 +465,4 @@ export { openRouterProviderInstance as openRouterProvider };
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
  */
-export type { OpenRouterProvider };
+  export type { OpenRouterProvider };

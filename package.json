@@ -32,6 +32,7 @@
     "inspector": "mcp-inspector --config mcp.json --server mcp-ts-template"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.11.5",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.21",
