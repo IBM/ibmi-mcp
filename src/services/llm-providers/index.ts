@@ -5,4 +5,3 @@
  * @module src/services/llm-providers/index
  */
 export * from './openRouter'; // Changed to export from the new barrel file
-export * from './geminiAPI';
