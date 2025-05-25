@@ -266,13 +266,13 @@ function startHttpServerWithRetry(
  *
  * @param createServerInstanceFn - An asynchronous factory function that returns a new `McpServer` instance.
  * @param parentContext - Logging context from the main server startup process.
- * @returns A promise that resolves when the HTTP server is successfully listening.
+ * @returns A promise that resolves with the Node.js `http.Server` instance when the HTTP server is successfully listening.
  * @throws {Error} If the server fails to start after all port retries.
  */
 export async function startHttpTransport(
   createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
-): Promise<void> {
+): Promise<http.Server> {
   const app = express();
   const transportContext = requestContextService.createRequestContext({
     ...parentContext,
@@ -595,11 +595,12 @@ export async function startHttpTransport(
         `\n🚀 MCP Server running in HTTP mode at: ${serverAddressLog}${productionNote}\n   (MCP Spec: 2025-03-26 Streamable HTTP Transport)\n`,
       );
     }
+    return serverInstance; // Return the created server instance
   } catch (err) {
     logger.fatal("HTTP server failed to start after multiple port retries.", {
       ...transportContext,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw err;
+    throw err; // Re-throw the error to be caught by the caller
   }
 }

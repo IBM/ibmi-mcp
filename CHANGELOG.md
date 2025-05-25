@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2025-05-25
+
+### Added
+
+- **Tool**: Introduced `imageTest` tool (`src/mcp-server/tools/imageTest/`) that fetches a random cat image from an external API (`https://cataas.com/cat`) and returns it as a base64 encoded image. This serves as an example of how to send image data via MCP tool calls.
+
+### Changed
+
+- **Server Lifecycle**:
+  - Refactored server startup and shutdown logic in `src/index.ts`, `src/mcp-server/server.ts`, and `src/mcp-server/transports/httpTransport.ts` for more robust handling of both STDIO and HTTP transports.
+  - The HTTP server instance (`http.Server`) is now correctly propagated and managed, ensuring more graceful shutdowns.
+- **Scripts**:
+  - Updated `scripts/tree.ts` to use the `ignore` library for parsing and handling `.gitignore` patterns, replacing custom logic for improved accuracy and reliability.
+- **Documentation**:
+  - Refreshed `docs/tree.md` to reflect the addition of the new `imageTest` tool directory.
+
 ## [1.3.1] - 2025-05-22
 
 ### Added

@@ -24,6 +24,7 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import http from "http"; // Import http module
 import { config, environment } from "./config/index.js";
 import { initializeAndStartServer } from "./mcp-server/server.js";
 import { requestContextService } from "./utils/index.js";
@@ -31,10 +32,15 @@ import { logger, McpLogLevel } from "./utils/internal/logger.js";
 
 /**
  * Holds the main MCP server instance, primarily for STDIO transport.
- * For HTTP transport, server instances are typically managed per session.
  * @private
  */
-let server: McpServer | undefined;
+let mcpStdioServer: McpServer | undefined;
+
+/**
+ * Holds the Node.js HTTP server instance if HTTP transport is used.
+ * @private
+ */
+let actualHttpServer: http.Server | undefined;
 
 /**
  * Gracefully shuts down the main MCP server and associated resources.
@@ -55,30 +61,64 @@ const shutdown = async (signal: string): Promise<void> => {
     shutdownContext,
   );
 
-  try {
-    if (server) {
-      logger.info("Attempting to close main MCP server...", shutdownContext);
-      await server.close();
-      logger.info("Main MCP server closed successfully.", shutdownContext);
-    } else {
-      logger.notice(
-        "No global server instance found to close during shutdown (this may be normal for HTTP transport).",
+  let mcpClosed = false;
+  let httpClosed = false;
+  let closeError: Error | null = null;
+
+  const checkAndExit = () => {
+    if (closeError) {
+      logger.error("Critical error encountered during shutdown process.", {
+        ...shutdownContext,
+        errorMessage: closeError.message,
+        errorStack: closeError.stack,
+      });
+      process.exit(1);
+    } else if (mcpClosed && httpClosed) {
+      logger.info(
+        "Graceful shutdown completed successfully. Exiting.",
         shutdownContext,
       );
+      process.exit(0);
     }
+  };
 
-    logger.info(
-      "Graceful shutdown completed successfully. Exiting.",
-      shutdownContext,
-    );
-    process.exit(0);
-  } catch (error) {
-    logger.error("Critical error encountered during shutdown process.", {
-      ...shutdownContext,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
+  if (mcpStdioServer) {
+    logger.info("Attempting to close main MCP server (STDIO)...", shutdownContext);
+    mcpStdioServer.close()
+      .then(() => {
+        logger.info("Main MCP server (STDIO) closed successfully.", shutdownContext);
+        mcpClosed = true;
+        checkAndExit();
+      })
+      .catch((err) => {
+        logger.error("Error closing MCP server (STDIO).", { ...shutdownContext, error: err });
+        mcpClosed = true; // Consider it closed even on error to allow exit
+        if (!closeError) closeError = err;
+        checkAndExit();
+      });
+  } else {
+    mcpClosed = true; // No STDIO McpServer to close
+  }
+
+  if (actualHttpServer) {
+    logger.info("Attempting to close HTTP server...", shutdownContext);
+    actualHttpServer.close((err?: Error) => {
+      if (err) {
+        logger.error("Error closing HTTP server.", { ...shutdownContext, error: err });
+        if (!closeError) closeError = err;
+      } else {
+        logger.info("HTTP server closed successfully.", shutdownContext);
+      }
+      httpClosed = true;
+      checkAndExit();
     });
-    process.exit(1);
+  } else {
+    httpClosed = true; // No HTTP server to close
+  }
+  
+  // Initial check in case no servers needed closing
+  if (mcpClosed && httpClosed) {
+    checkAndExit();
   }
 };
 
@@ -154,23 +194,28 @@ const start = async (): Promise<void> => {
       startupContext,
     );
 
-    const potentialServerInstance = await initializeAndStartServer();
+    const serverInstance = await initializeAndStartServer();
 
-    if (
-      transportType === "stdio" &&
-      potentialServerInstance instanceof McpServer
-    ) {
-      server = potentialServerInstance;
+    if (transportType === "stdio" && serverInstance instanceof McpServer) {
+      mcpStdioServer = serverInstance;
       logger.info(
         "STDIO McpServer instance stored globally for shutdown.",
         startupContext,
       );
-    } else if (transportType === "http") {
+    } else if (transportType === "http" && serverInstance instanceof http.Server) {
+      actualHttpServer = serverInstance;
       logger.info(
-        "HTTP transport initialized. Server lifecycle managed by HTTP listener and session handlers.",
+        "HTTP transport initialized, http.Server instance stored globally for shutdown.",
+        startupContext,
+      );
+    } else if (transportType === "http") {
+      // This case should ideally not be reached if initializeAndStartServer correctly returns http.Server
+      logger.warning(
+        "HTTP transport initialized, but no http.Server instance was returned to index.ts. Shutdown might be incomplete.",
         startupContext,
       );
     }
+
 
     logger.info(
       `${config.mcpServerName} is now running and ready to accept connections via ${transportType} transport.`,
