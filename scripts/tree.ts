@@ -19,7 +19,10 @@
 
 import fs from "fs/promises";
 import path from "path";
-import ignore, { Ignore } from "ignore"; // Import the 'ignore' library
+import ignore from "ignore"; // Import the 'ignore' library
+
+// Get the type of the instance returned by ignore()
+type Ignore = ReturnType<typeof ignore>;
 
 const projectRoot = process.cwd();
 let outputPathArg = "docs/tree.md"; // Default output path
