@@ -6,7 +6,6 @@
  * @module src/services/llm-providers/openRouter/openRouterProvider
  */
 import OpenAI from "openai"; // This will be the type, actual instance from factory
-import { llmFactory, OpenRouterClientOptions } from "../llmFactory.js"; // Import factory
 import {
   ChatCompletion,
   ChatCompletionChunk,
@@ -25,6 +24,7 @@ import {
 } from "../../../utils/internal/requestContext.js";
 import { rateLimiter } from "../../../utils/security/rateLimiter.js";
 import { sanitization } from "../../../utils/security/sanitization.js";
+import { llmFactory, OpenRouterClientOptions } from "../llmFactory.js"; // Import factory
 
 // Note: OpenRouter recommends setting HTTP-Referer (e.g., config.openrouterAppUrl)
 // and X-Title (e.g., config.openrouterAppName) headers.
@@ -478,4 +478,4 @@ export { openRouterProviderInstance as openRouterProvider };
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
  */
-export type { OpenRouterProvider };
+  export type { OpenRouterProvider };

@@ -120,10 +120,8 @@ const EnvSchema = z.object({
   OPENROUTER_APP_NAME: z.string().optional(),
   /** Optional. API key for OpenRouter services. */
   OPENROUTER_API_KEY: z.string().optional(),
-  /** Default LLM model. Default: "google/gemini-2.5-flash-preview:thinking". */
-  LLM_DEFAULT_MODEL: z
-    .string()
-    .default("google/gemini-2.5-flash-preview-05-20"),
+  /** Default LLM model. Default: "google/gemini-2.5-flash-preview-05-20". */
+  LLM_DEFAULT_MODEL: z.string().default("google/gemini-2.5-flash-preview-05-20"),
   /** Optional. Default LLM temperature (0.0-2.0). */
   LLM_DEFAULT_TEMPERATURE: z.coerce.number().min(0).max(2).optional(),
   /** Optional. Default LLM top_p (0.0-1.0). */
@@ -134,8 +132,6 @@ const EnvSchema = z.object({
   LLM_DEFAULT_TOP_K: z.coerce.number().int().nonnegative().optional(),
   /** Optional. Default LLM min_p (0.0-1.0). */
   LLM_DEFAULT_MIN_P: z.coerce.number().min(0).max(1).optional(),
-  /** Optional. API key for Google Gemini services. */
-  GEMINI_API_KEY: z.string().optional(),
 
   /** Optional. OAuth provider authorization endpoint URL. */
   OAUTH_PROXY_AUTHORIZATION_URL: z
@@ -308,8 +304,6 @@ export const config = {
   llmDefaultTopK: env.LLM_DEFAULT_TOP_K,
   /** Default LLM min_p. From `LLM_DEFAULT_MIN_P`. */
   llmDefaultMinP: env.LLM_DEFAULT_MIN_P,
-  /** Gemini API Key. From `GEMINI_API_KEY`. */
-  geminiApiKey: env.GEMINI_API_KEY,
 
   /** OAuth Proxy configurations. Undefined if no related env vars are set. */
   oauthProxy:
