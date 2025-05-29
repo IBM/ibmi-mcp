@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-22 17:15:25
+Generated on: 2025-05-29 11:13:22
 
 ```
 mcp-ts-template
@@ -8,6 +8,7 @@ mcp-ts-template
 │   └── workflows
 │       └── publish.yml
 ├── docs
+│   ├── api
 │   ├── api-references
 │   │   ├── jsdoc-standard-tags.md
 │   │   └── typedoc-reference.md
@@ -23,7 +24,6 @@ mcp-ts-template
 │   ├── mcp-client
 │   │   ├── client-config
 │   │   │   ├── configLoader.ts
-│   │   │   ├── mcp-config.json
 │   │   │   └── mcp-config.json.example
 │   │   ├── core
 │   │   │   ├── clientCache.ts
@@ -42,9 +42,13 @@ mcp-ts-template
 │   │   │       ├── index.ts
 │   │   │       └── registration.ts
 │   │   ├── tools
-│   │   │   └── echoTool
-│   │   │       ├── echoToolLogic.ts
+│   │   │   ├── echoTool
+│   │   │   │   ├── echoToolLogic.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   └── registration.ts
+│   │   │   └── imageTest
 │   │   │       ├── index.ts
+│   │   │       ├── logic.ts
 │   │   │       └── registration.ts
 │   │   ├── transports
 │   │   │   ├── authentication
@@ -85,6 +89,7 @@ mcp-ts-template
 ├── .clinerules
 ├── .dockerignore
 ├── .gitignore
+├── .ncurc.json
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile

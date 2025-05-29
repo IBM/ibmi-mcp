@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3] - 2025-05-29
+
+### Changed
+- **Dependencies**:
+  - Updated `@modelcontextprotocol/sdk` from `^1.11.5` to `^1.12.0`.
+  - Updated `@google/genai` from `^1.0.1` to `^1.2.0`.
+  - Updated `@types/node` from `^22.15.21` to `^22.15.24`.
+  - Updated `openai` from `^4.102.0` to `^4.103.0`.
+  - Updated `validator` from `13.15.0` to `13.15.15`.
+  - Updated `yargs` from `^17.7.2` to `^18.0.0`.
+  - Updated `zod` from `^3.25.20` to `^3.25.36`.
+  - Updated `typedoc` (devDependency) from `^0.28.4` to `^0.28.5`.
+  - Note: `ajv` (transitive dependency of `@modelcontextprotocol/sdk`) changed from `^8.17.1` to `^6.12.6`.
+- **LLM Providers**:
+  - Removed Google Gemini provider integration from `src/services/llm-providers/llmFactory.ts` and related configurations (`src/config/index.ts`). The factory now exclusively supports OpenRouter.
+- **Build & Tooling**:
+  - Corrected `bin` path in `package.json` for `mcp-ts-template` from `./dist/index.js` to `dist/index.js`.
+  - Added `.ncurc.json` to the project root for `npm-check-updates` configuration.
+- **Documentation**:
+  - Updated `docs/tree.md` to reflect the addition of the `imageTest` tool directory and the new `.ncurc.json` file.
+  - Updated project version in `package.json` to `1.3.3`. (Note: `package-lock.json` was already at `1.3.2` and updated, `README.md` badge was already `1.3.3`).
+
+### Fixed
+- Ensured version consistency across `package.json` (now `1.3.3`) and `package-lock.json` (updated to reflect `1.3.3` changes).
+
 ## [1.3.2] - 2025-05-25
 
 ### Added
