@@ -50,10 +50,7 @@ export function createHttpClientTransport(
 
   // The check for `startsWith("http")` should have been done by the caller (e.g., transportFactory)
   // which should have already validated the nature of the command string for HTTP transport.
-  if (
-    !transportConfig.baseUrl ||
-    typeof transportConfig.baseUrl !== "string"
-  ) {
+  if (!transportConfig.baseUrl || typeof transportConfig.baseUrl !== "string") {
     const httpConfigError = `Invalid baseUrl for StreamableHTTPClientTransport: command must be a non-empty URL string. Found: "${transportConfig.baseUrl}"`;
     logger.error(httpConfigError, context);
     throw new McpError(

@@ -83,15 +83,25 @@ const shutdown = async (signal: string): Promise<void> => {
   };
 
   if (mcpStdioServer) {
-    logger.info("Attempting to close main MCP server (STDIO)...", shutdownContext);
-    mcpStdioServer.close()
+    logger.info(
+      "Attempting to close main MCP server (STDIO)...",
+      shutdownContext,
+    );
+    mcpStdioServer
+      .close()
       .then(() => {
-        logger.info("Main MCP server (STDIO) closed successfully.", shutdownContext);
+        logger.info(
+          "Main MCP server (STDIO) closed successfully.",
+          shutdownContext,
+        );
         mcpClosed = true;
         checkAndExit();
       })
       .catch((err) => {
-        logger.error("Error closing MCP server (STDIO).", { ...shutdownContext, error: err });
+        logger.error("Error closing MCP server (STDIO).", {
+          ...shutdownContext,
+          error: err,
+        });
         mcpClosed = true; // Consider it closed even on error to allow exit
         if (!closeError) closeError = err;
         checkAndExit();
@@ -104,7 +114,10 @@ const shutdown = async (signal: string): Promise<void> => {
     logger.info("Attempting to close HTTP server...", shutdownContext);
     actualHttpServer.close((err?: Error) => {
       if (err) {
-        logger.error("Error closing HTTP server.", { ...shutdownContext, error: err });
+        logger.error("Error closing HTTP server.", {
+          ...shutdownContext,
+          error: err,
+        });
         if (!closeError) closeError = err;
       } else {
         logger.info("HTTP server closed successfully.", shutdownContext);
@@ -115,7 +128,7 @@ const shutdown = async (signal: string): Promise<void> => {
   } else {
     httpClosed = true; // No HTTP server to close
   }
-  
+
   // Initial check in case no servers needed closing
   if (mcpClosed && httpClosed) {
     checkAndExit();
@@ -202,7 +215,10 @@ const start = async (): Promise<void> => {
         "STDIO McpServer instance stored globally for shutdown.",
         startupContext,
       );
-    } else if (transportType === "http" && serverInstance instanceof http.Server) {
+    } else if (
+      transportType === "http" &&
+      serverInstance instanceof http.Server
+    ) {
       actualHttpServer = serverInstance;
       logger.info(
         "HTTP transport initialized, http.Server instance stored globally for shutdown.",
@@ -215,7 +231,6 @@ const start = async (): Promise<void> => {
         startupContext,
       );
     }
-
 
     logger.info(
       `${config.mcpServerName} is now running and ready to accept connections via ${transportType} transport.`,

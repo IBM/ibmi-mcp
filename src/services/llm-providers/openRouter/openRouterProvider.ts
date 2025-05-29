@@ -478,4 +478,4 @@ export { openRouterProviderInstance as openRouterProvider };
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
  */
-  export type { OpenRouterProvider };
+export type { OpenRouterProvider };

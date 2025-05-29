@@ -38,7 +38,7 @@ export function registerFetchImageTestTool(server: McpServer): void {
             mcpToolContext: mcpProvidedContext, // Context from MCP SDK during call
           });
         return fetchImageTestLogic(validatedInput, handlerRequestContext);
-      }
+      },
     );
     logger.notice(`Tool 'fetch_image_test' registered.`, context);
   } catch (error) {
@@ -48,14 +48,14 @@ export function registerFetchImageTestTool(server: McpServer): void {
         `Failed to register 'fetch_image_test'`,
         {
           originalError: error instanceof Error ? error.message : String(error),
-        }
+        },
       ),
       {
         operation,
         context,
         errorCode: BaseErrorCode.INITIALIZATION_FAILED,
         critical: true,
-      }
+      },
     );
   }
 }

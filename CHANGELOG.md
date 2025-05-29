@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.3.3] - 2025-05-29
 
 ### Changed
+
 - **Dependencies**:
   - Updated `@modelcontextprotocol/sdk` from `^1.11.5` to `^1.12.0`.
   - Updated `@google/genai` from `^1.0.1` to `^1.2.0`.
@@ -25,6 +26,7 @@ All notable changes to this project will be documented in this file.
   - Updated project version in `package.json` to `1.3.3`. (Note: `package-lock.json` was already at `1.3.2` and updated, `README.md` badge was already `1.3.3`).
 
 ### Fixed
+
 - Ensured version consistency across `package.json` (now `1.3.3`) and `package-lock.json` (updated to reflect `1.3.3` changes).
 
 ## [1.3.2] - 2025-05-25

@@ -87,8 +87,10 @@ export type McpClientConfigFile = z.infer<typeof McpClientConfigFileSchema>;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Path when running from dist: __dirname is .../dist/mcp-client/client-config
 // We want to reach: .../src/mcp-client/client-config/mcp-config.json
-const primaryConfigPath = join(__dirname, "../../../src/mcp-client/client-config/mcp-config.json");
-
+const primaryConfigPath = join(
+  __dirname,
+  "../../../src/mcp-client/client-config/mcp-config.json",
+);
 
 let loadedConfig: McpClientConfigFile | null = null;
 let loadedConfigPath: string | null = null;

@@ -115,7 +115,10 @@ async function startTransport(): Promise<McpServer | http.Server | void> {
   if (transportType === "http") {
     logger.debug("Delegating to startHttpTransport...", context);
     // For HTTP, startHttpTransport now returns the http.Server instance.
-    const httpServerInstance = await startHttpTransport(createMcpServerInstance, context);
+    const httpServerInstance = await startHttpTransport(
+      createMcpServerInstance,
+      context,
+    );
     return httpServerInstance;
   }
 
@@ -151,7 +154,9 @@ async function startTransport(): Promise<McpServer | http.Server | void> {
  * @returns For 'stdio', resolves with `McpServer`. For 'http', resolves with `http.Server`.
  *   Rejects on critical failure, leading to process exit.
  */
-export async function initializeAndStartServer(): Promise<void | McpServer | http.Server> {
+export async function initializeAndStartServer(): Promise<
+  void | McpServer | http.Server
+> {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
   });

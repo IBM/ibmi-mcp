@@ -62,7 +62,10 @@ export function setCachedClient(
  * @param serverName - The name of the server whose client should be removed.
  * @param reason - Optional reason for removal, for logging.
  */
-export function removeClientFromCache(serverName: string, reason?: string): void {
+export function removeClientFromCache(
+  serverName: string,
+  reason?: string,
+): void {
   const context = requestContextService.createRequestContext({
     operation: "removeClientFromCache",
     targetServer: serverName,
@@ -107,10 +110,7 @@ export function setPendingConnection(
     targetServer: serverName,
   });
   pendingConnections.set(serverName, promise);
-  logger.debug(
-    `Pending connection promise for ${serverName} stored.`,
-    context,
-  );
+  logger.debug(`Pending connection promise for ${serverName} stored.`, context);
 }
 
 /**

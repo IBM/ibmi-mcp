@@ -15,7 +15,11 @@ import {
 
 // Minimal input schema, as the tool will return a dynamic image
 export const FetchImageTestInputSchema = z.object({
-  trigger: z.boolean().optional().default(true).describe("A trigger to invoke the tool and fetch a new cat image."),
+  trigger: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("A trigger to invoke the tool and fetch a new cat image."),
 });
 
 export type FetchImageTestInput = z.infer<typeof FetchImageTestInputSchema>;
@@ -24,7 +28,7 @@ const CAT_API_URL = "https://cataas.com/cat";
 
 export async function fetchImageTestLogic(
   input: FetchImageTestInput,
-  parentRequestContext: RequestContext
+  parentRequestContext: RequestContext,
 ): Promise<CallToolResult> {
   const operationContext = requestContextService.createRequestContext({
     parentRequestId: parentRequestContext.requestId,
@@ -34,7 +38,7 @@ export async function fetchImageTestLogic(
 
   logger.info(
     `Executing 'fetch_image_test'. Trigger: ${input.trigger}`,
-    operationContext
+    operationContext,
   );
 
   try {
@@ -46,8 +50,10 @@ export async function fetchImageTestLogic(
         {
           statusCode: response.status,
           statusText: response.statusText,
-          responseBody: await response.text().catch(() => "Could not read response body"),
-        }
+          responseBody: await response
+            .text()
+            .catch(() => "Could not read response body"),
+        },
       );
     }
 
@@ -68,9 +74,9 @@ export async function fetchImageTestLogic(
     logger.error(
       "Execution failed for 'fetch_image_test'",
       error,
-      operationContext
+      operationContext,
     );
-    
+
     let mcpError: McpError;
     if (error instanceof McpError) {
       mcpError = error;
@@ -82,10 +88,10 @@ export async function fetchImageTestLogic(
           originalErrorName: error.name,
           originalErrorMessage: error.message,
           requestId: operationContext.requestId,
-        }
+        },
       );
     }
-    
+
     return {
       content: [
         {

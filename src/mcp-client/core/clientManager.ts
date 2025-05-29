@@ -158,7 +158,12 @@ export async function disconnectMcpClient(
     const closePromise = client.close();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
-        () => reject(new Error(`Timeout: client.close() for ${serverName} exceeded ${SHUTDOWN_TIMEOUT_MS}ms`)),
+        () =>
+          reject(
+            new Error(
+              `Timeout: client.close() for ${serverName} exceeded ${SHUTDOWN_TIMEOUT_MS}ms`,
+            ),
+          ),
         SHUTDOWN_TIMEOUT_MS,
       ),
     );
@@ -169,12 +174,15 @@ export async function disconnectMcpClient(
       context,
     );
   } catch (closeError) {
-    logger.error(`Error during client.close() for server ${serverName} (or timeout)`, {
-      ...context,
-      error:
-        closeError instanceof Error ? closeError.message : String(closeError),
-      stack: closeError instanceof Error ? closeError.stack : undefined,
-    });
+    logger.error(
+      `Error during client.close() for server ${serverName} (or timeout)`,
+      {
+        ...context,
+        error:
+          closeError instanceof Error ? closeError.message : String(closeError),
+        stack: closeError instanceof Error ? closeError.stack : undefined,
+      },
+    );
   } finally {
     removeClientFromCache(serverName, "After close attempt");
   }
@@ -202,7 +210,10 @@ export async function disconnectAllMcpClients(
     logger.info("No active MCP clients to disconnect.", context);
     // Still call clearAllClientCache in case pending connections exist or for consistency
     clearAllClientCache();
-    logger.info("Finished processing all client disconnections (no active clients found, cache cleared).", context);
+    logger.info(
+      "Finished processing all client disconnections (no active clients found, cache cleared).",
+      context,
+    );
     return;
   }
 
@@ -247,5 +258,8 @@ export async function disconnectAllMcpClients(
 
   // Ensure all caches are cleared regardless of individual disconnections.
   clearAllClientCache();
-  logger.info("Finished processing all client disconnections and cleared caches.", context);
+  logger.info(
+    "Finished processing all client disconnections and cleared caches.",
+    context,
+  );
 }

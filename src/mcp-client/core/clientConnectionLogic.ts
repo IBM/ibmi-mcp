@@ -153,14 +153,12 @@ export async function establishNewMcpConnection(
       `MCP Transport closed for server ${serverName}. Initiating client disconnect.`,
       operationContext,
     );
-    disconnectFn(serverName, operationContext).catch(
-      (disconnectErr) => {
-        logger.error(
-          `Error during disconnect triggered by transport.onclose (via disconnectFn) for ${serverName}`,
-          { ...operationContext, disconnectError: disconnectErr },
-        );
-      },
-    );
+    disconnectFn(serverName, operationContext).catch((disconnectErr) => {
+      logger.error(
+        `Error during disconnect triggered by transport.onclose (via disconnectFn) for ${serverName}`,
+        { ...operationContext, disconnectError: disconnectErr },
+      );
+    });
   };
   logger.debug(
     `Event handlers (onerror, onclose) set up for client and transport for ${serverName}`,
