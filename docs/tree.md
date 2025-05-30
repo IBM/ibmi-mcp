@@ -1,12 +1,13 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-29 11:13:22
+Generated on: 2025-05-30 17:43:21
 
 ```
 mcp-ts-template
 ├── .github
-│   └── workflows
-│       └── publish.yml
+│   ├── workflows
+│   │   └── publish.yml
+│   └── FUNDING.yml
 ├── docs
 │   ├── api
 │   ├── api-references

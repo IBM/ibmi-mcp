@@ -18,8 +18,8 @@
  */
 
 import fs from "fs/promises";
-import path from "path";
 import ignore from "ignore"; // Import the 'ignore' library
+import path from "path";
 
 // Get the type of the instance returned by ignore()
 type Ignore = ReturnType<typeof ignore>;
@@ -211,32 +211,72 @@ const writeTreeToFile = async (): Promise<void> => {
       console.log(`Maximum depth set to: ${maxDepthArg}`);
     }
 
-    const treeContent = await generateTree(projectRoot, ignoreHandler, "", 0); // Pass the Ignore instance
+    const newGeneratedTreeContent = await generateTree(projectRoot, ignoreHandler, "", 0); // Pass the Ignore instance
 
+    let existingRawTreeContent: string | null = null;
     try {
-      await fs.access(resolvedOutputDir);
-    } catch {
-      console.log(`Output directory not found. Creating: ${resolvedOutputDir}`);
-      await fs.mkdir(resolvedOutputDir, { recursive: true });
+      const currentFileContent = await fs.readFile(resolvedOutputFile, "utf-8");
+      
+      // Escape projectName for use in regex
+      const escapedProjectName = projectName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Regex to find the tree block:
+      // Matches ``` (optional language specifier) \n
+      // then projectName \n
+      // then captures the content (non-greedy)
+      // until it finds \n``` at the end of a line in the code block
+      const treeBlockRegex = new RegExp(
+        `^\\s*\`\`\`(?:[^\\n]*)\\n${escapedProjectName}\\n([\\s\\S]*?)\\n\`\`\`\\s*$`,
+        "m"
+      );
+
+      const match = currentFileContent.match(treeBlockRegex);
+      if (match && typeof match[1] === 'string') {
+        existingRawTreeContent = match[1];
+      }
+    } catch (error: any) {
+      if (error.code !== "ENOENT") {
+        // ENOENT (file not found) is expected if the file hasn't been created yet.
+        console.warn(
+          `Warning: Could not read existing output file ("${resolvedOutputFile}") for comparison: ${error.message}`,
+        );
+      }
+      // If file doesn't exist or is unreadable, existingRawTreeContent remains null,
+      // which will trigger a write operation.
     }
 
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/T/, " ")
-      .replace(/\..+/, "");
-    const fileHeader = `# ${projectName} - Directory Structure\n\nGenerated on: ${timestamp}\n`;
-    const depthInfo =
-      maxDepthArg !== Infinity
-        ? `\n_Depth limited to ${maxDepthArg} levels_\n\n`
-        : "\n";
-    const treeBlock = `\`\`\`\n${projectName}\n${treeContent}\`\`\`\n`;
-    const fileFooter = `\n_Note: This tree excludes files and directories matched by .gitignore and default patterns._\n`;
-    const finalContent = fileHeader + depthInfo + treeBlock + fileFooter;
+    // Normalize line endings for comparison (Git might change LF to CRLF on Windows)
+    const normalize = (str: string | null) => str?.replace(/\r\n/g, "\n") ?? null;
 
-    await fs.writeFile(resolvedOutputFile, finalContent);
-    console.log(
-      `Successfully generated tree structure in: ${resolvedOutputFile}`,
-    );
+    if (normalize(existingRawTreeContent) === normalize(newGeneratedTreeContent)) {
+      console.log(
+        `Directory structure is unchanged. Output file not updated: ${resolvedOutputFile}`,
+      );
+    } else {
+      // Content has changed, or file is new/unreadable; proceed to write.
+      // Ensure the output directory exists. fs.mkdir with recursive:true will create it if it doesn't exist,
+      // and will not throw an error if it already exists.
+      await fs.mkdir(resolvedOutputDir, { recursive: true });
+
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/T/, " ")
+        .replace(/\..+/, "");
+      const fileHeader = `# ${projectName} - Directory Structure\n\nGenerated on: ${timestamp}\n`;
+      const depthInfo =
+        maxDepthArg !== Infinity
+          ? `\n_Depth limited to ${maxDepthArg} levels_\n\n`
+          : "\n";
+      // Use the newly generated tree content for the output
+      const treeBlock = `\`\`\`\n${projectName}\n${newGeneratedTreeContent}\`\`\`\n`;
+      const fileFooter = `\n_Note: This tree excludes files and directories matched by .gitignore and default patterns._\n`;
+      const finalContent = fileHeader + depthInfo + treeBlock + fileFooter;
+
+      await fs.writeFile(resolvedOutputFile, finalContent);
+      console.log(
+        `Successfully generated and updated tree structure in: ${resolvedOutputFile}`,
+      );
+    }
   } catch (error) {
     console.error(
       `Error generating tree: ${error instanceof Error ? error.message : String(error)}`,
