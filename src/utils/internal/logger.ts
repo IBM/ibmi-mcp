@@ -130,7 +130,9 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
       }
       if (Object.keys(metaCopy).length > 0) {
         try {
-          const remainingMetaJson = JSON.stringify(metaCopy, null, 2);
+          const replacer = (key: string, value: unknown) =>
+            typeof value === 'bigint' ? value.toString() : value;
+          const remainingMetaJson = JSON.stringify(metaCopy, replacer, 2);
           if (remainingMetaJson !== "{}")
             metaString += `\n  Meta: ${remainingMetaJson}`;
         } catch (stringifyError: unknown) {
@@ -179,6 +181,12 @@ export class Logger {
       });
       return;
     }
+
+    // Set initialized to true at the beginning of the initialization process.
+    // If initialization fails critically later, the logger might be in an inconsistent state,
+    // but this will prevent "Logger not initialized" messages from within initialize() itself.
+    this.initialized = true; 
+
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];
 
@@ -290,6 +298,9 @@ export class Logger {
         logsPathUsed: resolvedLogsDir,
       },
     );
+    // Note: If a critical error occurs during initialization after this point,
+    // this.initialized remains true. Consider adding a try/catch around the core
+    // initialization logic to set this.initialized = false on failure if needed.
   }
 
   /**

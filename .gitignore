@@ -170,3 +170,6 @@ mcp-config.json
 docs/api/
 
 logs/
+
+# Application Generated Data
+duckdata/

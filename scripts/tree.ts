@@ -211,14 +211,22 @@ const writeTreeToFile = async (): Promise<void> => {
       console.log(`Maximum depth set to: ${maxDepthArg}`);
     }
 
-    const newGeneratedTreeContent = await generateTree(projectRoot, ignoreHandler, "", 0); // Pass the Ignore instance
+    const newGeneratedTreeContent = await generateTree(
+      projectRoot,
+      ignoreHandler,
+      "",
+      0,
+    ); // Pass the Ignore instance
 
     let existingRawTreeContent: string | null = null;
     try {
       const currentFileContent = await fs.readFile(resolvedOutputFile, "utf-8");
-      
+
       // Escape projectName for use in regex
-      const escapedProjectName = projectName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedProjectName = projectName.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&",
+      );
 
       // Regex to find the tree block:
       // Matches ``` (optional language specifier) \n
@@ -227,11 +235,11 @@ const writeTreeToFile = async (): Promise<void> => {
       // until it finds \n``` at the end of a line in the code block
       const treeBlockRegex = new RegExp(
         `^\\s*\`\`\`(?:[^\\n]*)\\n${escapedProjectName}\\n([\\s\\S]*?)\\n\`\`\`\\s*$`,
-        "m"
+        "m",
       );
 
       const match = currentFileContent.match(treeBlockRegex);
-      if (match && typeof match[1] === 'string') {
+      if (match && typeof match[1] === "string") {
         existingRawTreeContent = match[1];
       }
     } catch (error: any) {
@@ -246,9 +254,12 @@ const writeTreeToFile = async (): Promise<void> => {
     }
 
     // Normalize line endings for comparison (Git might change LF to CRLF on Windows)
-    const normalize = (str: string | null) => str?.replace(/\r\n/g, "\n") ?? null;
+    const normalize = (str: string | null) =>
+      str?.replace(/\r\n/g, "\n") ?? null;
 
-    if (normalize(existingRawTreeContent) === normalize(newGeneratedTreeContent)) {
+    if (
+      normalize(existingRawTreeContent) === normalize(newGeneratedTreeContent)
+    ) {
       console.log(
         `Directory structure is unchanged. Output file not updated: ${resolvedOutputFile}`,
       );
