@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2025-05-30
+
+### Added
+
+- **Data Service**: Integrated DuckDB for in-process analytical data management.
+  - Added `DuckDBService` (`src/services/duck-db/duckDBService.ts`) with connection management (`duckDBConnectionManager.ts`) and query execution (`duckDBQueryExecutor.ts`).
+  - Included supporting types in `src/services/duck-db/types.ts`.
+  - Added an example script `src/storage/duckdbExample.ts` demonstrating DuckDB usage.
+  - Created `duckdata/` directory in project root for DuckDB database files (added to `.gitignore`).
+- **Documentation**:
+  - Added `docs/api-references/duckDB.md` providing comprehensive documentation on DuckDB.
+- **Dependencies**:
+  - Added `@duckdb/node-api` (`^1.3.0-alpha.21`) for DuckDB integration.
+
+### Changed
+
+- **Project Configuration**:
+  - Updated `package.json` version to `1.4.0`.
+  - Added `db:generate` script to `package.json` for running the DuckDB example.
+  - Updated `package-lock.json` to include new DuckDB dependencies.
+  - Added `duckdata/` to `.gitignore`.
+- **Error Handling**:
+  - Added new `BaseErrorCode` values: `SERVICE_NOT_INITIALIZED`, `DATABASE_ERROR`, `EXTENSION_ERROR`, `SHUTDOWN_ERROR` in `src/types-global/errors.ts`.
+- **Logging**:
+  - Improved logger initialization in `src/utils/internal/logger.ts` to set `initialized` flag earlier and handle BigInt serialization in metadata.
+- **Scripts**:
+  - Minor refactoring in `scripts/tree.ts` for clarity in generating tree content.
+- **Documentation**:
+  - Updated `README.md` to reflect the new DuckDB integration, version bump, and project structure changes.
+  - Updated `docs/tree.md` with new files and directories related to DuckDB.
+
 ## [1.3.3] - 2025-05-29
 
 ### Changed
