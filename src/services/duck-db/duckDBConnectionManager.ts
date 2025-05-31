@@ -40,7 +40,7 @@ export class DuckDBConnectionManager {
       // Potentially compare new config with old config if re-init with changes is desired
       return;
     }
-        this.currentConfig = config || {};
+    this.currentConfig = config || {};
 
     return ErrorHandler.tryCatch(
       async () => {
@@ -55,7 +55,10 @@ export class DuckDBConnectionManager {
         // Pass launchConfig directly to the create method
         // The exact structure for launchConfig might need verification against @duckdb/node-api docs
         // Assuming it takes an object similar to what's in DuckDBServiceConfig
-        this.dbInstance = await duckdb.DuckDBInstance.create(dbPath, launchConfig || {});
+        this.dbInstance = await duckdb.DuckDBInstance.create(
+          dbPath,
+          launchConfig || {},
+        );
         this.dbConnection = await this.dbInstance.connect();
         logger.info("DuckDB instance and connection created.", context);
 

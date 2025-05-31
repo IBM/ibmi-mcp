@@ -119,7 +119,7 @@ async function runDuckDBExample(): Promise<void> {
       { name: "Alice Wonderland", email: "alice@example.com" },
       { name: "Bob The Builder", email: "bob@example.com" },
       { name: "Charlie Chaplin", email: "charlie@example.com" },
-    ].map(user => ({
+    ].map((user) => ({
       id: idGenerator.generateRandomString(6), // Generate 6-digit alphanumeric ID directly
       ...user,
     }));
@@ -170,11 +170,14 @@ async function runDuckDBExample(): Promise<void> {
       const firstUserId = usersToInsert[0].id;
       const jsonQuerySql =
         "SELECT json_object('id', id, 'name', name, 'email', email) AS user_json FROM users WHERE id = ?;"; // Added email to json_object
-      logger.info("Querying with JSON extension function for a specific user...", {
-        ...context,
-        sql: jsonQuerySql,
-        userId: firstUserId,
-      });
+      logger.info(
+        "Querying with JSON extension function for a specific user...",
+        {
+          ...context,
+          sql: jsonQuerySql,
+          userId: firstUserId,
+        },
+      );
       const jsonResult = await service.query(jsonQuerySql, [firstUserId]);
       if (jsonResult.rowCount > 0) {
         logger.info("JSON Query Result:", {
@@ -182,10 +185,16 @@ async function runDuckDBExample(): Promise<void> {
           jsonData: jsonResult.rows[0],
         });
       } else {
-        logger.warning(`Could not find user with ID ${firstUserId} for JSON query example.`, context); // Changed warn to warning
+        logger.warning(
+          `Could not find user with ID ${firstUserId} for JSON query example.`,
+          context,
+        ); // Changed warn to warning
       }
     } else {
-      logger.info("Skipping JSON query example as no users were inserted.", context);
+      logger.info(
+        "Skipping JSON query example as no users were inserted.",
+        context,
+      );
     }
   } catch (error) {
     // ErrorHandler.tryCatch is used within the service, so errors should be McpError

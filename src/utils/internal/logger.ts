@@ -131,7 +131,7 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
       if (Object.keys(metaCopy).length > 0) {
         try {
           const replacer = (key: string, value: unknown) =>
-            typeof value === 'bigint' ? value.toString() : value;
+            typeof value === "bigint" ? value.toString() : value;
           const remainingMetaJson = JSON.stringify(metaCopy, replacer, 2);
           if (remainingMetaJson !== "{}")
             metaString += `\n  Meta: ${remainingMetaJson}`;
@@ -185,7 +185,7 @@ export class Logger {
     // Set initialized to true at the beginning of the initialization process.
     // If initialization fails critically later, the logger might be in an inconsistent state,
     // but this will prevent "Logger not initialized" messages from within initialize() itself.
-    this.initialized = true; 
+    this.initialized = true;
 
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];

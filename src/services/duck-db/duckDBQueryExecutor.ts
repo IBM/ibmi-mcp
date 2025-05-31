@@ -83,10 +83,11 @@ export class DuckDBQueryExecutor {
           resultObject = await this.dbConnection.stream(sql, params as any); // Cast to any for object
         }
 
-        const rows = await resultObject.getRows() as T[]; // Use getRows() as per docs, and it's async
+        const rows = (await resultObject.getRows()) as T[]; // Use getRows() as per docs, and it's async
         const columnNames = resultObject.columnNames(); // Sync as per docs
-        const columnTypes = resultObject.columnTypes() // Sync as per docs
-            .map((ct: duckdb.DuckDBType) => ct.typeId);
+        const columnTypes = resultObject
+          .columnTypes() // Sync as per docs
+          .map((ct: duckdb.DuckDBType) => ct.typeId);
 
         return {
           rows: rows,
