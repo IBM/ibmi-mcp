@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2025-05-31
+
+### Added
+
+- **Tool**: Added `get_random_cat_fact` tool (`src/mcp-server/tools/catFactFetcher/`) that fetches a random cat fact from an external API. This demonstrates making external API calls within a tool.
+- **Utility**: Added `fetchWithTimeout` utility (`src/utils/network/fetchWithTimeout.ts`) for making HTTP requests with a specified timeout.
+
+### Changed
+
+- **Dependencies**:
+  - Updated `@types/node` from `^22.15.28` to `^22.15.29`.
+  - Updated `ignore` from `^7.0.4` to `^7.0.5`.
+- **Server**:
+  - Registered the new `get_random_cat_fact` tool in `src/mcp-server/server.ts`.
+- **Utilities**:
+  - Exported network utilities (including `fetchWithTimeout`) from `src/utils/index.ts`.
+- **DuckDB Service**:
+  - Minor refactoring in `src/services/duck-db/duckDBConnectionManager.ts` and `src/services/duck-db/duckDBQueryExecutor.ts` for clarity and consistency.
+  - Minor logging improvements in `src/storage/duckdbExample.ts`.
+- **Logging**:
+  - Minor adjustment to BigInt serialization in `src/utils/internal/logger.ts`.
+- **Documentation**:
+  - Updated `README.md` version badge to `1.4.1`.
+  - Updated `docs/tree.md` to reflect new files and directories (`catFactFetcher` tool, `utils/network`).
+- **Build**:
+  - Updated project version to `1.4.1` in `package.json` and `package-lock.json`.
+
 ## [1.4.0] - 2025-05-30
 
 ### Added

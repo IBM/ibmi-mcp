@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-30 20:20:00
+Generated on: 2025-05-31 13:36:29
 
 ```
 mcp-ts-template
@@ -45,6 +45,10 @@ mcp-ts-template
 │   │   │       ├── index.ts
 │   │   │       └── registration.ts
 │   │   ├── tools
+│   │   │   ├── catFactFetcher
+│   │   │   │   ├── catFactFetcherLogic.ts
+│   │   │   │   ├── catFactFetcherRegistration.ts
+│   │   │   │   └── index.ts
 │   │   │   ├── echoTool
 │   │   │   │   ├── echoToolLogic.ts
 │   │   │   │   ├── index.ts
@@ -85,6 +89,9 @@ mcp-ts-template
 │   │   ├── metrics
 │   │   │   ├── index.ts
 │   │   │   └── tokenCounter.ts
+│   │   ├── network
+│   │   │   ├── fetchWithTimeout.ts
+│   │   │   └── index.ts
 │   │   ├── parsing
 │   │   │   ├── dateParser.ts
 │   │   │   ├── index.ts

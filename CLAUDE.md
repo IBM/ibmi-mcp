@@ -65,10 +65,14 @@ mcp-ts-template
 │   │   │       ├── index.ts
 │   │   │       └── registration.ts
 │   │   ├── tools
-│   │   │   └── echoTool
-│   │   │       ├── echoToolLogic.ts
-│   │   │       ├── index.ts
-│   │   │       └── registration.ts
+│   │   │   ├── catFactFetcher
+│   │   │   │   ├── catFactFetcherLogic.ts
+│   │   │   │   ├── catFactFetcherRegistration.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── echoTool
+│   │   │   │   ├── echoToolLogic.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   └── registration.ts
 │   │   ├── transports
 │   │   │   ├── authentication
 │   │   │   │   └── authMiddleware.ts
@@ -94,6 +98,9 @@ mcp-ts-template
 │   │   ├── metrics
 │   │   │   ├── index.ts
 │   │   │   └── tokenCounter.ts
+│   │   ├── network
+│   │   │   ├── fetchWithTimeout.ts
+│   │   │   └── index.ts
 │   │   ├── parsing
 │   │   │   ├── dateParser.ts
 │   │   │   ├── index.ts

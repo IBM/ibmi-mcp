@@ -456,7 +456,7 @@ This project includes several utility scripts located in the `scripts/` director
 - **HTTP Auth Middleware**: `src/mcp-server/transports/authentication/authMiddleware.ts`
 - **Configuration**: `src/config/index.ts` (Loads env vars, package info, initializes logger)
 - **Global Types**: `src/types-global/`
-- **Utilities**: `src/utils/` (Main barrel file `index.ts` exporting from subdirs: `internal`, `metrics`, `parsing`, `security`)
+- **Utilities**: `src/utils/` (Main barrel file `index.ts` exporting from subdirs: `internal`, `metrics`, `network`, `parsing`, `security`)
 - **Tools**: `src/mcp-server/tools/`
 - **Resources**: `src/mcp-server/resources/`
 - **MCP Client**: `src/mcp-client/` (Contains all client-side logic, entirely self-contained, but utilizes shared utilities from `src/utils/`)
