@@ -18,7 +18,7 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 
 | Feature Area                | Description                                                                                                                                                                  | Key Components / Location                                                      |
 | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
-| **🔌 MCP Server**           | Functional server example with Echo Tool & Resource. Supports `stdio` and **Streamable HTTP** (which utilizes Server-Sent Events for server-to-client streaming) transports. | `src/mcp-server/`                                                              |
+| **🔌 MCP Server**           | Functional server with example tools (`EchoTool`, `CatFactFetcher` for async/Promise API example) and an `EchoResource`. Supports `stdio` and **Streamable HTTP** transports. | `src/mcp-server/`                                                              |
 | **💻 MCP Client**           | Working client aligned with **MCP 2025-03-26 spec**. Connects via `mcp-config.json`. Includes detailed comments.                                                             | `src/mcp-client/`                                                              |
 | **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                                         | `src/utils/`                                                                   |
 | **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware stub for HTTP).                                             | Throughout, `src/utils/security/`, `src/mcp-server/transports/authentication/` |
@@ -180,8 +180,8 @@ The `src/` directory is organized for clarity:
   - `index.ts`: Barrel file exporting key client functionalities.
 - `mcp-server/`: Logic for the MCP server _provided by this template_.
   - `server.ts`: Initializes the server, registers tools/resources.
-  - `resources/`: Example resource implementations (e.g., EchoResource).
-  - `tools/`: Example tool implementations (e.g., EchoTool).
+  - `resources/`: Example resource implementations (e.g., `EchoResource`).
+  - `tools/`: Example tool implementations (e.g., `EchoTool`, and `CatFactFetcher` demonstrating async/Promise API calls).
   - `transports/`: Handles `stdio` and `http` communication for the server.
 - `services/`: Contains service integrations.
   - `duck-db/`: Service for interacting with DuckDB, an in-process analytical data management system.
@@ -221,6 +221,8 @@ This template is designed for extension! Follow the high-level SDK patterns:
 4.  **Export & Import**: Export the registration function from your new directory's `index.ts` and call it within `createMcpServerInstance` in `src/mcp-server/server.ts`.
 
 Refer to the included `EchoTool` and `EchoResource` examples and the [.clinerules](.clinerules) cheatsheet for detailed patterns.
+
+For an example of a tool that performs asynchronous operations, such as making an external API call, see the `get_random_cat_fact` tool located in `src/mcp-server/tools/catFactFetcher/`. This tool demonstrates how to use `async/await` within your tool's logic and handler, manage Promises, and integrate external data sources.
 
 ## 🌍 Explore More MCP Resources
 
