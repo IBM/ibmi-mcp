@@ -14,6 +14,20 @@ This template provides a solid, beginner-friendly foundation for building robust
 
 Whether you're creating a new MCP server to extend an AI's capabilities or integrating MCP client features into your application, this template is your starting point.
 
+## 📋 Table of Contents
+
+- [✨ Key Features](#-key-features)
+- [🚀 Projects Using This Template](#-projects-using-this-template)
+- [🚀 Quick Start](#quick-start)
+- [⚙️ Configuration](#️-configuration)
+- [Server Configuration (Environment Variables)](#server-configuration-environment-variables)
+- [Client Configuration (`src/mcp-client/client-config/mcp-config.json`)](#client-configuration-mcp-configjson)
+- [🏗️ Project Structure](#️-project-structure)
+- [🧩 Adding Tools/Resources](#-adding-your-own-tools--resources)
+- [🌍 More MCP Resources](#-explore-more-mcp-resources)
+- [📜 License](#-license)
+- [Detailed Features Table](#detailed-features-table)
+
 ## ✨ Key Features
 
 | Feature Area                | Description                                                                                                                                                                   | Key Components / Location                                                      |
@@ -26,7 +40,7 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 | **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references                                                                                                          | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`                    |
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                                                    | `.clinerules`                                                                  |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                                          | `scripts/`                                                                     |
-| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                                                   | `src/services/`, `src/storage/duckdbExample.ts`, `                             |
+| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                                                   | `src/services/`, `src/storage/duckdbExample.ts`                                |
 
 _For a more granular breakdown, see the [Detailed Features Table](#detailed-features-table) below._
 
@@ -45,10 +59,6 @@ This template is already powering several MCP servers, demonstrating its flexibi
 _Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server) was initially built using an older version of this template and is pending updates to the latest structure._
 
 You can also **see my [GitHub profile](https://github.com/cyanheads/)** for additional MCP servers I've created, many of which are planned to be migrated to or built upon this template in the future.
-
-## 📋 Table of Contents
-
-[✨ Key Features](#-key-features) | [🚀 Projects Using This Template](#-projects-using-this-template) | [🚀 Quick Start](#quick-start) | [⚙️ Configuration](#️-configuration) | [Server Configuration](#server-configuration-environment-variables) | [Client Configuration](#client-configuration-mcp-configjson) | [🏗️ Project Structure](#️-project-structure) | [🧩 Adding Tools/Resources](#-adding-your-own-tools--resources) | [🌍 More MCP Resources](#-explore-more-mcp-resources) | [📜 License](#-license) | [Detailed Features](#detailed-features-table)
 
 ## Quick Start
 
@@ -148,7 +158,6 @@ This file defines external MCP servers the client can connect to. The client imp
       "env": {}, // Not used for HTTP
       "transportType": "http" // Explicitly http
     }
-    // ... add other servers
   }
 }
 ```
@@ -164,39 +173,41 @@ See `src/mcp-client/client-config/configLoader.ts` for the Zod validation schema
 
 The `src/` directory is organized for clarity:
 
-- `config/`: Loads environment variables and package info.
-- `mcp-client/`: Logic for the client connecting to _external_ MCP servers (updated to MCP 2025-03-26 spec).
-  - `client-config/`: Handles loading and validation of `mcp-config.json`.
-    - `configLoader.ts`: Loads and validates server configurations.
-    - `mcp-config.json.example`: Example configuration file.
-  - `core/`: Core client logic including connection management and caching.
-    - `clientManager.ts`: Manages client instances and their lifecycle.
-    - `clientConnectionLogic.ts`: Handles the details of connecting and initializing with servers.
-    - `clientCache.ts`: Caches active client connections.
-  - `transports/`: Manages different communication transports (Stdio, HTTP).
-    - `transportFactory.ts`: Creates appropriate transport instances.
-    - `stdioClientTransport.ts`: Implements Stdio transport.
-    - `httpClientTransport.ts`: Implements HTTP transport.
-  - `index.ts`: Barrel file exporting key client functionalities.
-- `mcp-server/`: Logic for the MCP server _provided by this template_.
-  - `server.ts`: Initializes the server, registers tools/resources.
-  - `resources/`: Example resource implementations (e.g., `EchoResource`).
-  - `tools/`: Example tool implementations (e.g., `EchoTool`, and `CatFactFetcher` demonstrating async/Promise API calls).
-  - `transports/`: Handles `stdio` and `http` communication for the server.
-- `services/`: Contains service integrations.
-  - `duck-db/`: Service for interacting with DuckDB, an in-process analytical data management system.
-    - `duckDBConnectionManager.ts`: Manages DuckDB instance and connection lifecycle.
-    - `duckDBQueryExecutor.ts`: Executes SQL queries and manages transactions.
-    - `duckDBService.ts`: Main service class for DuckDB interaction.
-    - `types.ts`: TypeScript types and interfaces for the DuckDB service.
-  - `llm-providers/`: API Providers for Large Language Models.
-    - `openRouter/`: OpenRouter provider implementation.
-    - `llmFactory.ts`: Factory for creating LLM provider clients.
-    - `index.ts`: Barrel file for all LLM providers.
-  - `index.ts`: Barrel file for services.
-- `storage/`: Example usage of services, e.g., `duckdbExample.ts`.
-- `types-global/`: Shared TypeScript definitions (Errors, MCP types).
-- `utils/`: Reusable utilities (logging, errors, security, parsing, etc.). Exported via `index.ts`.
+| Path                                               | Description                                                                                                  |
+| :------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| `config/`                                          | Loads environment variables and package info.                                                                |
+| `mcp-client/`                                      | Logic for the client connecting to _external_ MCP servers (updated to MCP 2025-03-26 spec).                  |
+| `mcp-client/client-config/`                        | Handles loading and validation of `mcp-config.json`.                                                         |
+| `mcp-client/client-config/configLoader.ts`         | Loads and validates server configurations.                                                                   |
+| `mcp-client/client-config/mcp-config.json.example` | Example configuration file.                                                                                  |
+| `mcp-client/core/`                                 | Core client logic including connection management and caching.                                               |
+| `mcp-client/core/clientManager.ts`                 | Manages client instances and their lifecycle.                                                                |
+| `mcp-client/core/clientConnectionLogic.ts`         | Handles the details of connecting and initializing with servers.                                             |
+| `mcp-client/core/clientCache.ts`                   | Caches active client connections.                                                                            |
+| `mcp-client/transports/`                           | Manages different communication transports (Stdio, HTTP).                                                    |
+| `mcp-client/transports/transportFactory.ts`        | Creates appropriate transport instances.                                                                     |
+| `mcp-client/transports/stdioClientTransport.ts`    | Implements Stdio transport.                                                                                  |
+| `mcp-client/transports/httpClientTransport.ts`     | Implements HTTP transport.                                                                                   |
+| `mcp-client/index.ts`                              | Barrel file exporting key client functionalities.                                                            |
+| `mcp-server/`                                      | Logic for the MCP server _provided by this template_.                                                        |
+| `mcp-server/server.ts`                             | Initializes the server, registers tools/resources.                                                           |
+| `mcp-server/resources/`                            | Example resource implementations (e.g., `EchoResource`).                                                     |
+| `mcp-server/tools/`                                | Example tool implementations (e.g., `EchoTool`, and `CatFactFetcher` demonstrating async/Promise API calls). |
+| `mcp-server/transports/`                           | Handles `stdio` and `http` communication for the server.                                                     |
+| `services/`                                        | Contains service integrations.                                                                               |
+| `services/duck-db/`                                | Service for interacting with DuckDB, an in-process analytical data management system.                        |
+| `services/duck-db/duckDBConnectionManager.ts`      | Manages DuckDB instance and connection lifecycle.                                                            |
+| `services/duck-db/duckDBQueryExecutor.ts`          | Executes SQL queries and manages transactions.                                                               |
+| `services/duck-db/duckDBService.ts`                | Main service class for DuckDB interaction.                                                                   |
+| `services/duck-db/types.ts`                        | TypeScript types and interfaces for the DuckDB service.                                                      |
+| `services/llm-providers/`                          | API Providers for Large Language Models.                                                                     |
+| `services/llm-providers/openRouter/`               | OpenRouter provider implementation.                                                                          |
+| `services/llm-providers/llmFactory.ts`             | Factory for creating LLM provider clients.                                                                   |
+| `services/llm-providers/index.ts`                  | Barrel file for all LLM providers.                                                                           |
+| `services/index.ts`                                | Barrel file for services.                                                                                    |
+| `storage/`                                         | Example usage of services, e.g., `duckdbExample.ts`.                                                         |
+| `types-global/`                                    | Shared TypeScript definitions (Errors, MCP types).                                                           |
+| `utils/`                                           | Reusable utilities (logging, errors, security, parsing, etc.). Exported via `index.ts`.                      |
 
 **Explore the structure yourself:**
 

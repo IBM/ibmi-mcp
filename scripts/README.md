@@ -58,7 +58,6 @@ You can also add a dedicated `clean` script if desired:
 ```json
 "scripts": {
   "clean": "ts-node --esm scripts/clean.ts"
-  // other scripts
 }
 ```
 
