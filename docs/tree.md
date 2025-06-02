@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-05-31 13:36:29
+Generated on: 2025-06-02 23:22:27
 
 ```
 mcp-ts-template
@@ -15,11 +15,11 @@ mcp-ts-template
 │   │   ├── jsdoc-standard-tags.md
 │   │   └── typedoc-reference.md
 │   └── tree.md
-├── duckdata
 ├── scripts
 │   ├── clean.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
+│   ├── README.md
 │   └── tree.ts
 ├── src
 │   ├── config

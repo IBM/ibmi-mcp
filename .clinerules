@@ -1,3 +1,5 @@
+You are an intelligent Software Engineer who is an expert in TypeScript and the Model Context Protocol (MCP). Below is a cheatsheet for our current project `mcp-ts-template`.
+
 # mcp-ts-template Developer Cheatsheet
 
 This cheatsheet provides quick references for common patterns, utilities, and server configuration within the `mcp-ts-template` codebase, updated for MCP Spec 2025-03-26.
@@ -7,8 +9,8 @@ This cheatsheet provides quick references for common patterns, utilities, and se
 The server can run using different communication transports, configured via environment variables.
 
 - **`MCP_TRANSPORT_TYPE`**: Specifies the transport.
-    - `"stdio"` (Default): Uses standard input/output for communication. Suitable for direct integration with parent processes.
-    - `"http"`: Uses Streamable HTTP Server-Sent Events (SSE) for communication. Runs an Express server.
+  - `"stdio"` (Default): Uses standard input/output for communication. Suitable for direct integration with parent processes.
+  - `"http"`: Uses Streamable HTTP Server-Sent Events (SSE) for communication. Runs an Express server.
 - **`MCP_HTTP_PORT`**: Port for the HTTP server (Default: `3010`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
@@ -16,22 +18,16 @@ The server can run using different communication transports, configured via envi
 - **`LOGS_DIR`**: Directory for log files. Defaults to "`logs/`" in the project root. Configured via `src/config/index.ts`.
 - **`MCP_AUTH_SECRET_KEY`**: **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). Defaults to `undefined`. **MUST be set in production.**
 - **LLM Provider Configuration**: Environment variables for configuring Large Language Model (LLM) providers, primarily OpenRouter.
-    - **`OPENROUTER_API_KEY`**: API key for OpenRouter.
-    - **`OPENROUTER_APP_URL`**: Application URL to send to OpenRouter.
-    - **`OPENROUTER_APP_NAME`**: Application name to send to OpenRouter.
-    - **`LLM_DEFAULT_MODEL`**: Default LLM model to use (e.g., `google/gemini-2.5-flash-preview-05-20`).
-    - **`LLM_DEFAULT_TEMPERATURE`**: Default temperature for LLM responses.
-    - **`LLM_DEFAULT_TOP_P`**: Default top_p for LLM responses.
-    - **`LLM_DEFAULT_MAX_TOKENS`**: Default max tokens for LLM responses.
-    - **`LLM_DEFAULT_TOP_K`**: Default top_k for LLM responses.
-    - **`LLM_DEFAULT_MIN_P`**: Default min_p for LLM responses.
+  - **`OPENROUTER_API_KEY`**: API key for OpenRouter.
+  - **`LLM_DEFAULT_MODEL`**: Default LLM model to use (e.g., `google/gemini-2.5-flash-preview-05-20`).
+  - **`LLM_DEFAULT_TEMPERATURE`**: Default temperature for LLM responses.
 
 ### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
 
 - **Endpoint**: A single endpoint `/mcp` handles all communication.
-    - `POST /mcp`: Client sends requests/notifications to the server. Requires `mcp-session-id` header for subsequent requests after initialization. Server responds with JSON or initiates SSE stream.
-    - `GET /mcp`: Client initiates SSE stream for server-sent messages. Requires `mcp-session-id` header.
-    - `DELETE /mcp`: Client signals session termination. Requires `mcp-session-id` header.
+  - `POST /mcp`: Client sends requests/notifications to the server. Requires `mcp-session-id` header for subsequent requests after initialization. Server responds with JSON or initiates SSE stream.
+  - `GET /mcp`: Client initiates SSE stream for server-sent messages. Requires `mcp-session-id` header.
+  - `DELETE /mcp`: Client signals session termination. Requires `mcp-session-id` header.
 - **Session Management**: Each client connection establishes a session identified by the `mcp-session-id` header. The server maintains state per session.
 - **Security**: Robust origin checking is implemented via `originCheckMiddleware`. Configure `MCP_ALLOWED_ORIGINS` for production environments.
 
@@ -81,15 +77,16 @@ graph LR
 - **Communication:** JSON-RPC 2.0 over a transport (Stdio, Streamable HTTP).
 - **Messages:** Requests (with `id`), Responses (`id` + `result`/`error`), Notifications (no `id`). Batches MUST be supported for receiving.
 - **Lifecycle:**
-    1.  **Initialization:** Client sends `initialize` (version, capabilities, clientInfo). Server responds (`initialize` response: agreed version, capabilities, serverInfo, instructions?). Client sends `initialized` notification.
-    2.  **Operation:** Message exchange based on negotiated capabilities.
-    3.  **Shutdown:** Transport disconnect.
+  1.  **Initialization:** Client sends `initialize` (version, capabilities, clientInfo). Server responds (`initialize` response: agreed version, capabilities, serverInfo, instructions?). Client sends `initialized` notification.
+  2.  **Operation:** Message exchange based on negotiated capabilities.
+  3.  **Shutdown:** Transport disconnect.
 
 ### Server Capabilities
 
 Servers expose functionality via:
 
 1.  **Resources:**
+
     - **Purpose:** Expose data/content (files, DB records) as context.
     - **Control:** Application-controlled.
     - **ID:** Unique URI (e.g., `file:///path/to/doc.txt`).
@@ -98,6 +95,7 @@ Servers expose functionality via:
     - **Updates (Optional):** `listChanged: true` -> `notifications/resources/list_changed`. `subscribe: true` -> `resources/subscribe`, `notifications/resources/updated`, **MUST handle `resources/unsubscribe` request**.
 
 2.  **Tools:**
+
     - **Purpose:** Expose executable functions for LLM invocation (via client).
     - **Control:** Model-controlled.
     - **Definition:** `Tool` object (`name`, `description`, `inputSchema` (JSON Schema), `annotations?`). Annotations (`title`, `readOnlyHint`, etc.) are untrusted hints.
@@ -132,25 +130,25 @@ Servers expose functionality via:
 ### SDK Usage (TypeScript) - IMPORTANT
 
 - **High-Level SDK Abstractions (Strongly Recommended):**
-    - **Use `server.tool(name, description, zodSchemaShape, handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
-        - Registering the tool for `tools/list`.
-        - Generating the JSON Schema from the Zod shape.
-        - Validating incoming `tools/call` arguments against the schema.
-        - Routing the call to your handler with validated arguments.
-        - Formatting the `CallToolResult`.
-    - **Use `server.resource(regName, template, metadata, handler)`:** Similarly recommended for resources.
-    - **Benefits:** Significantly reduces boilerplate, enforces type safety, simplifies protocol adherence.
+  - **Use `server.tool(name, description, zodSchemaShape, handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
+    - Registering the tool for `tools/list`.
+    - Generating the JSON Schema from the Zod shape.
+    - Validating incoming `tools/call` arguments against the schema.
+    - Routing the call to your handler with validated arguments.
+    - Formatting the `CallToolResult`.
+  - **Use `server.resource(regName, template, metadata, handler)`:** Similarly recommended for resources.
+  - **Benefits:** Significantly reduces boilerplate, enforces type safety, simplifies protocol adherence.
 - **Low-Level SDK Handlers (AVOID unless absolutely necessary):**
-    - Manually using `server.setRequestHandler(SchemaObject, handler)` requires you to handle schema generation, argument validation, request routing, and response formatting yourself.
-    - **CRITICAL WARNING:** **Do NOT mix high-level (`server.tool`, `server.resource`) and low-level (`server.setRequestHandler`) approaches for the *same capability type* (e.g., tools).** The SDK's internal state management and type handling can become confused, leading to unexpected errors or incorrect behavior. Stick to one approach per capability type, **strongly preferring the high-level abstractions.**
+  - Manually using `server.setRequestHandler(SchemaObject, handler)` requires you to handle schema generation, argument validation, request routing, and response formatting yourself.
+  - **CRITICAL WARNING:** **Do NOT mix high-level (`server.tool`, `server.resource`) and low-level (`server.setRequestHandler`) approaches for the _same capability type_ (e.g., tools).** The SDK's internal state management and type handling can become confused, leading to unexpected errors or incorrect behavior. Stick to one approach per capability type, **strongly preferring the high-level abstractions.**
 
 ### Security Considerations
 
 - **Input Validation:** Use schemas (Zod), sanitize inputs (paths, HTML, SQL).
 - **Access Control:** Least privilege, respect roots.
 - **Transport Security:**
-    - **HTTP:** Mandatory JWT authentication (`src/mcp-server/transports/authentication/authMiddleware.ts`). **Requires `MCP_AUTH_SECRET_KEY` to be set.** Validate `Origin` header (via `isOriginAllowed` in `httpTransport.ts`). Use HTTPS in production. Bind to `127.0.0.1` for local servers.
-    - **Stdio:** Authentication typically handled by the host process. Best practice is to not apply authentication to MCP Server stdio processes.
+  - **HTTP:** Mandatory JWT authentication (`src/mcp-server/transports/authentication/authMiddleware.ts`). **Requires `MCP_AUTH_SECRET_KEY` to be set.** Validate `Origin` header (via `isOriginAllowed` in `httpTransport.ts`). Use HTTPS in production. Bind to `127.0.0.1` for local servers.
+  - **Stdio:** Authentication typically handled by the host process. Best practice is to not apply authentication to MCP Server stdio processes.
 - **Secrets Management:** Use env vars (`MCP_AUTH_SECRET_KEY`) or secrets managers, avoid hardcoding/logging.
 - **Dependency Security:** Keep dependencies updated (`npm audit`).
 - **Rate Limiting:** Protect against abuse.
@@ -165,13 +163,13 @@ Comprehensive code documentation is crucial for maintainability and collaboratio
 - **Detailed Reference**: For standard JSDoc tags, see [JSDoc Standard Tags Reference](./docs/api-references/jsdoc-standard-tags.md) and the [TypeDoc documentation](https://typedoc.org/guides/doccomments/).
 - **Code Formatting**: This project uses Prettier. Run `npm run format`.
 - **Best Practices**:
-    - Document all public APIs.
-    - **Focus on "why" and "how"**: Explain the purpose, algorithm, or important context that isn't obvious from the code or types.
-    - **Leverage TypeDoc & TypeScript**: Rely on TypeDoc's ability to infer types from TypeScript. Explicit `@param` and `@returns` JSDoc tags are often unnecessary if TypeScript signatures are clear and descriptive. Use them primarily to add detail beyond what the type conveys (e.g., constraints, specific meanings of parameters).
-    - **Conciseness**: Keep comments brief and to the point. Avoid restating what is obvious from the code or type signatures. The goal is to reduce verbosity and improve readability.
-    - Document any thrown exceptions using `@throws`.
-    - Use `@example` to provide clear usage scenarios.
-    - Keep documentation synchronized with code changes.
+  - Document all public APIs.
+  - **Focus on "why" and "how"**: Explain the purpose, algorithm, or important context that isn't obvious from the code or types.
+  - **Leverage TypeDoc & TypeScript**: Rely on TypeDoc's ability to infer types from TypeScript. Explicit `@param` and `@returns` JSDoc tags are often unnecessary if TypeScript signatures are clear and descriptive. Use them primarily to add detail beyond what the type conveys (e.g., constraints, specific meanings of parameters).
+  - **Conciseness**: Keep comments brief and to the point. Avoid restating what is obvious from the code or type signatures. The goal is to reduce verbosity and improve readability.
+  - Document any thrown exceptions using `@throws`.
+  - Use `@example` to provide clear usage scenarios.
+  - Keep documentation synchronized with code changes.
 
 ## Core Utilities Integration
 
@@ -179,14 +177,10 @@ Comprehensive code documentation is crucial for maintainability and collaboratio
 
 - **Purpose**: Structured logging compliant with MCP Spec (RFC 5424 levels). Logs to files (`logs/`) and can send `notifications/message` to connected clients supporting the `logging` capability.
 - **Levels**: `debug`(7), `info`(6), `notice`(5), `warning`(4), `error`(3), `crit`(2), `alert`(1), `emerg`(0).
-- **Usage**: Import the singleton `logger` instance from the main utils barrel file (`src/utils/index.js`). Pass a `context` object (`RequestContext`) for correlation.
+- **Usage**: Import the singleton `logger` instance from the main utils barrel file (`src/utils/index.ts`). Pass a `context` object (`RequestContext`) for correlation.
 
 ```typescript
-// Example assuming import from a file within src/
 import { logger, McpLogLevel, RequestContext } from './utils/index.js'; // Import logger, level type, and context type
-
-// Inside a function or handler
-const operationContext: RequestContext = /* ... get or create context ... */;
 
 // Inside a function or handler
 const operationContext: RequestContext = /* ... get or create context ... */;
@@ -219,25 +213,29 @@ logger.setLevel('debug' as McpLogLevel);
 
 ```typescript
 // Example assuming import from a file within src/
-import { ErrorHandler, RequestContext } from './utils/index.js'; // Import ErrorHandler and context type
-import { McpError, BaseErrorCode } from './types-global/errors.ts'; // Import error types
+import { ErrorHandler, RequestContext } from "./utils/index.js"; // Import ErrorHandler and context type
+import { McpError, BaseErrorCode } from "./types-global/errors.js"; // Import error types
 
 async function performTask(input: any, context: RequestContext) {
   return await ErrorHandler.tryCatch(
     async () => {
       if (!input) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Input cannot be empty", context);
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          "Input cannot be empty",
+          context
+        );
       }
       // ... perform task logic ...
       const result = await someAsyncOperation(input);
       return result;
     },
     {
-      operation: 'performTask',
+      operation: "performTask",
       context: context,
       input: input, // Input is automatically sanitized for logging
       errorCode: BaseErrorCode.INTERNAL_ERROR, // Default code if unexpected error occurs
-      critical: false // Or true if failure should halt the process
+      critical: false, // Or true if failure should halt the process
     }
   );
 }
@@ -257,12 +255,16 @@ async function performTask(input: any, context: RequestContext) {
 
 ```typescript
 // Example assuming import from a file within src/
-import { requestContextService, RequestContext, logger } from './utils/index.js'; // Import service, type, and logger
+import {
+  requestContextService,
+  RequestContext,
+  logger,
+} from "./utils/index.js"; // Import service, type, and logger
 
 function handleIncomingRequest(requestData: any) {
   const context: RequestContext = requestContextService.createRequestContext({
-    operation: 'HandleIncomingRequest',
-    initialData: requestData.id
+    operation: "HandleIncomingRequest",
+    initialData: requestData.id,
   });
 
   logger.info("Received request", context);
@@ -270,7 +272,7 @@ function handleIncomingRequest(requestData: any) {
 }
 
 function processSubTask(payload: any, parentContext: RequestContext) {
-  const subTaskContext = { ...parentContext, subOperation: 'ProcessSubTask' };
+  const subTaskContext = { ...parentContext, subOperation: "ProcessSubTask" };
   logger.debug("Processing sub-task", subTaskContext);
   // ... logic ...
 }
@@ -286,15 +288,15 @@ function processSubTask(payload: any, parentContext: RequestContext) {
 
 ```typescript
 // Example assuming import from a file within src/
-import { idGenerator, generateUUID } from './utils/index.js'; // Import generator instance and UUID function
+import { idGenerator, generateUUID } from "./utils/index.js"; // Import generator instance and UUID function
 
-idGenerator.setEntityPrefixes({ project: 'PROJ', task: 'TASK' });
+idGenerator.setEntityPrefixes({ project: "PROJ", task: "TASK" });
 
-const projectId = idGenerator.generateForEntity('project'); // e.g., "PROJ_A6B3J0"
-const taskId = idGenerator.generateForEntity('task', { length: 8 }); // e.g., "TASK_C9D4E1F2"
+const projectId = idGenerator.generateForEntity("project"); // e.g., "PROJ_A6B3J0"
+const taskId = idGenerator.generateForEntity("task", { length: 8 }); // e.g., "TASK_C9D4E1F2"
 const standardUuid = generateUUID(); // e.g., "123e4567-e89b-12d3-a456-426614174000"
 
-const isValid = idGenerator.isValid(projectId, 'project'); // true
+const isValid = idGenerator.isValid(projectId, "project"); // true
 const entityType = idGenerator.getEntityType(taskId); // "task"
 ```
 
@@ -308,25 +310,31 @@ const entityType = idGenerator.getEntityType(taskId); // "task"
 
 ```typescript
 // Example assuming import from a file within src/
-import { sanitization, sanitizeInputForLogging } from './utils/index.js'; // Import sanitization instance and helper
+import { sanitization, sanitizeInputForLogging } from "./utils/index.js"; // Import sanitization instance and helper
 
 const unsafeHtml = '<script>alert("xss")</script><p>Safe content</p>';
 const safeHtml = sanitization.sanitizeHtml(unsafeHtml); // "<p>Safe content</p>"
 
-const unsafePath = '../../etc/passwd';
+const unsafePath = "../../etc/passwd";
 try {
-  const safePath = sanitization.sanitizePath(unsafePath, { rootDir: '/app/data' });
-} catch (error) { /* Handle McpError */ }
+  const safePath = sanitization.sanitizePath(unsafePath, {
+    rootDir: "/app/data",
+  });
+} catch (error) {
+  /* Handle McpError */
+}
 
 const userInput = " 123.45 ";
 const num = sanitization.sanitizeNumber(userInput, 0, 1000); // 123.45
 
 const unsafeUrl = 'javascript:alert("bad")';
 try {
-    const safeUrl = sanitization.sanitizeUrl(unsafeUrl);
-} catch (error) { /* Handle McpError */ }
+  const safeUrl = sanitization.sanitizeUrl(unsafeUrl);
+} catch (error) {
+  /* Handle McpError */
+}
 
-const sensitiveData = { user: 'admin', password: 'pwd', token: 'abc' };
+const sensitiveData = { user: "admin", password: "pwd", token: "abc" };
 const safeLogData = sanitizeInputForLogging(sensitiveData);
 // safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]' }
 ```
@@ -410,25 +418,25 @@ This project includes several utility scripts located in the `scripts/` director
 ### 1. Clean (`scripts/clean.ts`)
 
 - **Purpose**: Removes build artifacts and temporary directories.
-- **Usage**: `npm run rebuild` (uses this script) or `ts-node --esm scripts/clean.ts [dir1] [dir2]...`
+- **Usage**: `npm run rebuild` (cleans then builds) or `ts-node --esm scripts/clean.ts [dir1] [dir2]...` (for direct/custom cleaning).
 - **Default Targets**: `dist`, `logs`.
 
 ### 2. Make Executable (`scripts/make-executable.ts`)
 
 - **Purpose**: Sets executable permissions (`chmod +x`) on specified files (Unix-like systems only). Useful for CLI entry points after building.
-- **Usage**: `npm run build` (uses this script) or `ts-node --esm scripts/make-executable.ts [file1] [file2]...`
+- **Usage**: Typically run via `npm run build`. For direct use: `ts-node --esm scripts/make-executable.ts [file1] [file2]...`
 - **Default Target**: `dist/index.js`.
 
 ### 3. Generate Tree (`scripts/tree.ts`)
 
 - **Purpose**: Creates a visual directory tree markdown file (`docs/tree.md` by default), respecting `.gitignore`.
-- **Usage**: `npm run tree` or `ts-node --esm scripts/tree.ts [output-path] [--depth=<number>]`
+- **Usage**: `npm run tree` or `npm run tree -- [output-path] [--depth=<number>]`
 
 ### 4. Fetch OpenAPI Spec (`scripts/fetch-openapi-spec.ts`)
 
 - **Purpose**: Fetches an OpenAPI specification (YAML/JSON) from a URL, attempts fallbacks (`/openapi.yaml`, `/openapi.json`), parses it, and saves both YAML and JSON versions locally.
-- **Usage**: `npm run fetch-spec <url> <output-base-path>` or `ts-node --esm scripts/fetch-openapi-spec.ts <url> <output-base-path>`
-- **Example**: `npm run fetch-spec https://petstore3.swagger.io/api/v3 docs/api/petstore_v3`
+- **Usage**: `npm run fetch-spec -- <url> <output-base-path>`
+- **Example**: `npm run fetch-spec -- https://petstore3.swagger.io/api/v3 docs/api/petstore_v3`
 - **Dependencies**: `axios`, `js-yaml`.
 
 ## Adding New Features
@@ -459,6 +467,8 @@ This project includes several utility scripts located in the `scripts/` director
 - **Utilities**: `src/utils/` (Main barrel file `index.ts` exporting from subdirs: `internal`, `metrics`, `network`, `parsing`, `security`)
 - **Tools**: `src/mcp-server/tools/`
 - **Resources**: `src/mcp-server/resources/`
+- **Services**: `src/services/` (Reusable modules for LLM and data storage integration)
+- **DuckDB Example**: `src/storage/duckdbExample.ts` (Example usage of DuckDB service)
 - **MCP Client**: `src/mcp-client/` (Contains all client-side logic, entirely self-contained, but utilizes shared utilities from `src/utils/`)
 - **Client Configuration**: `src/mcp-client/client-config/mcp-config.json` (Used for client connections, separate from the root config/ which is focused on the MCP Server side. Zod validated)
 
