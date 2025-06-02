@@ -121,15 +121,9 @@ Configure the MCP server's behavior using these environment variables:
 | `LOGS_DIR`                | Directory for log files.                                                                            | `logs/` (in project root)               |
 | `NODE_ENV`                | Runtime environment (`development`, `production`).                                                  | `development`                           |
 | `MCP_AUTH_SECRET_KEY`     | **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). | (none - **MUST be set in production**)  |
-| `OPENROUTER_APP_URL`      | URL of the application (used by OpenRouter service for HTTP Referer).                               | `http://localhost:3000`                 |
-| `OPENROUTER_APP_NAME`     | Name of the application (used by OpenRouter service for X-Title header).                            | 'mcp-ts-template'                       |
 | `OPENROUTER_API_KEY`      | API key for OpenRouter.ai service. Optional, but service will be unconfigured without it.           | (none)                                  |
 | `LLM_DEFAULT_MODEL`       | Default model to use for LLM calls via OpenRouter.                                                  | `google/gemini-2.5-flash-preview-05-20` |
 | `LLM_DEFAULT_TEMPERATURE` | Default temperature for LLM calls (0-2). Optional.                                                  | (none)                                  |
-| `LLM_DEFAULT_TOP_P`       | Default top_p for LLM calls (0-1). Optional.                                                        | (none)                                  |
-| `LLM_DEFAULT_MAX_TOKENS`  | Default max_tokens for LLM calls. Optional.                                                         | (none)                                  |
-| `LLM_DEFAULT_TOP_K`       | Default top_k for LLM calls (non-negative integer). Optional.                                       | (none)                                  |
-| `LLM_DEFAULT_MIN_P`       | Default min_p for LLM calls (0-1). Optional.                                                        | (none)                                  |
 
 **Note on HTTP Port Retries:** If the `MCP_HTTP_PORT` is busy, the server automatically tries the next port (up to 15 times).
 
