@@ -17,16 +17,16 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 ## 📋 Table of Contents
 
 - [✨ Key Features](#-key-features)
-- [🚀 Projects Using This Template](#-projects-using-this-template)
-- [🚀 Quick Start](#quick-start)
+- [🌟 Projects Using This Template](#-projects-using-this-template)
+- [🏁 Quick Start](#quick-start)
 - [⚙️ Configuration](#️-configuration)
-- [Server Configuration (Environment Variables)](#server-configuration-environment-variables)
-- [Client Configuration (`src/mcp-client/client-config/mcp-config.json`)](#client-configuration-mcp-configjson)
+- [🔩 Server Configuration (Environment Variables)](#server-configuration-environment-variables)
+- [🔌 Client Configuration (`src/mcp-client/client-config/mcp-config.json`)](#client-configuration-mcp-configjson)
 - [🏗️ Project Structure](#️-project-structure)
 - [🧩 Adding Tools/Resources](#-adding-your-own-tools--resources)
 - [🌍 More MCP Resources](#-explore-more-mcp-resources)
 - [📜 License](#-license)
-- [Detailed Features Table](#detailed-features-table)
+- [📊 Detailed Features Table](#detailed-features-table)
 
 ## ✨ Key Features
 
@@ -44,7 +44,7 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 
 _For a more granular breakdown, see the [Detailed Features Table](#detailed-features-table) below._
 
-## 🚀 Projects Using This Template
+## 🌟 Projects Using This Template
 
 This template is already powering several MCP servers, demonstrating its flexibility and robustness:
 
@@ -60,7 +60,7 @@ _Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server)
 
 You can also **see my [GitHub profile](https://github.com/cyanheads/)** for additional MCP servers I've created, many of which are planned to be migrated to or built upon this template in the future.
 
-## Quick Start
+## 🏁 Quick Start
 
 Get the example server running in minutes:
 
@@ -105,7 +105,7 @@ Get the example server running in minutes:
 
 ## ⚙️ Configuration
 
-### Server Configuration (Environment Variables)
+### 🔩 Server Configuration (Environment Variables)
 
 Configure the MCP server's behavior using these environment variables:
 
@@ -135,7 +135,7 @@ Configure the MCP server's behavior using these environment variables:
 
 **Security Note for HTTP Transport:** When using `MCP_TRANSPORT_TYPE=http`, authentication is **mandatory** as per the MCP specification. This template includes JWT-based authentication middleware (`src/mcp-server/transports/authentication/authMiddleware.ts`). You **MUST** set a strong, unique `MCP_AUTH_SECRET_KEY` in your production environment for this security mechanism to function correctly. Failure to do so will result in bypassed authentication checks in development and fatal errors in production.
 
-### Client Configuration (`src/mcp-client/client-config/mcp-config.json`)
+### 🔌 Client Configuration (`src/mcp-client/client-config/mcp-config.json`)
 
 Configure the connections for the built-in **MCP client** using `src/mcp-client/client-config/mcp-config.json`. If this file is missing, it falls back to `src/mcp-client/client-config/mcp-config.json.example`.
 
@@ -247,7 +247,7 @@ This collection includes servers for Filesystem, Obsidian, Git, GitHub, Perplexi
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
 
-## Detailed Features Table
+## 📊 Detailed Features Table
 
 | Category                 | Feature                         | Description                                                                                                                                                                                                                                          | Location(s)                                                                          |
 | :----------------------- | :------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
