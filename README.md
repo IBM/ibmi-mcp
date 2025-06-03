@@ -8,7 +8,7 @@
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
 
-**Jumpstart your [Model Context Protocol (MCP) Client & Server](https://modelcontextprotocol.io/) development with this TypeScript Repo Template!**
+**Jumpstart your [Model Context Protocol (MCP) Client & Server](https://modelcontextprotocol.io/) development with this TypeScript MCP Repo Template!**
 
 This template provides a solid, beginner-friendly foundation for building robust MCP servers and clients, adhering to the **MCP 2025-03-26 specification**. It includes production-ready utilities, a well-structured codebase, working examples, and clear documentation to get you up and running quickly.
 
@@ -167,21 +167,9 @@ npm run tree
 
 (This uses `scripts/tree.ts` to generate a current file tree, respecting `.gitignore`.)
 
-## 🧩 Adding Your Own Tools & Resources
+## 🧩 Extending the MCP Server
 
-This template is designed for extension! Follow the high-level SDK patterns:
-
-1.  **Create Directories**: Add new directories under `src/mcp-server/tools/yourToolName/` or `src/mcp-server/resources/yourResourceName/`.
-2.  **Implement Logic (`logic.ts`)**: Define Zod schemas for inputs/outputs and write your core processing function.
-3.  **Register (`registration.ts`)**:
-    - **Tools**: Use `server.tool(name, description, zodSchemaShape, handler)` (SDK v1.10.2+). This handles schema generation, validation, and routing. Remember to add relevant annotations (`readOnlyHint`, `destructiveHint`, etc.) as untrusted hints.
-    - **Resources**: Use `server.resource(regName, template, metadata, handler)`.
-    - Wrap logic in `ErrorHandler.tryCatch` for robust error handling.
-4.  **Export & Import**: Export the registration function from your new directory's `index.ts` and call it within `createMcpServerInstance` in `src/mcp-server/server.ts`.
-
-Refer to the included `EchoTool` and `EchoResource` examples and the [.clinerules](.clinerules) cheatsheet for detailed patterns.
-
-For an example of a tool that performs asynchronous operations, such as making an external API call, see the `get_random_cat_fact` tool located in `src/mcp-server/tools/catFactFetcher/`. This tool demonstrates how to use `async/await` within your tool's logic and handler, manage Promises, and integrate external data sources.
+For detailed guidance on how to add your own custom Tools and Resources to this MCP server template, including workflow examples and best practices, please see the [Server Extension Guide](src/mcp-server/README.md).
 
 ## 🌍 Explore More MCP Resources
 
