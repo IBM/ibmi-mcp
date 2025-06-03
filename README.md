@@ -128,39 +128,9 @@ Configure the MCP server's behavior using these environment variables:
 
 **Security Note for HTTP Transport:** When using `MCP_TRANSPORT_TYPE=http`, authentication is **mandatory** as per the MCP specification. This template includes JWT-based authentication middleware (`src/mcp-server/transports/authentication/authMiddleware.ts`). You **MUST** set a strong, unique `MCP_AUTH_SECRET_KEY` in your production environment for this security mechanism to function correctly. Failure to do so will result in bypassed authentication checks in development and fatal errors in production.
 
-### 🔌 Client Configuration (`src/mcp-client/client-config/mcp-config.json`)
+### 🔌 Client Configuration
 
-Configure the connections for the built-in **MCP client** using `src/mcp-client/client-config/mcp-config.json`. If this file is missing, it falls back to `src/mcp-client/client-config/mcp-config.json.example`.
-
-This file defines external MCP servers the client can connect to. The client implementation adheres to the **MCP 2025-03-26 specification**.
-
-**Example `mcp-config.json` (see `src/mcp-client/client-config/mcp-config.json.example` for the full version):**
-
-```json
-{
-  "mcpServers": {
-    "my-stdio-server": {
-      "command": "node", // Command or executable
-      "args": ["/path/to/my-server/index.js"], // Arguments for stdio
-      "env": { "LOG_LEVEL": "debug" }, // Optional environment variables
-      "transportType": "stdio" // Explicitly stdio (or omit for default)
-    },
-    "my-http-server": {
-      "command": "http://localhost:8080", // Base URL for HTTP
-      "args": [], // Not used for HTTP
-      "env": {}, // Not used for HTTP
-      "transportType": "http" // Explicitly http
-    }
-  }
-}
-```
-
-- **`command`**: Executable path (`stdio`) or Base URL (`http`).
-- **`args`**: Array of arguments (required for `stdio`).
-- **`env`**: Optional environment variables to set for the server process (`stdio`).
-- **`transportType`**: `stdio` (default) or `http`.
-
-See `src/mcp-client/client-config/configLoader.ts` for the Zod validation schema and `src/mcp-client/client-config/mcp-config.json.example` for a complete example.
+For detailed information on configuring the built-in **MCP client**, including how to set up connections to external MCP servers using `mcp-config.json`, please see the [Client Configuration Guide](src/mcp-client/client-config/README.md).
 
 ## 🏗️ Project Structure
 

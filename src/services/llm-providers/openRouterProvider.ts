@@ -7,10 +7,10 @@
  */
 import OpenAI from "openai";
 import {
-    ChatCompletion,
-    ChatCompletionChunk,
-    ChatCompletionCreateParamsNonStreaming,
-    ChatCompletionCreateParamsStreaming,
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionCreateParamsStreaming,
 } from "openai/resources/chat/completions";
 import { Stream } from "openai/streaming";
 import { config } from "../../config/index.js";
@@ -18,9 +18,9 @@ import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import { ErrorHandler } from "../../utils/internal/errorHandler.js";
 import { logger } from "../../utils/internal/logger.js";
 import {
-    OperationContext,
-    RequestContext,
-    requestContextService,
+  OperationContext,
+  RequestContext,
+  requestContextService,
 } from "../../utils/internal/requestContext.js";
 import { rateLimiter } from "../../utils/security/rateLimiter.js";
 import { sanitization } from "../../utils/security/sanitization.js";
@@ -120,7 +120,7 @@ class OpenRouterProvider {
       this.initializationError = new McpError(
         BaseErrorCode.CONFIGURATION_ERROR,
         "OpenRouter API key is not configured.",
-        { operation: operationName }
+        { operation: operationName },
       );
       logger.error(
         `[${operationName}] OpenRouter API key not provided in options or global config. Service is unconfigured.`,
@@ -481,5 +481,4 @@ export { openRouterProviderInstance as openRouterProvider };
  * Exporting the type of the OpenRouterProvider class for use in dependency injection
  * or for type hinting elsewhere in the application.
  */
-    export type { OpenRouterProvider };
-
+export type { OpenRouterProvider };
