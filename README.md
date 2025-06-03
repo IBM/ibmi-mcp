@@ -18,15 +18,14 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 
 - [✨ Key Features](#-key-features)
 - [🌟 Projects Using This Template](#-projects-using-this-template)
-- [🏁 Quick Start](#quick-start)
+- [🏁 Quick Start](#-quick-start)
 - [⚙️ Configuration](#️-configuration)
-- [🔩 Server Configuration (Environment Variables)](#server-configuration-environment-variables)
-- [🔌 Client Configuration (`src/mcp-client/client-config/mcp-config.json`)](#client-configuration-mcp-configjson)
+- [🔩 Server Configuration (Environment Variables)](#-server-configuration-environment-variables)
 - [🏗️ Project Structure](#️-project-structure)
 - [🧩 Adding Tools/Resources](#-adding-your-own-tools--resources)
 - [🌍 More MCP Resources](#-explore-more-mcp-resources)
 - [📜 License](#-license)
-- [📊 Detailed Features Table](#detailed-features-table)
+- [📊 Detailed Features Table](#-detailed-features-table)
 
 ## ✨ Key Features
 
