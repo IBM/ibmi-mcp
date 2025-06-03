@@ -22,7 +22,7 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 - [⚙️ Configuration](#️-configuration)
 - [🔩 Server Configuration (Environment Variables)](#-server-configuration-environment-variables)
 - [🏗️ Project Structure](#️-project-structure)
-- [🧩 Adding Tools/Resources](#-adding-your-own-tools--resources)
+- [🧩 Extending the MCP Server](#-extending-the-mcp-server)
 - [🌍 More MCP Resources](#-explore-more-mcp-resources)
 - [📜 License](#-license)
 - [📊 Detailed Features Table](#-detailed-features-table)
