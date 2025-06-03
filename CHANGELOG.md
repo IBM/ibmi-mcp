@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2025-06-03
+
+### Changed
+
+- **LLM Providers**: Simplified LLM provider integration by removing the `llmFactory.ts` and associated barrel files (`src/services/index.ts`, `src/services/llm-providers/index.ts`, `src/services/llm-providers/openRouter/index.ts`). The `OpenRouterProvider` (`src/services/llm-providers/openRouterProvider.ts`) now handles its own client initialization directly.
+- **Dependencies**: No direct dependency changes in this version, but file structure simplification impacts imports.
+- **Documentation**:
+  - Updated `README.md` version badge to `1.4.2`.
+  - Updated `docs/tree.md` to reflect the simplified LLM provider file structure.
+- **Build**:
+  - Updated project version to `1.4.2` in `package.json` and `package-lock.json`.
+
 ## [1.4.1] - 2025-05-31
 
 ### Added

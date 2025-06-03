@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-02 23:22:27
+Generated on: 2025-06-03 21:17:46
 
 ```
 mcp-ts-template
@@ -69,13 +69,8 @@ mcp-ts-template
 │   │   │   ├── duckDBQueryExecutor.ts
 │   │   │   ├── duckDBService.ts
 │   │   │   └── types.ts
-│   │   ├── llm-providers
-│   │   │   ├── openRouter
-│   │   │   │   ├── index.ts
-│   │   │   │   └── openRouterProvider.ts
-│   │   │   ├── index.ts
-│   │   │   └── llmFactory.ts
-│   │   └── index.ts
+│   │   └── llm-providers
+│   │       └── openRouterProvider.ts
 │   ├── storage
 │   │   └── duckdbExample.ts
 │   ├── types-global
