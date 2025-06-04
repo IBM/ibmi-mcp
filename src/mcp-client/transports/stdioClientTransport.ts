@@ -67,19 +67,8 @@ export function createStdioClientTransport(
     // Inheriting all of process.env is a security risk.
     // If specific variables from process.env are needed, they should be explicitly
     // listed in the mcp-config.json for that server or handled by an allowlist mechanism.
-    const filteredProcessEnv: Record<string, string> = {};
-    for (const key in process.env) {
-      if (Object.prototype.hasOwnProperty.call(process.env, key)) {
-        const value = process.env[key];
-        if (value !== undefined) {
-          filteredProcessEnv[key] = value;
-        }
-      }
-    }
-
     const serverSpecificEnv: Record<string, string> = {
-      ...filteredProcessEnv, // Inherit filtered parent process environment
-      ...(transportConfig.env || {}), // Apply server-specific overrides/additions
+      ...(transportConfig.env || {}), // Only use explicitly defined env vars from config
     };
 
     logger.debug("Creating StdioClientTransport with merged environment", {
