@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.4] - 2025-06-04
+
+### Changed
+
+- **Development Workflow & CI**:
+  - Updated GitHub Actions workflow (`.github/workflows/publish.yml`) to use Node.js `20.x` (up from `18.x`) and enabled npm caching for faster builds.
+- **Project Configuration**:
+  - Restructured `.gitignore` for better organization and more comprehensive coverage of common IDE, OS, language, and build artifacts.
+  - Updated `package.json`:
+    - Bumped project version to `1.4.4`.
+    - Updated Node.js engine requirement to `>=20.0.0` (from `>=16.0.0`).
+    - Added `types` field to specify the main type definition file.
+    - Added `funding` information.
+  - Updated `package-lock.json` to reflect dependency updates and version bump.
+- **Dependencies**:
+  - Updated `openai` from `^5.0.2` to `^5.1.0`.
+  - Updated `zod` from `^3.25.49` to `^3.25.51`.
+- **Documentation**:
+  - Updated `.clinerules` (developer cheatsheet) to emphasize the importance of detailed descriptions for tool parameters (in Zod schemas) for LLM usability.
+  - Updated `docs/tree.md` with a new generation timestamp and corrected a minor path display for `echoToolLogic.ts` to `echoTool/logic.ts`.
+
 ## [1.4.3] - 2025-06-04
 
 ### Changed
