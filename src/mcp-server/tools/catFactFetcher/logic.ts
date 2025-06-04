@@ -6,12 +6,12 @@
  */
 
 import { z } from "zod";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
+  fetchWithTimeout,
   logger,
   type RequestContext,
-  fetchWithTimeout, // Added import
 } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 /**
  * Interface representing the structure of the response from the Cat Fact Ninja API's /fact endpoint.
@@ -32,6 +32,7 @@ async function fetchRandomCatFactFromApi(
   maxLength: number | undefined,
   context: RequestContext,
 ): Promise<CatFactApiResponse> {
+  // Best practice: API URLs should be configurable, e.g., via environment variables or a config file.
   let apiUrl = "https://catfact.ninja/fact";
   if (maxLength !== undefined) {
     apiUrl += `?max_length=${maxLength}`;
@@ -39,6 +40,7 @@ async function fetchRandomCatFactFromApi(
 
   logger.info(`Fetching random cat fact from: ${apiUrl}`, context);
 
+  // Best practice: Timeouts should be configurable.
   const CAT_FACT_API_TIMEOUT_MS = 5000;
 
   try {
@@ -61,7 +63,7 @@ async function fetchRandomCatFactFromApi(
         {
           ...context,
           httpStatusCode: response.status,
-          responseBodyBrief: errorText.substring(0, 200), // Log a snippet of the response
+          responseBodyBrief: errorText,
           errorSource: "CatFactApiNonOkResponse",
         },
       );
