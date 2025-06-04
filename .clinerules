@@ -836,6 +836,7 @@ This project includes several utility scripts located in the `scripts/` director
 1.  **Directory**: `src/mcp-server/tools/yourToolName/` (Follow modular structure above).
 2.  **Logic (`logic.ts`)**: Define input Zod schema and the core async handler function.
 3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ErrorHandler`. Use the high-level `server.tool(name, description, zodSchemaShape, [annotations], async handler => { ... })`. Ensure handler returns `CallToolResult` (`{ content: [...], isError?: boolean }`). Wrap handler logic and registration in `ErrorHandler.tryCatch`.
+    - **Crucially, ensure the tool's `description` and parameter descriptions (within `zodSchemaShape`) are concise yet highly descriptive. Clearly state purpose, parameter expectations (e.g., format, range), requirements, and provide examples if they aid clarity. This is vital for LLM usability and developer understanding.**
 4.  **Index (`index.ts`)**: Export registration function.
 5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `createMcpServerInstance`.
 

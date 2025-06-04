@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-04 09:04:22
+Generated on: 2025-06-04 17:33:57
 
 ```
 mcp-ts-template
@@ -51,8 +51,8 @@ mcp-ts-template
 │   │   │   │   ├── logic.ts
 │   │   │   │   └── registration.ts
 │   │   │   ├── echoTool
-│   │   │   │   ├── echoToolLogic.ts
 │   │   │   │   ├── index.ts
+│   │   │   │   ├── logic.ts
 │   │   │   │   └── registration.ts
 │   │   │   └── imageTest
 │   │   │       ├── index.ts
