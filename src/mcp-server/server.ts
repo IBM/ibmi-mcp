@@ -15,12 +15,12 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import http from "http"; // Import http module
+import http from "http";
 import { config, environment } from "../config/index.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 import { registerEchoResource } from "./resources/echoResource/index.js";
-import { registerEchoTool } from "./tools/echoTool/index.js";
 import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
+import { registerEchoTool } from "./tools/echoTool/index.js";
 import { startHttpTransport } from "./transports/httpTransport.js";
 import { connectStdioTransport } from "./transports/stdioTransport.js";
 

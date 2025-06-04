@@ -14,11 +14,8 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import type { CatFactFetcherInput } from "./catFactFetcherLogic.js";
-import {
-  CatFactFetcherInputSchema,
-  processCatFactFetcher,
-} from "./catFactFetcherLogic.js";
+import type { CatFactFetcherInput } from "./logic.js";
+import { CatFactFetcherInputSchema, processCatFactFetcher } from "./logic.js";
 
 /**
  * Registers the 'get_random_cat_fact' tool and its handler with the MCP server.

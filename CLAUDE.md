@@ -27,104 +27,112 @@ This is a TypeScript template for building Model Context Protocol (MCP) servers 
 
 ```
 mcp-ts-template
-├── .github
-│   └── workflows
-│       └── publish.yml
-├── docs
-│   ├── api-references
-│   │   ├── jsdoc-standard-tags.md
-│   │   └── typedoc-reference.md
-│   └── tree.md
-├── scripts
-│   ├── clean.ts
-│   ├── fetch-openapi-spec.ts
-│   ├── make-executable.ts
-│   └── tree.ts
-├── src
-│   ├── config
-│   │   └── index.ts
-│   ├── mcp-client
-│   │   ├── client-config
-│   │   │   ├── configLoader.ts
-│   │   │   ├── mcp-config.json
-│   │   │   └── mcp-config.json.example
-│   │   ├── core
-│   │   │   ├── clientCache.ts
-│   │   │   ├── clientConnectionLogic.ts
-│   │   │   └── clientManager.ts
-│   │   ├── transports
-│   │   │   ├── httpClientTransport.ts
-│   │   │   ├── index.ts
-│   │   │   ├── stdioClientTransport.ts
-│   │   │   └── transportFactory.ts
-│   │   └── index.ts
-│   ├── mcp-server
-│   │   ├── resources
-│   │   │   └── echoResource
-│   │   │       ├── echoResourceLogic.ts
-│   │   │       ├── index.ts
-│   │   │       └── registration.ts
-│   │   ├── tools
-│   │   │   ├── catFactFetcher
-│   │   │   │   ├── catFactFetcherLogic.ts
-│   │   │   │   ├── catFactFetcherRegistration.ts
-│   │   │   │   └── index.ts
-│   │   │   ├── echoTool
-│   │   │   │   ├── echoToolLogic.ts
-│   │   │   │   ├── index.ts
-│   │   │   │   └── registration.ts
-│   │   ├── transports
-│   │   │   ├── authentication
-│   │   │   │   └── authMiddleware.ts
-│   │   │   ├── httpTransport.ts
-│   │   │   └── stdioTransport.ts
-│   │   └── server.ts
-│   ├── services
-│   │   ├── llm-providers
-│   │   │   ├── openRouter
-│   │   │   │   ├── index.ts
-│   │   │   │   └── openRouterProvider.ts
-│   │   │   ├── index.ts
-│   │   │   └── llmFactory.ts
-│   │   └── index.ts
-│   ├── types-global
-│   │   └── errors.ts
-│   ├── utils
-│   │   ├── internal
-│   │   │   ├── errorHandler.ts
-│   │   │   ├── index.ts
-│   │   │   ├── logger.ts
-│   │   │   └── requestContext.ts
-│   │   ├── metrics
-│   │   │   ├── index.ts
-│   │   │   └── tokenCounter.ts
-│   │   ├── network
-│   │   │   ├── fetchWithTimeout.ts
-│   │   │   └── index.ts
-│   │   ├── parsing
-│   │   │   ├── dateParser.ts
-│   │   │   ├── index.ts
-│   │   │   └── jsonParser.ts
-│   │   ├── security
-│   │   │   ├── idGenerator.ts
-│   │   │   ├── index.ts
-│   │   │   ├── rateLimiter.ts
-│   │   │   └── sanitization.ts
-│   │   └── index.ts
-│   └── index.ts
 ├── .clinerules
 ├── .dockerignore
 ├── .gitignore
+├── .ncurc.json
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile
+├── docs
+│   ├── api
+│   ├── api-references
+│   │   ├── duckDB.md
+│   │   ├── jsdoc-standard-tags.md
+│   │   └── typedoc-reference.md
+│   └── tree.md
 ├── LICENSE
 ├── mcp.json
 ├── package-lock.json
 ├── package.json
 ├── README.md
 ├── repomix.config.json
+├── scripts
+│   ├── clean.ts
+│   ├── fetch-openapi-spec.ts
+│   ├── make-executable.ts
+│   ├── README.md
+│   └── tree.ts
 ├── smithery.yaml
+├── src
+│   ├── config
+│   │   └── index.ts
+│   ├── index.ts
+│   ├── mcp-client
+│   │   ├── client-config
+│   │   │   ├── configLoader.ts
+│   │   │   ├── mcp-config.json.example
+│   │   │   └── README.md
+│   │   ├── core
+│   │   │   ├── clientCache.ts
+│   │   │   ├── clientConnectionLogic.ts
+│   │   │   └── clientManager.ts
+│   │   ├── index.ts
+│   │   └── transports
+│   │       ├── httpClientTransport.ts
+│   │       ├── index.ts
+│   │       ├── stdioClientTransport.ts
+│   │       └── transportFactory.ts
+│   ├── mcp-server
+│   │   ├── README.md
+│   │   ├── resources
+│   │   │   └── echoResource
+│   │   │       ├── echoResourceLogic.ts
+│   │   │       ├── index.ts
+│   │   │       └── registration.ts
+│   │   ├── server.ts
+│   │   ├── tools
+│   │   │   ├── catFactFetcher
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── logic.ts
+│   │   │   │   └── registration.ts
+│   │   │   ├── echoTool
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── logic.ts
+│   │   │   │   └── registration.ts
+│   │   │   └── imageTest
+│   │   │       ├── index.ts
+│   │   │       ├── logic.ts
+│   │   │       └── registration.ts
+│   │   └── transports
+│   │       ├── authentication
+│   │       │   └── authMiddleware.ts
+│   │       ├── httpTransport.ts
+│   │       └── stdioTransport.ts
+│   ├── services
+│   │   ├── duck-db
+│   │   │   ├── duckDBConnectionManager.ts
+│   │   │   ├── duckDBQueryExecutor.ts
+│   │   │   ├── duckDBService.ts
+│   │   │   └── types.ts
+│   │   └── llm-providers
+│   │       └── openRouterProvider.ts
+│   ├── storage
+│   │   └── duckdbExample.ts
+│   ├── types-global
+│   │   └── errors.ts
+│   └── utils
+│       ├── index.ts
+│       ├── internal
+│       │   ├── errorHandler.ts
+│       │   ├── index.ts
+│       │   ├── logger.ts
+│       │   └── requestContext.ts
+│       ├── metrics
+│       │   ├── index.ts
+│       │   └── tokenCounter.ts
+│       ├── network
+│       │   ├── fetchWithTimeout.ts
+│       │   └── index.ts
+│       ├── parsing
+│       │   ├── dateParser.ts
+│       │   ├── index.ts
+│       │   └── jsonParser.ts
+│       └── security
+│           ├── idGenerator.ts
+│           ├── index.ts
+│           ├── rateLimiter.ts
+│           └── sanitization.ts
 ├── tsconfig.json
 ├── tsconfig.typedoc.json
 ├── tsdoc.json

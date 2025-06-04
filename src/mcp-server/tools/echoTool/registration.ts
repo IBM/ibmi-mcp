@@ -16,8 +16,8 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import type { EchoToolInput } from "./echoToolLogic.js";
-import { EchoToolInputSchema, processEchoMessage } from "./echoToolLogic.js";
+import type { EchoToolInput } from "./logic.js";
+import { EchoToolInputSchema, processEchoMessage } from "./logic.js";
 
 /**
  * Registers the 'echo_message' tool and its handler with the provided MCP server instance.

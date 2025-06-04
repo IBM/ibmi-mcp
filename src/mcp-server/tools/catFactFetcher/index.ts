@@ -5,4 +5,4 @@
  * @module src/mcp-server/tools/catFactFetcher/index
  */
 
-export { registerCatFactFetcherTool } from "./catFactFetcherRegistration.js";
+export { registerCatFactFetcherTool } from "./registration.js";

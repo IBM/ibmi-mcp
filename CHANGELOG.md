@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.3] - 2025-06-04
+
+### Changed
+
+- **Refactoring**:
+  - Standardized tool file naming convention:
+    - Logic files renamed from `*Logic.ts` to `logic.ts` (e.g., `echoToolLogic.ts` -> `echoTool/logic.ts`, `catFactFetcherLogic.ts` -> `catFactFetcher/logic.ts`).
+    - Registration files renamed from `*Registration.ts` to `registration.ts` (e.g., `catFactFetcherRegistration.ts` -> `catFactFetcher/registration.ts`).
+  - Updated import paths in `src/mcp-server/server.ts`, `src/mcp-server/tools/catFactFetcher/index.ts`, and `src/mcp-server/tools/echoTool/registration.ts` to reflect the new file names.
+- **Documentation**:
+  - Updated `.clinerules` (developer cheatsheet) with:
+    - Enhanced explanations for HTTP security middleware order and graceful shutdown.
+    - More detailed descriptions of MCP SDK usage, including high-level vs. low-level abstractions, modular capability structure, and dynamic capabilities.
+    - Expanded examples and clarifications for core utilities (Logging, Error Handling, Request Context).
+    - Clarified resource `updates` and `blob` encoding.
+    - Added details on tool annotations and trust model.
+  - Updated `docs/tree.md` to reflect the refactored tool file structure.
+  - Updated the project structure tree within `CLAUDE.md` to align with `docs/tree.md`.
+- **Build**:
+  - Updated project version to `1.4.3` in `package.json` and `README.md`.
+
 ## [1.4.2] - 2025-06-03
 
 ### Changed

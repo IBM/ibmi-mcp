@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-03 21:33:04
+Generated on: 2025-06-04 09:04:22
 
 ```
 mcp-ts-template
@@ -27,7 +27,8 @@ mcp-ts-template
 │   ├── mcp-client
 │   │   ├── client-config
 │   │   │   ├── configLoader.ts
-│   │   │   └── mcp-config.json.example
+│   │   │   ├── mcp-config.json.example
+│   │   │   └── README.md
 │   │   ├── core
 │   │   │   ├── clientCache.ts
 │   │   │   ├── clientConnectionLogic.ts
@@ -46,9 +47,9 @@ mcp-ts-template
 │   │   │       └── registration.ts
 │   │   ├── tools
 │   │   │   ├── catFactFetcher
-│   │   │   │   ├── catFactFetcherLogic.ts
-│   │   │   │   ├── catFactFetcherRegistration.ts
-│   │   │   │   └── index.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── logic.ts
+│   │   │   │   └── registration.ts
 │   │   │   ├── echoTool
 │   │   │   │   ├── echoToolLogic.ts
 │   │   │   │   ├── index.ts
@@ -62,6 +63,7 @@ mcp-ts-template
 │   │   │   │   └── authMiddleware.ts
 │   │   │   ├── httpTransport.ts
 │   │   │   └── stdioTransport.ts
+│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services
 │   │   ├── duck-db
