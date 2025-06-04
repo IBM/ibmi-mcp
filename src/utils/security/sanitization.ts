@@ -293,8 +293,15 @@ export class Sanitization {
       ) {
         throw new Error("Invalid URL format or protocol not in allowed list.");
       }
-      if (trimmedInput.toLowerCase().startsWith("javascript:")) {
-        throw new Error("JavaScript pseudo-protocol is not allowed in URLs.");
+      const lowercasedInput = trimmedInput.toLowerCase();
+      if (
+        lowercasedInput.startsWith("javascript:") ||
+        lowercasedInput.startsWith("data:") ||
+        lowercasedInput.startsWith("vbscript:")
+      ) {
+        throw new Error(
+          "Disallowed pseudo-protocol (javascript:, data:, or vbscript:) in URL.",
+        );
       }
       return trimmedInput;
     } catch (error) {

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.6] - 2025-06-04
+
+### Changed
+
+- **HTTP Transport Security (`src/mcp-server/transports/httpTransport.ts`)**:
+  - Implemented rate limiting middleware for the MCP HTTP endpoint to protect against abuse.
+  - Enhanced `isOriginAllowed` logic for more secure handling of `Access-Control-Allow-Origin` and `Access-Control-Allow-Credentials` headers, particularly for `null` origins.
+- **Utilities**:
+  - `idGenerator.ts`: Improved the `generateRandomString` method by implementing rejection sampling. This ensures a more uniform distribution of characters from the charset, enhancing the cryptographic quality of generated IDs.
+  - `sanitization.ts`: Strengthened the `sanitizeUrl` method to disallow `data:` and `vbscript:` pseudo-protocols in addition to the already blocked `javascript:`, further reducing XSS risks.
+- **Build & Versioning**:
+  - Updated project version to `1.4.6` in `package.json`, `package-lock.json`, and `README.md`.
+
+
 ## [1.4.5] - 2025-06-04
 
 ### Changed

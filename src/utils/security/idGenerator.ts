@@ -106,10 +106,20 @@ export class IdGenerator {
     length: number = IdGenerator.DEFAULT_LENGTH,
     charset: string = IdGenerator.DEFAULT_CHARSET,
   ): string {
-    const bytes = randomBytes(length);
     let result = "";
-    for (let i = 0; i < length; i++) {
-      result += charset[bytes[i] % charset.length];
+    // Determine the largest multiple of charset.length that is less than or equal to 256
+    // This is the threshold for rejection sampling to avoid bias.
+    const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
+
+    while (result.length < length) {
+      const byteBuffer = randomBytes(1); // Get one random byte
+      const byte = byteBuffer[0];
+
+      // If the byte is within the valid range (i.e., it won't introduce bias),
+      // use it to select a character from the charset. Otherwise, discard and try again.
+      if (byte < maxValidByteValue) {
+        result += charset[byte % charset.length];
+      }
     }
     return result;
   }

@@ -18,8 +18,10 @@ import express, { NextFunction, Request, Response } from "express";
 import http from "http";
 import { randomUUID } from "node:crypto";
 import { config } from "../../config/index.js";
+import { BaseErrorCode, McpError } from "../../types-global/errors.js"; // For McpError type check
 import {
   logger,
+  rateLimiter,
   RequestContext,
   requestContextService,
 } from "../../utils/index.js";
@@ -80,24 +82,54 @@ const httpTransports: Record<string, StreamableHTTPServerTransport> = {};
  */
 function isOriginAllowed(req: Request, res: Response): boolean {
   const origin = req.headers.origin;
-  const host = req.hostname;
-  const isLocalhostBinding = ["127.0.0.1", "::1", "localhost"].includes(host);
+  // Determine if the server is bound to a localhost interface using the configured HTTP_HOST.
+  const isLocalhostBinding = ["127.0.0.1", "::1", "localhost"].includes(config.mcpHttpHost);
   const allowedOrigins = config.mcpAllowedOrigins || [];
   const context = requestContextService.createRequestContext({
     operation: "isOriginAllowed",
-    origin,
-    host,
+    requestOrigin: origin, // Use a more descriptive key for the request's origin
+    serverBindingHost: config.mcpHttpHost, // Log the server's binding host for context
     isLocalhostBinding,
-    allowedOrigins,
+    configuredAllowedOrigins: allowedOrigins, // Use a more descriptive key
   });
   logger.debug("Checking origin allowance", context);
 
   const allowed =
-    (origin && allowedOrigins.includes(origin)) ||
-    (isLocalhostBinding && (!origin || origin === "null"));
+    (origin && allowedOrigins.includes(origin)) || // Origin is explicitly in the whitelist
+    (isLocalhostBinding && (!origin || origin === "null")); // Or server is localhost and origin is missing or "null"
 
   if (allowed && origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+    // If the origin is "null", we must not set Access-Control-Allow-Origin to "null"
+    // when Access-Control-Allow-Credentials is also true (which it is in this block).
+    // This combination is a security risk. By not setting ACAO to "null",
+    // a credentialed request from a "null" origin will likely be blocked by the browser, which is safer.
+    if (origin === "null") {
+      logger.debug(
+        `Origin is "null". Not setting Access-Control-Allow-Origin to "null" due to Access-Control-Allow-Credentials being true.`,
+        context,
+      );
+      // Note: Access-Control-Allow-Origin is NOT set to "null".
+    } else {
+      // For any other allowed, non-null origin, reflect it.
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+
+    // These headers are set for any allowed & originated request.
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Mcp-Session-Id, Last-Event-ID, Authorization",
+    );
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  } else if (allowed && !origin && isLocalhostBinding) {
+    // Case: No origin header, but server is localhost-bound (e.g., same-origin, curl).
+    // 'allowed' is true. We can allow credentials. ACAO is not strictly needed for non-browser or same-origin.
+    // If it's a browser in a weird state sending no origin but expecting CORS for credentials,
+    // it will likely fail without ACAO, which is fine.
+    logger.debug(
+      `No origin header, but request allowed due to localhost binding. Setting Access-Control-Allow-Credentials to true.`,
+      context,
+    );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
@@ -105,8 +137,11 @@ function isOriginAllowed(req: Request, res: Response): boolean {
     );
     res.setHeader("Access-Control-Allow-Credentials", "true");
   } else if (!allowed && origin) {
+    // Origin was present but not allowed by any rule.
     logger.warning(`Origin denied: ${origin}`, context);
   }
+  // If !allowed and !origin, no specific CORS headers needed, request proceeds to be potentially denied by other logic or auth.
+
   logger.debug(`Origin check result: ${allowed}`, { ...context, allowed });
   return allowed;
 }
@@ -285,6 +320,53 @@ export async function startHttpTransport(
   );
 
   app.use(express.json());
+
+  // Rate Limiting Middleware
+  // Apply this before more expensive operations like auth or request processing.
+  const httpRateLimitMiddleware = (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    // Determine a reliable key for rate limiting. Prioritize req.ip,
+    // then fall back to req.socket.remoteAddress, and finally to a default string.
+    const rateLimitKey = req.ip || req.socket.remoteAddress || "unknown_ip_for_rate_limit";
+    const context = requestContextService.createRequestContext({
+      operation: "httpRateLimitCheck",
+      ipAddress: rateLimitKey, // Log the actual key being used
+      method: req.method,
+      path: req.path,
+    });
+
+    try {
+      rateLimiter.check(rateLimitKey, context); // Use the guaranteed string key
+      logger.debug("Rate limit check passed.", context);
+      next();
+    } catch (error) {
+      if (error instanceof McpError && error.code === BaseErrorCode.RATE_LIMITED) {
+        logger.warning(`Rate limit exceeded for IP: ${rateLimitKey}`, { // Use rateLimitKey here
+          ...context,
+          errorMessage: error.message,
+          details: error.details,
+        });
+        res.status(429).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Too Many Requests" }, // Generic JSON-RPC error for rate limit
+          id: (req.body as any)?.id || null,
+        });
+      } else {
+        // For other errors, pass them to the default error handler
+        logger.error("Unexpected error in rate limit middleware", {
+          ...context,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        next(error);
+      }
+    }
+  };
+
+  // Apply rate limiter to the MCP endpoint for all methods
+  app.use(MCP_ENDPOINT_PATH, httpRateLimitMiddleware);
 
   app.options(MCP_ENDPOINT_PATH, (req, res) => {
     const optionsContext = requestContextService.createRequestContext({
