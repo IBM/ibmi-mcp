@@ -1,4 +1,6 @@
-# Operating System Files
+# =============================================================================
+# OPERATING SYSTEM FILES
+# =============================================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -7,7 +9,9 @@
 ehthumbs.db
 Thumbs.db
 
-# IDE and Editor Files
+# =============================================================================
+# IDE AND EDITOR FILES
+# =============================================================================
 .idea/
 .vscode/
 *.swp
@@ -15,58 +19,47 @@ Thumbs.db
 *~
 *.sublime-workspace
 *.sublime-project
+.history/
 
-# TypeScript
-*.tsbuildinfo
-.tscache/
-*.js.map
-*.tgz
+# =============================================================================
+# NODE.JS & PACKAGE MANAGERS
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 .npm
-.eslintcache
-.rollup.cache
-*.mjs.map
-*.cjs.map
-*.d.ts.map
-*.d.ts
-!*.d.ts.template
 .pnp.js
 .pnp.cjs
 .pnp.mjs
 .pnp.json
 .pnp.ts
 
-# Demo and Example Directories
-demo/
-demos/
-example/
-examples/
-samples/
-.sample-env
-sample.*
-!sample.template.*
+# =============================================================================
+# TYPESCRIPT & JAVASCRIPT
+# =============================================================================
+*.tsbuildinfo
+.tscache/
+*.js.map
+*.mjs.map
+*.cjs.map
+*.d.ts.map
+*.d.ts
+!*.d.ts.template
+*.tgz
+.eslintcache
+.rollup.cache
 
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Python
+# =============================================================================
+# PYTHON
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
-dist/
-downloads/
 eggs/
 .eggs/
 lib/
@@ -86,22 +79,21 @@ htmlcov/
 venv/
 ENV/
 
-# Java
+# =============================================================================
+# JAVA
+# =============================================================================
 *.class
-*.log
 *.jar
 *.war
 *.nar
 *.ear
-*.zip
-*.tar.gz
-*.rar
 hs_err_pid*
 target/
 .gradle/
-build/
 
-# Ruby
+# =============================================================================
+# RUBY
+# =============================================================================
 *.gem
 *.rbc
 /.config
@@ -115,61 +107,86 @@ build/
 /tmp/
 .byebug_history
 
-# Compiled Files
+# =============================================================================
+# BUILD & DISTRIBUTION
+# =============================================================================
+build/
+dist/
+out/
+
+# =============================================================================
+# COMPILED FILES
+# =============================================================================
 *.com
-*.class
 *.dll
 *.exe
 *.o
-*.so
 
-# Package Files
+# =============================================================================
+# PACKAGE & ARCHIVE FILES
+# =============================================================================
 *.7z
 *.dmg
 *.gz
 *.iso
 *.rar
 *.tar
+*.tar.gz
 *.zip
 
-# Logs and Databases
+# =============================================================================
+# LOGS & DATABASES
+# =============================================================================
 *.log
 *.sql
 *.sqlite
 *.sqlite3
+logs/
 
-# Build and Distribution
-dist/
-build/
-out/
-
-# Testing
+# =============================================================================
+# TESTING & COVERAGE
+# =============================================================================
 coverage/
 .nyc_output/
 
-# Cache
+# =============================================================================
+# CACHE & TEMPORARY FILES
+# =============================================================================
 .cache/
 .parcel-cache/
+*.bak
 
-# Misc
-.DS_Store
+# =============================================================================
+# ENVIRONMENT & CONFIGURATION
+# =============================================================================
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-*.bak
-*.swp
-*.swo
-*~
-.history/
-repomix-output*
+.sample-env
+sample.*
+!sample.template.*
 mcp-servers.json
 mcp-config.json
 
-# Generated Documentation
+# =============================================================================
+# DEMO & EXAMPLE DIRECTORIES
+# =============================================================================
+demo/
+demos/
+example/
+examples/
+samples/
+
+# =============================================================================
+# GENERATED DOCUMENTATION
+# =============================================================================
 docs/api/
 
-logs/
-
-# Application Generated Data
+# =============================================================================
+# APPLICATION SPECIFIC
+# =============================================================================
+repomix-output*
 duckdata/
+.claude
