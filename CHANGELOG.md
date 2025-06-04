@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.5] - 2025-06-04
+
+### Changed
+
+- **Project Configuration**:
+  - Updated `package.json`: Added `$schema` property for JSON Schema Store validation.
+- **Client Transports**:
+  - `stdioClientTransport.ts`: Refactored environment variable handling to only use explicitly defined environment variables from the server's configuration, removing the inheritance of the parent process's environment for improved security and predictability.
+- **Server Tools**:
+  - `catFactFetcher/logic.ts`:
+    - Added comments highlighting best practices for configurable API URLs and timeouts.
+    - Modified error logging for non-OK API responses to include the full `errorText` in `responseBodyBrief` instead of a truncated snippet.
+  - `imageTest/registration.ts`:
+    - Improved `RequestContext` handling during tool invocation to ensure better context linking and traceability.
+    - Wrapped tool registration logic in `ErrorHandler.tryCatch` for consistent error management during server initialization.
+- **Server Authentication**:
+  - `authMiddleware.ts`: Implemented stricter validation for JWT `scope` or `scp` claims. The middleware now returns a 401 Unauthorized error if these claims are missing, malformed, or result in an empty scope array, enhancing security by ensuring tokens have necessary permissions.
+- **Utilities**:
+  - `logger.ts`:
+    - Streamlined initialization by removing redundant log directory creation logic, now handled by the central configuration module (`src/config/index.ts`).
+    - Ensured the `initialized` flag is set only after the logger setup is fully complete.
+  - `idGenerator.ts`:
+    - Enhanced the `isValid` method to use the `charset` provided in options (or the default charset) when building the validation regular expression. This makes ID validation more accurate, especially when custom character sets are used for generating IDs.
+    - Added a JSDoc note to `normalizeId` regarding the behavior of `toUpperCase()` on the random part of an ID when custom charsets are involved.
+  - `sanitization.ts`:
+    - Updated JSDoc for `sanitizeInputForLogging` to detail the limitations of the `JSON.parse(JSON.stringify(input))` fallback method (used when `structuredClone` is unavailable), covering its impact on types like `Date`, `Map`, `Set`, `undefined` values, functions, `BigInt`, and circular references.
+- **Documentation**:
+  - Updated version badge in `README.md` to `1.4.5`.
+  - Updated generation timestamp in `docs/tree.md`.
+
 ## [1.4.4] - 2025-06-04
 
 ### Changed
