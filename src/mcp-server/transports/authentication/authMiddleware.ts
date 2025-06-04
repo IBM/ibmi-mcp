@@ -14,9 +14,9 @@
  * @module src/mcp-server/transports/authentication/authMiddleware
  */
 
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"; // Import from SDK
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"; // Import from SDK
 import { config, environment } from "../../../config/index.js";
 import { logger, requestContextService } from "../../../utils/index.js";
 
@@ -164,8 +164,8 @@ export function mcpAuthMiddleware(
         // handles case " " -> [""]
         scopesFromToken = [decoded.scope.trim()];
       } else if (scopesFromToken.length === 0 && decoded.scope.trim() === "") {
-        // If scope is an empty string, treat as no scopes rather than erroring, or use a default.
-        // Depending on strictness, could also error here. For now, allow empty array if scope was empty string.
+        // If scope is an empty string, treat as no scopes.
+        // This will now lead to an error if scopes are considered mandatory.
         logger.debug(
           "JWT 'scope' claim was an empty string, resulting in empty scopes array.",
           context,
@@ -174,13 +174,28 @@ export function mcpAuthMiddleware(
     } else {
       // If scopes are strictly mandatory and not found or invalid format
       logger.warning(
-        "Authentication failed: JWT 'scp' or 'scope' claim is missing, not an array of strings, or not a valid space-separated string. Assigning default empty array.",
+        "Authentication failed: JWT 'scp' or 'scope' claim is missing, not an array of strings, or not a valid space-separated string.",
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
-      scopesFromToken = []; // Default to empty array if scopes are mandatory but not found/invalid
-      // Or, if truly mandatory and must be non-empty:
-      // res.status(401).json({ error: "Unauthorized: Invalid token, missing or invalid scopes." });
-      // return;
+      res.status(401).json({
+        error: "Unauthorized: Invalid token, missing or invalid scopes.",
+      });
+      return;
+    }
+
+    // If, after parsing, scopesFromToken is empty and scopes are considered mandatory for any operation.
+    // This check assumes that all valid tokens must have at least one scope.
+    // If some tokens are legitimately allowed to have no scopes for certain operations,
+    // this check might need to be adjusted or handled downstream.
+    if (scopesFromToken.length === 0) {
+      logger.warning(
+        "Authentication failed: Token resulted in an empty scope array, and scopes are required.",
+        { ...context, jwtPayloadKeys: Object.keys(decoded) },
+      );
+      res.status(401).json({
+        error: "Unauthorized: Token must contain valid, non-empty scopes.",
+      });
+      return;
     }
 
     // Construct req.auth with only the properties defined in SDK's AuthInfo
