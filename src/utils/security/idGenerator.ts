@@ -161,6 +161,7 @@ export class IdGenerator {
    * @param id - The ID string to validate.
    * @param entityType - The expected entity type of the ID.
    * @param options - Optional parameters used during generation for validation consistency.
+   *                  The `charset` from these options will be used for validation.
    * @returns `true` if the ID is valid, `false` otherwise.
    */
   public isValid(
@@ -172,14 +173,20 @@ export class IdGenerator {
     const {
       length = IdGenerator.DEFAULT_LENGTH,
       separator = IdGenerator.DEFAULT_SEPARATOR,
+      charset = IdGenerator.DEFAULT_CHARSET, // Use charset from options or default
     } = options;
 
     if (!prefix) {
       return false;
     }
-    // Assumes default charset characters (uppercase letters and digits) for regex.
+
+    // Build regex character class from the charset
+    // Escape characters that have special meaning inside a regex character class `[]`
+    const escapedCharsetForClass = charset.replace(/[[\]\\^-]/g, "\\$&");
+    const charsetRegexPart = `[${escapedCharsetForClass}]`;
+
     const pattern = new RegExp(
-      `^${this.escapeRegex(prefix)}${this.escapeRegex(separator)}[A-Z0-9]{${length}}$`,
+      `^${this.escapeRegex(prefix)}${this.escapeRegex(separator)}${charsetRegexPart}{${length}}$`,
     );
     return pattern.test(id);
   }
@@ -241,7 +248,9 @@ export class IdGenerator {
 
   /**
    * Normalizes an entity ID to ensure the prefix matches the registered case
-   * and the random part is uppercase.
+   * and the random part is uppercase. Note: This assumes the charset characters
+   * have a meaningful uppercase version if case-insensitivity is desired for the random part.
+   * For default charset (A-Z0-9), this is fine. For custom charsets, behavior might vary.
    * @param id - The ID to normalize (e.g., "proj_a6b3j0").
    * @param separator - The separator used in the ID. Defaults to `IdGenerator.DEFAULT_SEPARATOR`.
    * @returns The normalized ID (e.g., "PROJ_A6B3J0").
@@ -256,6 +265,8 @@ export class IdGenerator {
     const idParts = id.split(separator);
     const randomPart = idParts.slice(1).join(separator);
 
+    // Consider if randomPart.toUpperCase() is always correct for custom charsets.
+    // For now, maintaining existing behavior.
     return `${registeredPrefix}${separator}${randomPart.toUpperCase()}`;
   }
 }

@@ -183,39 +183,15 @@ export class Logger {
     }
 
     // Set initialized to true at the beginning of the initialization process.
-    // If initialization fails critically later, the logger might be in an inconsistent state,
-    // but this will prevent "Logger not initialized" messages from within initialize() itself.
     this.initialized = true;
 
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];
 
-    let logsDirCreatedMessage: string | null = null; // This message is now informational as creation is handled by config
-
-    if (isLogsDirSafe) {
-      // Directory creation is handled by config/index.ts ensureDirectory.
-      // We can log if it was newly created by checking if it existed before config ran,
-      // but that's complex. For now, we assume config handled it.
-      // If resolvedLogsDir is set, config ensures it exists.
-      if (!fs.existsSync(resolvedLogsDir)) {
-        // This case should ideally not be hit if config.logsPath is correctly set up and validated.
-        // However, if it somehow occurs (e.g. dir deleted after config init but before logger init),
-        // we attempt to create it.
-        try {
-          await fs.promises.mkdir(resolvedLogsDir, { recursive: true });
-          logsDirCreatedMessage = `Re-created logs directory (should have been created by config): ${resolvedLogsDir}`;
-        } catch (err: unknown) {
-          if (process.stdout.isTTY) {
-            const errorMessage =
-              err instanceof Error ? err.message : String(err);
-            console.error(
-              `Error creating logs directory at ${resolvedLogsDir}: ${errorMessage}. File logging disabled.`,
-            );
-          }
-          throw err; // Critical if logs dir cannot be ensured
-        }
-      }
-    }
+    // The logs directory (config.logsPath / resolvedLogsDir) is expected to be created and validated
+    // by the configuration module (src/config/index.ts) before logger initialization.
+    // If isLogsDirSafe is true, we assume resolvedLogsDir exists and is usable.
+    // No redundant directory creation logic here.
 
     const fileFormat = winston.format.combine(
       winston.format.timestamp(),
@@ -280,15 +256,12 @@ export class Logger {
       requestId: "logger-init-deferred",
       timestamp: new Date().toISOString(),
     };
-    if (logsDirCreatedMessage) {
-      // Log if we had to re-create it
-      this.info(logsDirCreatedMessage, initialContext);
-    }
+    // Removed logging of logsDirCreatedMessage as it's no longer set
     if (consoleStatus.message) {
       this.info(consoleStatus.message, initialContext);
     }
 
-    this.initialized = true;
+    this.initialized = true; // Ensure this is set after successful setup
     this.info(
       `Logger initialized. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${consoleStatus.enabled ? "enabled" : "disabled"}`,
       {
@@ -298,9 +271,6 @@ export class Logger {
         logsPathUsed: resolvedLogsDir,
       },
     );
-    // Note: If a critical error occurs during initialization after this point,
-    // this.initialized remains true. Consider adding a try/catch around the core
-    // initialization logic to set this.initialized = false on failure if needed.
   }
 
   /**
