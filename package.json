@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "TypeScript template for building Model Context Protocol (MCP) Servers & Clients. Features extensive utilities (logger, requestContext, etc.), STDIO & Streamable HTTP (with authMiddleware), examples, and type safety. Ideal starting point for creating production-ready MCP Servers & Clients.",
   "main": "dist/index.js",
   "files": [
