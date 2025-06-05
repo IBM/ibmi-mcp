@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-04 21:02:45
+Generated on: 2025-06-05 21:53:55
 
 ```
 mcp-ts-template
@@ -15,6 +15,7 @@ mcp-ts-template
 │   │   ├── jsdoc-standard-tags.md
 │   │   └── typedoc-reference.md
 │   └── tree.md
+├── duckdata
 ├── scripts
 │   ├── clean.ts
 │   ├── fetch-openapi-spec.ts
@@ -71,8 +72,9 @@ mcp-ts-template
 │   │   │   ├── duckDBQueryExecutor.ts
 │   │   │   ├── duckDBService.ts
 │   │   │   └── types.ts
-│   │   └── llm-providers
-│   │       └── openRouterProvider.ts
+│   │   ├── llm-providers
+│   │   │   └── openRouterProvider.ts
+│   │   └── supabase
 │   ├── storage
 │   │   └── duckdbExample.ts
 │   ├── types-global
@@ -102,6 +104,7 @@ mcp-ts-template
 │   └── index.ts
 ├── .clinerules
 ├── .dockerignore
+├── .env.example
 ├── .gitignore
 ├── .ncurc.json
 ├── CHANGELOG.md

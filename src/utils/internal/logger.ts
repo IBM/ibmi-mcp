@@ -4,7 +4,6 @@
  * It handles different log levels compliant with RFC 5424 and MCP specifications.
  * @module src/utils/internal/logger
  */
-import fs from "fs";
 import path from "path";
 import winston from "winston";
 import TransportStream from "winston-transport";
@@ -130,7 +129,7 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
       }
       if (Object.keys(metaCopy).length > 0) {
         try {
-          const replacer = (key: string, value: unknown) =>
+          const replacer = (_key: string, value: unknown) =>
             typeof value === "bigint" ? value.toString() : value;
           const remainingMetaJson = JSON.stringify(metaCopy, replacer, 2);
           if (remainingMetaJson !== "{}")

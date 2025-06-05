@@ -83,7 +83,9 @@ const httpTransports: Record<string, StreamableHTTPServerTransport> = {};
 function isOriginAllowed(req: Request, res: Response): boolean {
   const origin = req.headers.origin;
   // Determine if the server is bound to a localhost interface using the configured HTTP_HOST.
-  const isLocalhostBinding = ["127.0.0.1", "::1", "localhost"].includes(config.mcpHttpHost);
+  const isLocalhostBinding = ["127.0.0.1", "::1", "localhost"].includes(
+    config.mcpHttpHost,
+  );
   const allowedOrigins = config.mcpAllowedOrigins || [];
   const context = requestContextService.createRequestContext({
     operation: "isOriginAllowed",
@@ -330,7 +332,8 @@ export async function startHttpTransport(
   ) => {
     // Determine a reliable key for rate limiting. Prioritize req.ip,
     // then fall back to req.socket.remoteAddress, and finally to a default string.
-    const rateLimitKey = req.ip || req.socket.remoteAddress || "unknown_ip_for_rate_limit";
+    const rateLimitKey =
+      req.ip || req.socket.remoteAddress || "unknown_ip_for_rate_limit";
     const context = requestContextService.createRequestContext({
       operation: "httpRateLimitCheck",
       ipAddress: rateLimitKey, // Log the actual key being used
@@ -343,8 +346,12 @@ export async function startHttpTransport(
       logger.debug("Rate limit check passed.", context);
       next();
     } catch (error) {
-      if (error instanceof McpError && error.code === BaseErrorCode.RATE_LIMITED) {
-        logger.warning(`Rate limit exceeded for IP: ${rateLimitKey}`, { // Use rateLimitKey here
+      if (
+        error instanceof McpError &&
+        error.code === BaseErrorCode.RATE_LIMITED
+      ) {
+        logger.warning(`Rate limit exceeded for IP: ${rateLimitKey}`, {
+          // Use rateLimitKey here
           ...context,
           errorMessage: error.message,
           details: error.details,

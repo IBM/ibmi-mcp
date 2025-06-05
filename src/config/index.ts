@@ -162,6 +162,13 @@ const EnvSchema = z.object({
     .optional(),
   /** Optional. Comma-separated default OAuth client redirect URIs. */
   OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS: z.string().optional(),
+
+  /** Supabase Project URL. From `SUPABASE_URL`. */
+  SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL.").optional(),
+  /** Supabase Anon Key (public). From `SUPABASE_ANON_KEY`. */
+  SUPABASE_ANON_KEY: z.string().optional(),
+  /** Supabase Service Role Key (secret). From `SUPABASE_SERVICE_ROLE_KEY`. */
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);
@@ -265,6 +272,8 @@ if (!validatedLogsPath) {
  * Aggregates settings from validated environment variables and `package.json`.
  */
 export const config = {
+  /** Information from package.json. */
+  pkg,
   /** MCP server name. Env `MCP_SERVER_NAME` > `package.json` name > "mcp-ts-template". */
   mcpServerName: env.MCP_SERVER_NAME || pkg.name,
   /** MCP server version. Env `MCP_SERVER_VERSION` > `package.json` version > "0.0.0". */
@@ -325,6 +334,16 @@ export const config = {
             env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(",")
               .map((uri) => uri.trim())
               .filter(Boolean),
+        }
+      : undefined,
+
+  /** Supabase configuration. Undefined if no related env vars are set. */
+  supabase:
+    env.SUPABASE_URL && env.SUPABASE_ANON_KEY
+      ? {
+          url: env.SUPABASE_URL,
+          anonKey: env.SUPABASE_ANON_KEY,
+          serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
         }
       : undefined,
 };

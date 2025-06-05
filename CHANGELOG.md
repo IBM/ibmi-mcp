@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.7] - 2025-06-05
+
+### Added
+- **Configuration**: Added `.env.example` to provide a template for required environment variables.
+
+### Changed
+- **Build & Deployment**:
+  - Significantly expanded `.dockerignore` to provide a more comprehensive and structured list of files and directories to exclude from Docker builds, improving build efficiency and security.
+- **Dependencies**:
+  - Updated various dependencies in `package.json` and `package-lock.json`.
+- **Code Quality**:
+  - Minor code cleanup in `src/mcp-server/transports/httpTransport.ts` and `src/utils/internal/logger.ts`.
+- **Documentation**:
+  - Updated version to `1.4.7` in `README.md` and `package.json`.
+  - Updated `docs/tree.md` with the latest file structure.
+
 ## [1.4.6] - 2025-06-04
 
 ### Changed
@@ -14,7 +30,6 @@ All notable changes to this project will be documented in this file.
   - `sanitization.ts`: Strengthened the `sanitizeUrl` method to disallow `data:` and `vbscript:` pseudo-protocols in addition to the already blocked `javascript:`, further reducing XSS risks.
 - **Build & Versioning**:
   - Updated project version to `1.4.6` in `package.json`, `package-lock.json`, and `README.md`.
-
 
 ## [1.4.5] - 2025-06-04
 
