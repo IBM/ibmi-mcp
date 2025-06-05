@@ -99,33 +99,33 @@ function isOriginAllowed(req: Request, res: Response): boolean {
     (isLocalhostBinding && (!origin || origin === "null")); // Or server is localhost and origin is missing or "null"
 
   if (allowed && origin) {
-    // If the origin is "null", we must not set Access-Control-Allow-Origin to "null"
-    // when Access-Control-Allow-Credentials is also true (which it is in this block).
-    // This combination is a security risk. By not setting ACAO to "null",
-    // a credentialed request from a "null" origin will likely be blocked by the browser, which is safer.
     if (origin === "null") {
+      // For "null" origin (e.g., file:// URLs on localhost), allow access but explicitly disallow credentials.
+      res.setHeader("Access-Control-Allow-Origin", "null");
+      res.setHeader("Access-Control-Allow-Credentials", "false"); // Explicitly false for "null" origin
       logger.debug(
-        `Origin is "null". Not setting Access-Control-Allow-Origin to "null" due to Access-Control-Allow-Credentials being true.`,
+        `Origin is "null" (and server is localhost-bound). Allowing request without credentials. ACAO: "null", ACAC: "false"`,
         context,
       );
-      // Note: Access-Control-Allow-Origin is NOT set to "null".
     } else {
-      // For any other allowed, non-null origin, reflect it.
+      // For any other allowed, non-null origin (i.e., whitelisted), reflect it and allow credentials.
       res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      logger.debug(
+        `Origin '${origin}' is whitelisted. Allowing with credentials. ACAO: ${origin}, ACAC: "true"`,
+        context,
+      );
     }
 
-    // These headers are set for any allowed & originated request.
+    // Common headers for allowed requests (credentials handled above)
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
       "Content-Type, Mcp-Session-Id, Last-Event-ID, Authorization",
     );
-    res.setHeader("Access-Control-Allow-Credentials", "true");
   } else if (allowed && !origin && isLocalhostBinding) {
     // Case: No origin header, but server is localhost-bound (e.g., same-origin, curl).
-    // 'allowed' is true. We can allow credentials. ACAO is not strictly needed for non-browser or same-origin.
-    // If it's a browser in a weird state sending no origin but expecting CORS for credentials,
-    // it will likely fail without ACAO, which is fine.
+    // 'allowed' is true. We can allow credentials. ACAO is not strictly needed for same-origin or non-browser.
     logger.debug(
       `No origin header, but request allowed due to localhost binding. Setting Access-Control-Allow-Credentials to true.`,
       context,
