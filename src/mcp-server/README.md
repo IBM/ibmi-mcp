@@ -57,7 +57,7 @@ The core of extending this MCP server involves defining your custom logic and th
 The main server logic in `src/mcp-server/server.ts` handles the creation of the `McpServer` instance. This instance is then connected to a transport layer:
 
 - **Stdio Transport (`src/mcp-server/transports/stdioTransport.ts`)**: Used for direct communication when the server is a child process. It leverages `StdioServerTransport` from the SDK.
-- **Streamable HTTP Transport (`src/mcp-server/transports/httpTransport.ts`)**: Provides an HTTP interface using Express and Server-Sent Events (SSE) for streaming, managed by `StreamableHTTPServerTransport` from the SDK. This transport handles session management, authentication (via `authMiddleware.ts`), and CORS.
+- **Streamable HTTP Transport (`src/mcp-server/transports/httpTransport.ts`)**: Provides an HTTP interface using Hono and Server-Sent Events (SSE) for streaming, managed by `StreamableHTTPServerTransport` from the SDK. This transport handles session management, authentication (via `authMiddleware.ts`), and CORS.
 
 When you register your tools and resources in `createMcpServerInstance`, they become available regardless of the chosen transport, as the core `McpServer` instance handles the protocol logic.
 

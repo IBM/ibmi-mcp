@@ -2,12 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.8] - 2025-06-05
+
+### BREAKING CHANGE
+
+- **HTTP Server Migration**: The HTTP transport layer in `src/mcp-server/transports/httpTransport.ts` has been migrated from **Express.js to Hono**. This is a significant architectural change that improves performance and leverages a more modern, lightweight framework. While the external API remains the same, internal middleware and request handling logic have been completely rewritten.
+
+### Added
+
+- **Supabase Client**: Added a dedicated Supabase client service in `src/services/supabase/supabaseClient.ts` for robust interaction with Supabase services.
+
+### Changed
+
+- **Configuration**: Overhauled `.env.example` to provide a more structured and comprehensive template for all server, transport, authentication, and service configurations.
+- **Dependencies**:
+  - Replaced `express` with `hono` and `@hono/node-server`.
+  - Added `bcryptjs` and `pg` for future authentication and database integration.
+  - Updated `package.json` and `package-lock.json` to reflect these changes.
+- **Authentication**: Refactored `src/mcp-server/transports/authentication/authMiddleware.ts` to be compatible with Hono's middleware context.
+- **Documentation**: Updated `docs/tree.md` to reflect the new files and updated `src/mcp-server/README.md` to mention Hono.
+
 ## [1.4.7] - 2025-06-05
 
 ### Added
+
 - **Configuration**: Added `.env.example` to provide a template for required environment variables.
 
 ### Changed
+
 - **Build & Deployment**:
   - Significantly expanded `.dockerignore` to provide a more comprehensive and structured list of files and directories to exclude from Docker builds, improving build efficiency and security.
 - **Dependencies**:
