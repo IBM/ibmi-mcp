@@ -1,7 +1,7 @@
 /**
- * @fileoverview Handles the setup and management of the Streamable HTTP MCP transport.
+ * @fileoverview Handles the setup and management of the Streamable HTTP MCP transport using Hono.
  * Implements the MCP Specification 2025-03-26 for Streamable HTTP.
- * This includes creating an Express server, configuring middleware (CORS, Authentication),
+ * This includes creating a Hono server, configuring middleware (CORS, Authentication),
  * defining request routing for the single MCP endpoint (POST/GET/DELETE),
  * managing server-side sessions, handling Server-Sent Events (SSE) for streaming,
  * and binding to a network port with retry logic for port conflicts.
@@ -11,21 +11,26 @@
  * @module src/mcp-server/transports/httpTransport
  */
 
+import { HttpBindings, serve, ServerType } from "@hono/node-server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import express, { NextFunction, Request, Response } from "express";
+import { Context, Hono } from "hono";
+import { cors } from "hono/cors";
 import http from "http";
 import { randomUUID } from "node:crypto";
 import { config } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js"; // For McpError type check
+import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import {
   logger,
   rateLimiter,
   RequestContext,
   requestContextService,
 } from "../../utils/index.js";
-import { mcpAuthMiddleware } from "./authentication/authMiddleware.js";
+import {
+  AuthInfo,
+  mcpAuthMiddleware,
+} from "./authentication/authMiddleware.js";
 
 /**
  * The port number for the HTTP transport, configured via `MCP_HTTP_PORT` environment variable.
@@ -52,6 +57,15 @@ const HTTP_HOST = config.mcpHttpHost;
 const MCP_ENDPOINT_PATH = "/mcp";
 
 /**
+ * Defines the Hono bindings for this application, extending the base `HttpBindings`
+ * from `@hono/node-server` with a custom `auth` property injected by our middleware.
+ * This provides type safety for accessing `c.env.incoming` and `c.env.auth`.
+ */
+type HonoBindings = HttpBindings & {
+  auth?: AuthInfo;
+};
+
+/**
  * Maximum number of attempts to find an available port if the initial `HTTP_PORT` is in use.
  * The server will try ports sequentially: `HTTP_PORT`, `HTTP_PORT + 1`, ..., up to `MAX_PORT_RETRIES`.
  * @constant {number} MAX_PORT_RETRIES
@@ -67,86 +81,6 @@ const MAX_PORT_RETRIES = 15;
  * @private
  */
 const httpTransports: Record<string, StreamableHTTPServerTransport> = {};
-
-/**
- * Checks if an incoming HTTP request's `Origin` header is permissible based on configuration.
- * MCP Spec Security: Servers MUST validate the `Origin` header for cross-origin requests.
- * This function checks the request's origin against the `config.mcpAllowedOrigins` list.
- * If the server is bound to localhost, requests from localhost or with no/null origin are also permitted.
- * Sets appropriate CORS headers (`Access-Control-Allow-Origin`, etc.) if the origin is allowed.
- *
- * @param req - The Express request object.
- * @param res - The Express response object.
- * @returns True if the origin is allowed, false otherwise.
- * @private
- */
-function isOriginAllowed(req: Request, res: Response): boolean {
-  const origin = req.headers.origin;
-  // Determine if the server is bound to a localhost interface using the configured HTTP_HOST.
-  const isLocalhostBinding = ["127.0.0.1", "::1", "localhost"].includes(
-    config.mcpHttpHost,
-  );
-  const allowedOrigins = config.mcpAllowedOrigins || [];
-  const context = requestContextService.createRequestContext({
-    operation: "isOriginAllowed",
-    requestOrigin: origin, // Use a more descriptive key for the request's origin
-    serverBindingHost: config.mcpHttpHost, // Log the server's binding host for context
-    isLocalhostBinding,
-    configuredAllowedOrigins: allowedOrigins, // Use a more descriptive key
-  });
-  logger.debug("Checking origin allowance", context);
-
-  const allowed =
-    (origin && allowedOrigins.includes(origin)) || // Origin is explicitly in the whitelist
-    (isLocalhostBinding && (!origin || origin === "null")); // Or server is localhost and origin is missing or "null"
-
-  if (allowed && origin) {
-    if (origin === "null") {
-      // For "null" origin (e.g., file:// URLs on localhost), allow access but explicitly disallow credentials.
-      res.setHeader("Access-Control-Allow-Origin", "null");
-      res.setHeader("Access-Control-Allow-Credentials", "false"); // Explicitly false for "null" origin
-      logger.debug(
-        `Origin is "null" (and server is localhost-bound). Allowing request without credentials. ACAO: "null", ACAC: "false"`,
-        context,
-      );
-    } else {
-      // For any other allowed, non-null origin (i.e., whitelisted), reflect it and allow credentials.
-      res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-      logger.debug(
-        `Origin '${origin}' is whitelisted. Allowing with credentials. ACAO: ${origin}, ACAC: "true"`,
-        context,
-      );
-    }
-
-    // Common headers for allowed requests (credentials handled above)
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Mcp-Session-Id, Last-Event-ID, Authorization",
-    );
-  } else if (allowed && !origin && isLocalhostBinding) {
-    // Case: No origin header, but server is localhost-bound (e.g., same-origin, curl).
-    // 'allowed' is true. We can allow credentials. ACAO is not strictly needed for same-origin or non-browser.
-    logger.debug(
-      `No origin header, but request allowed due to localhost binding. Setting Access-Control-Allow-Credentials to true.`,
-      context,
-    );
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Mcp-Session-Id, Last-Event-ID, Authorization",
-    );
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-  } else if (!allowed && origin) {
-    // Origin was present but not allowed by any rule.
-    logger.warning(`Origin denied: ${origin}`, context);
-  }
-  // If !allowed and !origin, no specific CORS headers needed, request proceeds to be potentially denied by other logic or auth.
-
-  logger.debug(`Origin check result: ${allowed}`, { ...context, allowed });
-  return allowed;
-}
 
 /**
  * Proactively checks if a specific network port is already in use.
@@ -197,22 +131,22 @@ async function isPortInUse(
 /**
  * Attempts to start the HTTP server, retrying on incrementing ports if `EADDRINUSE` occurs.
  *
- * @param serverInstance - The Node.js HTTP server instance.
+ * @param app - The Hono application instance.
  * @param initialPort - The initial port number to try.
  * @param host - The host address to bind to.
  * @param maxRetries - Maximum number of additional ports to attempt.
  * @param parentContext - Logging context from the caller.
- * @returns A promise that resolves with the port number the server successfully bound to.
+ * @returns A promise that resolves with the Node.js `http.Server` instance the server successfully bound to.
  * @throws {Error} If binding fails after all retries or for a non-EADDRINUSE error.
  * @private
  */
 function startHttpServerWithRetry(
-  serverInstance: http.Server,
+  app: Hono<{ Bindings: HonoBindings }>,
   initialPort: number,
   host: string,
   maxRetries: number,
   parentContext: RequestContext,
-): Promise<number> {
+): Promise<ServerType> {
   const startContext = requestContextService.createRequestContext({
     ...parentContext,
     operation: "startHttpServerWithRetry",
@@ -221,6 +155,7 @@ function startHttpServerWithRetry(
     maxRetries,
   });
   logger.debug(`Attempting to start HTTP server...`, startContext);
+
   return new Promise(async (resolve, reject) => {
     let lastError: Error | null = null;
     for (let i = 0; i <= maxRetries; i++) {
@@ -249,21 +184,31 @@ function startHttpServerWithRetry(
       }
 
       try {
-        await new Promise<void>((listenResolve, listenReject) => {
-          serverInstance
-            .listen(currentPort, host, () => {
-              const serverAddress = `http://${host}:${currentPort}${MCP_ENDPOINT_PATH}`;
-              logger.info(
-                `HTTP transport successfully listening on host ${host} at ${serverAddress}`,
-                { ...attemptContext, address: serverAddress },
+        const serverInstance = serve(
+          { fetch: app.fetch, port: currentPort, hostname: host },
+          (info: { address: string; port: number }) => {
+            const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
+            logger.info(
+              `HTTP transport successfully listening on host ${host} at ${serverAddress}`,
+              { ...attemptContext, address: serverAddress },
+            );
+
+            // Display user-friendly startup message only after server is confirmed listening
+            let serverAddressLog = serverAddress;
+            let productionNote = "";
+            if (config.environment === "production") {
+              serverAddressLog = `https://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
+              productionNote = ` (via HTTPS, ensure reverse proxy is configured)`;
+            }
+
+            if (process.stdout.isTTY) {
+              console.log(
+                `\n🚀 MCP Server running in HTTP mode at: ${serverAddressLog}${productionNote}\n   (MCP Spec: 2025-03-26 Streamable HTTP Transport)\n`,
               );
-              listenResolve();
-            })
-            .on("error", (err: NodeJS.ErrnoException) => {
-              listenReject(err);
-            });
-        });
-        resolve(currentPort);
+            }
+          },
+        );
+        resolve(serverInstance);
         return;
       } catch (err: any) {
         lastError = err;
@@ -309,140 +254,111 @@ function startHttpServerWithRetry(
 export async function startHttpTransport(
   createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
-): Promise<http.Server> {
-  const app = express();
+): Promise<ServerType> {
+  const app = new Hono<{ Bindings: HonoBindings }>();
   const transportContext = requestContextService.createRequestContext({
     ...parentContext,
     transportType: "HTTP",
     component: "HttpTransportSetup",
   });
-  logger.debug(
-    "Setting up Express app for HTTP transport...",
-    transportContext,
+  logger.debug("Setting up Hono app for HTTP transport...", transportContext);
+
+  app.use(
+    "*",
+    cors({
+      origin: config.mcpAllowedOrigins || [],
+      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowHeaders: [
+        "Content-Type",
+        "Mcp-Session-Id",
+        "Last-Event-ID",
+        "Authorization",
+      ],
+      credentials: true,
+    }),
   );
 
-  app.use(express.json());
+  app.use("*", async (c, next) => {
+    const securityContext = requestContextService.createRequestContext({
+      ...transportContext,
+      operation: "securityMiddleware",
+      path: c.req.path,
+      method: c.req.method,
+      origin: c.req.header("origin"),
+    });
+    logger.debug(`Applying security middleware...`, securityContext);
+    c.res.headers.set("X-Content-Type-Options", "nosniff");
+    c.res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    c.res.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self'; img-src 'self'; media-src 'self'; frame-src 'none'; font-src 'self'; connect-src 'self'",
+    );
+    logger.debug("Security middleware passed.", securityContext);
+    await next();
+  });
 
-  // Rate Limiting Middleware
-  // Apply this before more expensive operations like auth or request processing.
-  const httpRateLimitMiddleware = (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) => {
-    // Determine a reliable key for rate limiting. Prioritize req.ip,
-    // then fall back to req.socket.remoteAddress, and finally to a default string.
+  app.use(MCP_ENDPOINT_PATH, async (c, next) => {
     const rateLimitKey =
-      req.ip || req.socket.remoteAddress || "unknown_ip_for_rate_limit";
+      c.req.header("x-forwarded-for") ||
+      c.req.header("host") ||
+      "unknown_ip_for_rate_limit";
     const context = requestContextService.createRequestContext({
       operation: "httpRateLimitCheck",
-      ipAddress: rateLimitKey, // Log the actual key being used
-      method: req.method,
-      path: req.path,
+      ipAddress: rateLimitKey,
+      method: c.req.method,
+      path: c.req.path,
     });
 
     try {
-      rateLimiter.check(rateLimitKey, context); // Use the guaranteed string key
+      rateLimiter.check(rateLimitKey, context);
       logger.debug("Rate limit check passed.", context);
-      next();
+      await next();
     } catch (error) {
       if (
         error instanceof McpError &&
         error.code === BaseErrorCode.RATE_LIMITED
       ) {
         logger.warning(`Rate limit exceeded for IP: ${rateLimitKey}`, {
-          // Use rateLimitKey here
           ...context,
           errorMessage: error.message,
           details: error.details,
         });
-        res.status(429).json({
-          jsonrpc: "2.0",
-          error: { code: -32000, message: "Too Many Requests" }, // Generic JSON-RPC error for rate limit
-          id: (req.body as any)?.id || null,
-        });
+        return c.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32000, message: "Too Many Requests" },
+            id: (await c.req.json().catch(() => ({})))?.id || null,
+          },
+          429,
+        );
       } else {
-        // For other errors, pass them to the default error handler
         logger.error("Unexpected error in rate limit middleware", {
           ...context,
           error: error instanceof Error ? error.message : String(error),
         });
-        next(error);
+        throw error;
       }
     }
-  };
-
-  // Apply rate limiter to the MCP endpoint for all methods
-  app.use(MCP_ENDPOINT_PATH, httpRateLimitMiddleware);
-
-  app.options(MCP_ENDPOINT_PATH, (req, res) => {
-    const optionsContext = requestContextService.createRequestContext({
-      ...transportContext,
-      operation: "handleOptions",
-      origin: req.headers.origin,
-      method: req.method,
-      path: req.path,
-    });
-    logger.debug(
-      `Received OPTIONS request for ${MCP_ENDPOINT_PATH}`,
-      optionsContext,
-    );
-    if (isOriginAllowed(req, res)) {
-      logger.debug(
-        "OPTIONS request origin allowed, sending 204.",
-        optionsContext,
-      );
-      res.sendStatus(204);
-    } else {
-      logger.debug(
-        "OPTIONS request origin denied, sending 403.",
-        optionsContext,
-      );
-      res.status(403).send("Forbidden: Invalid Origin");
-    }
   });
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const securityContext = requestContextService.createRequestContext({
-      ...transportContext,
-      operation: "securityMiddleware",
-      path: req.path,
-      method: req.method,
-      origin: req.headers.origin,
-    });
-    logger.debug(`Applying security middleware...`, securityContext);
-    if (!isOriginAllowed(req, res)) {
-      logger.debug("Origin check failed, sending 403.", securityContext);
-      res.status(403).send("Forbidden: Invalid Origin");
-      return;
-    }
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self'; img-src 'self'; media-src 'self'; frame-src 'none'; font-src 'self'; connect-src 'self'",
-    );
-    logger.debug("Security middleware passed.", securityContext);
-    next();
-  });
+  app.use(MCP_ENDPOINT_PATH, mcpAuthMiddleware);
 
-  app.use(mcpAuthMiddleware);
-
-  app.post(MCP_ENDPOINT_PATH, async (req, res) => {
+  app.post(MCP_ENDPOINT_PATH, async (c) => {
     const basePostContext = requestContextService.createRequestContext({
       ...transportContext,
       operation: "handlePost",
       method: "POST",
-      path: req.path,
-      origin: req.headers.origin,
+      path: c.req.path,
+      origin: c.req.header("origin"),
     });
+    const body = await c.req.json();
     logger.debug(`Received POST request on ${MCP_ENDPOINT_PATH}`, {
       ...basePostContext,
-      headers: req.headers,
-      bodyPreview: JSON.stringify(req.body).substring(0, 100),
+      headers: c.req.header(),
+      bodyPreview: JSON.stringify(body).substring(0, 100),
     });
 
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+    const sessionId = c.req.header("mcp-session-id");
     logger.debug(`Extracted session ID: ${sessionId}`, {
       ...basePostContext,
       sessionId,
@@ -454,12 +370,12 @@ export async function startHttpTransport(
       sessionId,
     });
 
-    const isInitReq = isInitializeRequest(req.body);
+    const isInitReq = isInitializeRequest(body);
     logger.debug(`Is InitializeRequest: ${isInitReq}`, {
       ...basePostContext,
       sessionId,
     });
-    const requestId = (req.body as any)?.id || null;
+    const requestId = (body as any)?.id || null;
 
     try {
       if (isInitReq) {
@@ -531,12 +447,14 @@ export async function startHttpTransport(
           "Invalid or missing session ID for non-initialize POST request.",
           { ...basePostContext, sessionId },
         );
-        res.status(404).json({
-          jsonrpc: "2.0",
-          error: { code: -32004, message: "Invalid or expired session ID" },
-          id: requestId,
-        });
-        return;
+        return c.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32004, message: "Invalid or expired session ID" },
+            id: requestId,
+          },
+          404,
+        );
       }
 
       const currentSessionId = transport.sessionId;
@@ -544,11 +462,16 @@ export async function startHttpTransport(
         `Processing POST request content for session ${currentSessionId}...`,
         { ...basePostContext, sessionId: currentSessionId, isInitReq },
       );
-      await transport.handleRequest(req, res, req.body);
+      const response = await transport.handleRequest(
+        c.env.incoming,
+        c.env.outgoing,
+        body,
+      );
       logger.debug(
         `Finished processing POST request content for session ${currentSessionId}.`,
         { ...basePostContext, sessionId: currentSessionId },
       );
+      return response;
     } catch (err) {
       const errorSessionId = transport?.sessionId || sessionId;
       logger.error("Error handling POST request", {
@@ -558,16 +481,6 @@ export async function startHttpTransport(
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
       });
-      if (!res.headersSent) {
-        res.status(500).json({
-          jsonrpc: "2.0",
-          error: {
-            code: -32603,
-            message: "Internal server error during POST handling",
-          },
-          id: requestId,
-        });
-      }
       if (isInitReq && transport && !transport.sessionId) {
         logger.debug("Cleaning up transport after initialization failure.", {
           ...basePostContext,
@@ -581,24 +494,35 @@ export async function startHttpTransport(
           }),
         );
       }
+      return c.json(
+        {
+          jsonrpc: "2.0",
+          error: {
+            code: -32603,
+            message: "Internal server error during POST handling",
+          },
+          id: requestId,
+        },
+        500,
+      );
     }
   });
 
-  const handleSessionReq = async (req: Request, res: Response) => {
-    const method = req.method;
+  const handleSessionReq = async (c: Context<{ Bindings: HonoBindings }>) => {
+    const method = c.req.method;
     const baseSessionReqContext = requestContextService.createRequestContext({
       ...transportContext,
       operation: `handle${method}`,
       method,
-      path: req.path,
-      origin: req.headers.origin,
+      path: c.req.path,
+      origin: c.req.header("origin"),
     });
     logger.debug(`Received ${method} request on ${MCP_ENDPOINT_PATH}`, {
       ...baseSessionReqContext,
-      headers: req.headers,
+      headers: c.req.header(),
     });
 
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+    const sessionId = c.req.header("mcp-session-id");
     logger.debug(`Extracted session ID: ${sessionId}`, {
       ...baseSessionReqContext,
       sessionId,
@@ -615,12 +539,14 @@ export async function startHttpTransport(
         ...baseSessionReqContext,
         sessionId,
       });
-      res.status(404).json({
-        jsonrpc: "2.0",
-        error: { code: -32004, message: "Session not found or expired" },
-        id: null, // Or a relevant request identifier if available from context
-      });
-      return;
+      return c.json(
+        {
+          jsonrpc: "2.0",
+          error: { code: -32004, message: "Session not found or expired" },
+          id: null,
+        },
+        404,
+      );
     }
 
     try {
@@ -628,11 +554,15 @@ export async function startHttpTransport(
         `Delegating ${method} request to transport for session ${sessionId}...`,
         { ...baseSessionReqContext, sessionId },
       );
-      await transport.handleRequest(req, res);
+      const response = await transport.handleRequest(
+        c.env.incoming,
+        c.env.outgoing,
+      );
       logger.info(
         `Successfully handled ${method} request for session ${sessionId}`,
         { ...baseSessionReqContext, sessionId },
       );
+      return response;
     } catch (err) {
       logger.error(
         `Error handling ${method} request for session ${sessionId}`,
@@ -643,53 +573,40 @@ export async function startHttpTransport(
           stack: err instanceof Error ? err.stack : undefined,
         },
       );
-      if (!res.headersSent) {
-        res.status(500).json({
+      return c.json(
+        {
           jsonrpc: "2.0",
           error: { code: -32603, message: "Internal Server Error" },
-          id: null, // Or a relevant request identifier
-        });
-      }
+          id: null,
+        },
+        500,
+      );
     }
   };
+
   app.get(MCP_ENDPOINT_PATH, handleSessionReq);
   app.delete(MCP_ENDPOINT_PATH, handleSessionReq);
 
   logger.debug("Creating HTTP server instance...", transportContext);
-  const serverInstance = http.createServer(app);
   try {
     logger.debug(
       "Attempting to start HTTP server with retry logic...",
       transportContext,
     );
-    const actualPort = await startHttpServerWithRetry(
-      serverInstance,
+    const serverInstance = await startHttpServerWithRetry(
+      app,
       config.mcpHttpPort,
       config.mcpHttpHost,
       MAX_PORT_RETRIES,
       transportContext,
     );
 
-    let serverAddressLog = `http://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
-    let productionNote = "";
-    if (config.environment === "production") {
-      // The server itself runs HTTP, but it's expected to be behind an HTTPS proxy in production.
-      // The log reflects the effective public-facing URL.
-      serverAddressLog = `https://${config.mcpHttpHost}:${actualPort}${MCP_ENDPOINT_PATH}`;
-      productionNote = ` (via HTTPS, ensure reverse proxy is configured)`;
-    }
-
-    if (process.stdout.isTTY) {
-      console.log(
-        `\n🚀 MCP Server running in HTTP mode at: ${serverAddressLog}${productionNote}\n   (MCP Spec: 2025-03-26 Streamable HTTP Transport)\n`,
-      );
-    }
-    return serverInstance; // Return the created server instance
+    return serverInstance;
   } catch (err) {
     logger.fatal("HTTP server failed to start after multiple port retries.", {
       ...transportContext,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw err; // Re-throw the error to be caught by the caller
+    throw err;
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "TypeScript template for building Model Context Protocol (MCP) Servers & Clients. Features extensive utilities (logger, requestContext, etc.), STDIO & Streamable HTTP (with authMiddleware), examples, and type safety. Ideal starting point for creating production-ready MCP Servers & Clients.",
   "main": "dist/index.js",
   "files": [
@@ -35,21 +35,25 @@
   },
   "dependencies": {
     "@duckdb/node-api": "^1.3.0-alpha.21",
+    "@hono/node-server": "^1.14.3",
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "@node-oauth/oauth2-server": "^5.2.0",
     "@supabase/supabase-js": "^2.49.10",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.30",
     "@types/sanitize-html": "^2.16.0",
     "@types/validator": "13.15.1",
+    "bcryptjs": "^3.0.2",
     "chalk": "^5.4.1",
     "chrono-node": "^2.8.0",
     "cli-table3": "^0.6.5",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0",
+    "hono": "^4.7.11",
     "ignore": "^7.0.5",
     "jsonwebtoken": "^9.0.2",
     "openai": "^5.1.1",
     "partial-json": "^0.1.7",
+    "pg": "^8.16.0",
     "sanitize-html": "^2.17.0",
     "tiktoken": "^1.0.21",
     "ts-node": "^10.9.2",
@@ -90,13 +94,14 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "supabase": "^2.24.3",
-    "@types/express": "^5.0.2",
+    "@types/bcryptjs": "^3.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node-fetch": "^2.6.12",
+    "@types/pg": "^8.15.4",
     "axios": "^1.9.0",
     "js-yaml": "^4.1.0",
     "prettier": "^3.5.3",
+    "supabase": "^2.24.3",
     "typedoc": "^0.28.5"
   }
 }

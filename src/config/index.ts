@@ -296,7 +296,6 @@ export const config = {
     .filter(Boolean),
   /** Auth secret key (JWTs, http transport). From `MCP_AUTH_SECRET_KEY`. CRITICAL. */
   mcpAuthSecretKey: env.MCP_AUTH_SECRET_KEY,
-
   /** OpenRouter App URL. From `OPENROUTER_APP_URL`. Default: "http://localhost:3000". */
   openrouterAppUrl: env.OPENROUTER_APP_URL || "http://localhost:3000",
   /** OpenRouter App Name. From `OPENROUTER_APP_NAME`. Defaults to `mcpServerName`. */

@@ -1,5 +1,5 @@
 /**
- * @fileoverview MCP Authentication Middleware for Bearer Token Validation (JWT).
+ * @fileoverview MCP Authentication Middleware for Bearer Token Validation (JWT) for Hono.
  *
  * This middleware validates JSON Web Tokens (JWT) passed via the 'Authorization' header
  * using the 'Bearer' scheme (e.g., "Authorization: Bearer <your_token>").
@@ -7,28 +7,29 @@
  * in the configuration (`config.mcpAuthSecretKey`).
  *
  * If the token is valid, an object conforming to the MCP SDK's `AuthInfo` type
- * (expected to contain `token`, `clientId`, and `scopes`) is attached to `req.auth`.
- * If the token is missing, invalid, or expired, it sends an HTTP 401 Unauthorized response.
+ * is attached to `c.env.incoming.auth`. This direct attachment to the raw Node.js
+ * request object is for compatibility with the underlying SDK transport, which is
+ * not Hono-context-aware.
+ * If the token is missing, invalid, or expired, it returns an HTTP 401 Unauthorized response.
  *
  * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
  * @module src/mcp-server/transports/authentication/authMiddleware
  */
 
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"; // Import from SDK
-import { NextFunction, Request, Response } from "express";
+import { HttpBindings } from "@hono/node-server";
+import { type AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { Context, Next } from "hono";
+import http from "http";
 import jwt from "jsonwebtoken";
 import { config, environment } from "../../../config/index.js";
 import { logger, requestContextService } from "../../../utils/index.js";
+export type { AuthInfo };
 
-// Extend the Express Request interface to include the optional 'auth' property
-// using the imported AuthInfo type from the SDK.
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      /** Authentication information derived from the JWT, conforming to MCP SDK's AuthInfo. */
-      auth?: AuthInfo;
-    }
+// Extend the Node.js IncomingMessage type to include an optional 'auth' property.
+// This is necessary for type-safe access when attaching the AuthInfo.
+declare module "http" {
+  interface IncomingMessage {
+    auth?: AuthInfo;
   }
 }
 
@@ -47,22 +48,24 @@ if (environment === "production" && !config.mcpAuthSecretKey) {
 }
 
 /**
- * Express middleware for verifying JWT Bearer token authentication.
+ * Hono middleware for verifying JWT Bearer token authentication.
+ * It attaches authentication info to `c.env.incoming.auth` for SDK compatibility with the node server.
  */
-export function mcpAuthMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+export async function mcpAuthMiddleware(
+  c: Context<{ Bindings: HttpBindings }>,
+  next: Next,
+) {
   const context = requestContextService.createRequestContext({
     operation: "mcpAuthMiddleware",
-    method: req.method,
-    path: req.path,
+    method: c.req.method,
+    path: c.req.path,
   });
   logger.debug(
     "Running MCP Authentication Middleware (Bearer Token Validation)...",
     context,
   );
+
+  const reqWithAuth = c.env.incoming;
 
   // Development Mode Bypass
   if (!config.mcpAuthSecretKey) {
@@ -71,49 +74,49 @@ export function mcpAuthMiddleware(
         "Bypassing JWT authentication: MCP_AUTH_SECRET_KEY is not set (DEVELOPMENT ONLY).",
         context,
       );
-      // Populate req.auth strictly according to SDK's AuthInfo
-      req.auth = {
+      reqWithAuth.auth = {
         token: "dev-mode-placeholder-token",
         clientId: "dev-client-id",
         scopes: ["dev-scope"],
       };
-      // Log dev mode details separately, not attaching to req.auth if not part of AuthInfo
       logger.debug("Dev mode auth object created.", {
         ...context,
-        authDetails: req.auth,
+        authDetails: reqWithAuth.auth,
       });
-      return next();
+      return await next();
     } else {
       logger.error(
         "FATAL: MCP_AUTH_SECRET_KEY is missing in production. Cannot bypass auth.",
         context,
       );
-      res.status(500).json({
-        error: "Server configuration error: Authentication key missing.",
-      });
-      return;
+      return c.json(
+        { error: "Server configuration error: Authentication key missing." },
+        500,
+      );
     }
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = c.req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     logger.warning(
       "Authentication failed: Missing or malformed Authorization header (Bearer scheme required).",
       context,
     );
-    res.status(401).json({
-      error: "Unauthorized: Missing or invalid authentication token format.",
-    });
-    return;
+    return c.json(
+      {
+        error: "Unauthorized: Missing or invalid authentication token format.",
+      },
+      401,
+    );
   }
 
   const tokenParts = authHeader.split(" ");
   if (tokenParts.length !== 2 || tokenParts[0] !== "Bearer" || !tokenParts[1]) {
     logger.warning("Authentication failed: Malformed Bearer token.", context);
-    res
-      .status(401)
-      .json({ error: "Unauthorized: Malformed authentication token." });
-    return;
+    return c.json(
+      { error: "Unauthorized: Malformed authentication token." },
+      401,
+    );
   }
   const rawToken = tokenParts[1];
 
@@ -125,13 +128,12 @@ export function mcpAuthMiddleware(
         "Authentication failed: JWT decoded to a string, expected an object payload.",
         context,
       );
-      res
-        .status(401)
-        .json({ error: "Unauthorized: Invalid token payload format." });
-      return;
+      return c.json(
+        { error: "Unauthorized: Invalid token payload format." },
+        401,
+      );
     }
 
-    // Extract and validate fields for SDK's AuthInfo
     const clientIdFromToken =
       typeof decoded.cid === "string"
         ? decoded.cid
@@ -143,13 +145,13 @@ export function mcpAuthMiddleware(
         "Authentication failed: JWT 'cid' or 'client_id' claim is missing or not a string.",
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
-      res.status(401).json({
-        error: "Unauthorized: Invalid token, missing client identifier.",
-      });
-      return;
+      return c.json(
+        { error: "Unauthorized: Invalid token, missing client identifier." },
+        401,
+      );
     }
 
-    let scopesFromToken: string[];
+    let scopesFromToken: string[] = [];
     if (
       Array.isArray(decoded.scp) &&
       decoded.scp.every((s) => typeof s === "string")
@@ -161,61 +163,36 @@ export function mcpAuthMiddleware(
     ) {
       scopesFromToken = decoded.scope.split(" ").filter((s) => s);
       if (scopesFromToken.length === 0 && decoded.scope.trim() !== "") {
-        // handles case " " -> [""]
         scopesFromToken = [decoded.scope.trim()];
-      } else if (scopesFromToken.length === 0 && decoded.scope.trim() === "") {
-        // If scope is an empty string, treat as no scopes.
-        // This will now lead to an error if scopes are considered mandatory.
-        logger.debug(
-          "JWT 'scope' claim was an empty string, resulting in empty scopes array.",
-          context,
-        );
       }
-    } else {
-      // If scopes are strictly mandatory and not found or invalid format
-      logger.warning(
-        "Authentication failed: JWT 'scp' or 'scope' claim is missing, not an array of strings, or not a valid space-separated string.",
-        { ...context, jwtPayloadKeys: Object.keys(decoded) },
-      );
-      res.status(401).json({
-        error: "Unauthorized: Invalid token, missing or invalid scopes.",
-      });
-      return;
     }
 
-    // If, after parsing, scopesFromToken is empty and scopes are considered mandatory for any operation.
-    // This check assumes that all valid tokens must have at least one scope.
-    // If some tokens are legitimately allowed to have no scopes for certain operations,
-    // this check might need to be adjusted or handled downstream.
     if (scopesFromToken.length === 0) {
       logger.warning(
         "Authentication failed: Token resulted in an empty scope array, and scopes are required.",
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
-      res.status(401).json({
-        error: "Unauthorized: Token must contain valid, non-empty scopes.",
-      });
-      return;
+      return c.json(
+        { error: "Unauthorized: Token must contain valid, non-empty scopes." },
+        401,
+      );
     }
 
-    // Construct req.auth with only the properties defined in SDK's AuthInfo
-    // All other claims from 'decoded' are not part of req.auth for type safety.
-    req.auth = {
+    reqWithAuth.auth = {
       token: rawToken,
       clientId: clientIdFromToken,
       scopes: scopesFromToken,
     };
 
-    // Log separately if other JWT claims like 'sub' (sessionId) are needed for app logic
     const subClaimForLogging =
       typeof decoded.sub === "string" ? decoded.sub : undefined;
     logger.debug("JWT verified successfully. AuthInfo attached to request.", {
       ...context,
       mcpSessionIdContext: subClaimForLogging,
-      clientId: req.auth.clientId,
-      scopes: req.auth.scopes,
+      clientId: reqWithAuth.auth.clientId,
+      scopes: reqWithAuth.auth.scopes,
     });
-    next();
+    await next();
   } catch (error: unknown) {
     let errorMessage = "Invalid token";
     if (error instanceof jwt.TokenExpiredError) {
@@ -240,6 +217,6 @@ export function mcpAuthMiddleware(
         { ...context, error },
       );
     }
-    res.status(401).json({ error: `Unauthorized: ${errorMessage}.` });
+    return c.json({ error: `Unauthorized: ${errorMessage}.` }, 401);
   }
 }
