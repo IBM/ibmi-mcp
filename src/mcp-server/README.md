@@ -51,6 +51,7 @@ The core of extending this MCP server involves defining your custom logic and th
 - **EchoTool**: See `src/mcp-server/tools/echoTool/` for a basic example of a synchronous tool.
 - **EchoResource**: See `src/mcp-server/resources/echoResource/` for a basic resource example.
 - **CatFactFetcher Tool**: For an example of a tool that performs asynchronous operations (like an external API call), refer to `src/mcp-server/tools/catFactFetcher/`. This demonstrates `async/await` usage, Promise management, and integration of external data sources within a tool's handler.
+- **ImageTest Tool**: See `src/mcp-server/tools/imageTest/` for an example of a tool that returns an image blob.
 
 ### 🚀 Server Initialization and Transports
 

@@ -6,7 +6,7 @@ This document details the configuration for the built-in **MCP client**, managed
 
 ### `mcp-config.json`
 
-The primary configuration file for the MCP client is `src/mcp-client/client-config/mcp-config.json`. If this file is missing, the client will attempt to fall back to `src/mcp-client/client-config/mcp-config.json.example`.
+The primary configuration file for the MCP client is `src/mcp-client/client-config/mcp-config.json`. If this file is missing, the application will throw a startup error. An example configuration can be found in `mcp-config.json.example`.
 
 This file defines the external MCP servers that the client can connect to and interact with. The client implementation strictly adheres to the **MCP 2025-03-26 specification**.
 

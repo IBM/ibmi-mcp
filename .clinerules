@@ -10,7 +10,7 @@ The server can run using different communication transports, configured via envi
 
 - **`MCP_TRANSPORT_TYPE`**: Specifies the transport.
   - `"stdio"` (Default): Uses standard input/output for communication. Suitable for direct integration with parent processes.
-  - `"http"`: Uses Streamable HTTP Server-Sent Events (SSE) for communication. Runs an Express server.
+  - `"http"`: Uses Streamable HTTP for communication. Runs a Hono server.
 - **`MCP_HTTP_PORT`**: Port for the HTTP server (Default: `3010`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
@@ -39,6 +39,73 @@ The server can run using different communication transports, configured via envi
 - **Format Code**: `npm run format`
 - **Stdio**: `npm run start:stdio`
 - **HTTP**: `npm run start:http` (optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`, `MCP_AUTH_SECRET_KEY`).
+
+### Using the MCP Client (Example)
+
+This template includes a fully functional MCP client. Here's how you can use it to connect to a server defined in `mcp-config.json` and call a tool.
+
+```typescript
+// src/mcp-client/exampleUsage.ts
+import { connectMcpClient, disconnectMcpClient } from "./core/clientManager.js";
+import { requestContextService, logger } from "../utils/index.js";
+
+async function runClientExample() {
+  const context = requestContextService.createRequestContext({
+    operation: "ClientExample",
+  });
+  const serverName = "echo-server"; // Assuming you have an 'echo-server' defined in mcp-config.json
+
+  try {
+    // 1. Connect to the server
+    logger.info(`Connecting to ${serverName}...`, context);
+    const client = await connectMcpClient(serverName, context);
+    logger.info(`Successfully connected to ${serverName}.`, context);
+
+    // 2. Call a tool
+    const toolParams = {
+      message: "Hello from the client!",
+      mode: "uppercase",
+      repeat: 2,
+    };
+    logger.info(`Calling 'echo_message' tool with params:`, {
+      ...context,
+      toolParams,
+    });
+
+    const result = await client.tools.call("echo_message", toolParams);
+
+    // 3. Process the result
+    if (result.isError) {
+      logger.error("Tool call failed.", {
+        ...context,
+        errorResult: result.content,
+      });
+    } else {
+      const responseText =
+        result.content[0].type === "text"
+          ? result.content[0].text
+          : "Non-text response";
+      logger.info("Tool call successful. Response:", {
+        ...context,
+        response: JSON.parse(responseText),
+      });
+    }
+  } catch (error) {
+    logger.error(
+      "An error occurred during the client example.",
+      error,
+      context
+    );
+  } finally {
+    // 4. Disconnect the client
+    logger.info(`Disconnecting from ${serverName}...`, context);
+    await disconnectMcpClient(serverName, context);
+    logger.info("Disconnected.", context);
+  }
+}
+
+runClientExample();
+```
 
 ## Model Context Protocol (MCP) Overview (Spec: 2025-03-26)
 
@@ -142,7 +209,7 @@ Servers expose functionality via:
 
 - **High-Level SDK Abstractions (Strongly Recommended):**
 
-  - **Use `server.tool(name, description, zodSchemaShape, [annotations], handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
+  - **Use `server.tool(name, description, zodSchemaShape, handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
     - Registering the tool for `tools/list`.
     - Generating the JSON Schema from the Zod shape.
     - Validating incoming `tools/call` arguments against the schema.
@@ -835,10 +902,86 @@ This project includes several utility scripts located in the `scripts/` director
 
 1.  **Directory**: `src/mcp-server/tools/yourToolName/` (Follow modular structure above).
 2.  **Logic (`logic.ts`)**: Define input Zod schema and the core async handler function.
-3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ErrorHandler`. Use the high-level `server.tool(name, description, zodSchemaShape, [annotations], async handler => { ... })`. Ensure handler returns `CallToolResult` (`{ content: [...], isError?: boolean }`). Wrap handler logic and registration in `ErrorHandler.tryCatch`.
+3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ErrorHandler`. Use the high-level `server.tool(name, description, zodSchemaShape, handler)`. Ensure handler returns `CallToolResult` (`{ content: [...], isError?: boolean }`). Wrap handler logic and registration in `ErrorHandler.tryCatch`.
     - **Crucially, ensure the tool's `description` and parameter descriptions (within `zodSchemaShape`) are concise yet highly descriptive. Clearly state purpose, parameter expectations (e.g., format, range), requirements, and provide examples if they aid clarity. This is vital for LLM usability and developer understanding.**
+    - **Annotations** (e.g., `readOnlyHint`, `destructiveHint`) are not passed as a direct argument to this `server.tool` overload. They are defined when using a more detailed `Tool` object for registration. For simplicity, focus on clear descriptions.
 4.  **Index (`index.ts`)**: Export registration function.
 5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `createMcpServerInstance`.
+
+**Concrete Tool Registration Example (`registration.ts`):**
+
+```typescript
+// src/mcp-server/tools/echoTool/registration.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js";
+import {
+  EchoToolInputSchema,
+  processEchoMessage,
+  EchoToolInput,
+} from "./logic.js";
+
+export const registerEchoTool = async (server: McpServer): Promise<void> => {
+  const toolName = "echo_message";
+  const registrationContext = requestContextService.createRequestContext({
+    operation: "RegisterTool",
+    toolName,
+  });
+
+  await ErrorHandler.tryCatch(
+    async () => {
+      server.tool(
+        toolName,
+        "Echoes a message back with optional formatting and repetition.",
+        EchoToolInputSchema.shape, // Zod shape for validation
+        async (params: EchoToolInput): Promise<CallToolResult> => {
+          const handlerContext = requestContextService.createRequestContext({
+            parentContext: registrationContext,
+            operation: "HandleToolRequest",
+            toolName,
+          });
+
+          // The core logic is wrapped in its own tryCatch for granular error reporting
+          return await ErrorHandler.tryCatch(
+            async () => {
+              const responsePayload = processEchoMessage(
+                params,
+                handlerContext
+              );
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify(responsePayload, null, 2),
+                  },
+                ],
+                isError: false,
+              };
+            },
+            {
+              operation: `ExecutingCoreLogicFor_${toolName}`,
+              context: handlerContext,
+            }
+          );
+        }
+      );
+      logger.info(
+        `Tool '${toolName}' registered successfully.`,
+        registrationContext
+      );
+    },
+    {
+      operation: `RegisteringTool_${toolName}`,
+      context: registrationContext,
+      critical: true,
+    }
+  );
+};
+```
 
 ### Adding a Resource
 
@@ -857,8 +1000,8 @@ This project includes several utility scripts located in the `scripts/` director
 - **Configuration**: `src/config/index.ts` (Loads env vars, package info, initializes logger)
 - **Global Types**: `src/types-global/`
 - **Utilities**: `src/utils/` (Main barrel file `index.ts` exporting from subdirs: `internal`, `metrics`, `network`, `parsing`, `security`)
-- **Tools**: `src/mcp-server/tools/`
-- **Resources**: `src/mcp-server/resources/`
+- **Tools**: `src/mcp-server/tools/` (e.g., `echoTool`, `catFactFetcher`, `imageTest`)
+- **Resources**: `src/mcp-server/resources/` (e.g., `echoResource`)
 - **Services**: `src/services/` (Reusable modules for LLM and data storage integration)
 - **DuckDB Example**: `src/storage/duckdbExample.ts` (Example usage of DuckDB service)
 - **MCP Client**: `src/mcp-client/` (Contains all client-side logic, entirely self-contained, but utilizes shared utilities from `src/utils/`)

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.9] - 2025-06-05
+
+### Changed
+
+- **Client Configuration**: Removed the fallback to `mcp-config.json.example` in the client configuration loader, enforcing a stricter requirement for an explicit `mcp-config.json` file.
+- **Documentation**:
+  - Updated `.clinerules` (developer cheatsheet) with a detailed example of using the MCP client and a concrete example of tool registration.
+  - Updated `README.md` to reflect the Hono migration and the stricter client configuration.
+  - Updated `src/mcp-client/client-config/README.md` to clarify the removal of the configuration fallback.
+  - Updated `src/mcp-server/README.md` to include the `imageTest` tool in the list of examples.
+
 ## [1.4.8] - 2025-06-05
 
 ### BREAKING CHANGE
