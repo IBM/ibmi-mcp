@@ -1,0 +1,24 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml",
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "topFilesLength": 5,
+    "showLineNumbers": false,
+    "copyToClipboard": false
+  },
+  "include": [],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".clinerules",
+      "repomix.config.json",
+      "docs/api-references/"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}
