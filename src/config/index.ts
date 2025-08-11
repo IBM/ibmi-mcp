@@ -19,7 +19,7 @@ dotenv.config();
 const findProjectRoot = (startDir: string): string => {
   let currentDir = startDir;
   // If the start directory is in `dist`, start searching from the parent directory.
-  if (path.basename(currentDir) === 'dist') {
+  if (path.basename(currentDir) === "dist") {
     currentDir = path.dirname(currentDir);
   }
   while (true) {
@@ -59,7 +59,7 @@ try {
  */
 const loadPackageJson = (): { name: string; version: string } => {
   const pkgPath = join(projectRoot, "package.json");
-  const fallback = { name: "mcp-ts-template", version: "1.0.0" };
+  const fallback = { name: "ibmi-mcp-server", version: "1.0.0" };
 
   if (!existsSync(pkgPath)) {
     if (process.stdout.isTTY) {
@@ -75,7 +75,8 @@ const loadPackageJson = (): { name: string; version: string } => {
     const parsed = JSON.parse(fileContents);
     return {
       name: typeof parsed.name === "string" ? parsed.name : fallback.name,
-      version: typeof parsed.version === "string" ? parsed.version : fallback.version,
+      version:
+        typeof parsed.version === "string" ? parsed.version : fallback.version,
     };
   } catch (error) {
     if (process.stdout.isTTY) {
@@ -184,6 +185,35 @@ const EnvSchema = z.object({
   OTEL_LOG_LEVEL: z
     .enum(["NONE", "ERROR", "WARN", "INFO", "DEBUG", "VERBOSE", "ALL"])
     .default("INFO"),
+  /** IBM i Mapepire daemon server host. From `DB2i_HOST`. */
+  DB2i_HOST: z
+    .string()
+    .min(1, "DB2i_HOST is required for IBM i connections.")
+    .optional(),
+  /** IBM i DB2 user name. From `DB2i_USER`. */
+  DB2i_USER: z
+    .string()
+    .min(1, "DB2i_USER is required for IBM i connections.")
+    .optional(),
+  /** IBM i DB2 password. From `DB2i_PASS`. */
+  DB2i_PASS: z
+    .string()
+    .min(1, "DB2i_PASS is required for IBM i connections.")
+    .optional(),
+  /** Ignore unauthorized SSL certificates for Mapepire. From `DB2i_IGNORE_UNAUTHORIZED`. Default: true. */
+  DB2i_IGNORE_UNAUTHORIZED: z.coerce.boolean().default(true),
+
+  /** Path to YAML tools configuration file. From `TOOLS_YAML_PATH`. */
+  TOOLS_YAML_PATH: z
+    .string()
+    .min(1, "TOOLS_YAML_PATH is required for YAML-based tools.")
+    .optional(),
+
+  /** YAML merge options configuration. From `YAML_MERGE_*` environment variables. */
+  YAML_MERGE_ARRAYS: z.coerce.boolean().default(false),
+  YAML_ALLOW_DUPLICATE_TOOLS: z.coerce.boolean().default(false),
+  YAML_ALLOW_DUPLICATE_SOURCES: z.coerce.boolean().default(false),
+  YAML_VALIDATE_MERGED: z.coerce.boolean().default(true),
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);
@@ -306,7 +336,7 @@ export const config = {
   devMcpClientId: env.DEV_MCP_CLIENT_ID,
   devMcpScopes: env.DEV_MCP_SCOPES?.split(",").map((s) => s.trim()),
   openrouterAppUrl: env.OPENROUTER_APP_URL || "http://localhost:3000",
-  openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || "mcp-ts-template",
+  openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || "ibmi-mcp-server",
   openrouterApiKey: env.OPENROUTER_API_KEY,
   llmDefaultModel: env.LLM_DEFAULT_MODEL,
   llmDefaultTemperature: env.LLM_DEFAULT_TEMPERATURE,
@@ -350,6 +380,28 @@ export const config = {
     metricsEndpoint: env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
     samplingRatio: env.OTEL_TRACES_SAMPLER_ARG,
     logLevel: env.OTEL_LOG_LEVEL,
+  },
+
+  /** IBM i DB2 configuration. Undefined if no related env vars are set. */
+  db2i:
+    env.DB2i_HOST && env.DB2i_USER && env.DB2i_PASS
+      ? {
+          host: env.DB2i_HOST,
+          user: env.DB2i_USER,
+          password: env.DB2i_PASS,
+          ignoreUnauthorized: env.DB2i_IGNORE_UNAUTHORIZED,
+        }
+      : undefined,
+
+  /** Path to YAML tools configuration file. From `TOOLS_YAML_PATH`. */
+  toolsYamlPath: env.TOOLS_YAML_PATH,
+
+  /** YAML configuration merge options. From `YAML_MERGE_*` environment variables. */
+  yamlMergeOptions: {
+    mergeArrays: env.YAML_MERGE_ARRAYS,
+    allowDuplicateTools: env.YAML_ALLOW_DUPLICATE_TOOLS,
+    allowDuplicateSources: env.YAML_ALLOW_DUPLICATE_SOURCES,
+    validateMerged: env.YAML_VALIDATE_MERGED,
   },
 };
 

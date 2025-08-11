@@ -1,0 +1,9 @@
+sources:
+  invalid-source:
+    host: test-host
+    # Missing required user and password fields
+
+tools:
+  invalid-tool:
+    source: test-source
+    # Missing required description and statement fields

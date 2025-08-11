@@ -1,0 +1,43 @@
+tools:
+  user_count:
+    source: ibmi-system
+    description: "Count total number of user profiles"
+    parameters: []
+    statement: |
+      SELECT COUNT(*) as total_users
+      FROM qsys2.user_info
+      WHERE status = 'ENABLED'
+
+  system_info:
+    source: ibmi-system
+    description: "Get basic system information"
+    parameters: []
+    statement: |
+      SELECT 
+        system_name,
+        system_serial_number,
+        system_type_and_model,
+        current_timestamp as check_time
+      FROM qsys2.system_status_info
+
+  user_search:
+    source: ibmi-system
+    description: "Search for user profiles by name pattern"
+    parameters:
+      - name: pattern
+        type: string
+        description: "User name pattern to search for"
+      - name: limit
+        type: integer
+        default: 10
+        description: "Maximum number of results to return"
+    statement: |
+      SELECT 
+        authorization_name,
+        text_description,
+        user_class,
+        status
+      FROM qsys2.user_info
+      WHERE authorization_name LIKE UPPER('{{pattern}}')
+      ORDER BY authorization_name
+      FETCH FIRST {{limit}} ROWS ONLY

@@ -1,9 +1,9 @@
-# mcp-ts-template - Directory Structure
+# ibmi-mcp-server - Directory Structure
 
 Generated on: 2025-08-01 14:55:24
 
 ```
-mcp-ts-template
+ibmi-mcp-server
 ├── .clinerules
 │   └── clinerules.md
 ├── .github

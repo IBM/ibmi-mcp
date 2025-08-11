@@ -24,6 +24,25 @@ import { registerEchoTool } from "./tools/echoTool/index.js";
 import { registerFetchImageTestTool } from "./tools/imageTest/index.js";
 import { startHttpTransport } from "./transports/http/index.js";
 import { startStdioTransport } from "./transports/stdio/index.js";
+import { YamlToolsLoader } from "../utils/yaml/yamlToolsLoader.js";
+
+/**
+ * Lazy initialization of YAML tools dependencies
+ * Only loads when YAML tools are actually needed
+ */
+async function initializeYamlDependencies() {
+  const { SourceManager } = await import(
+    "../services/yaml-sources/sourceManager.js"
+  );
+  const { ToolsetManager } = await import("../utils/yaml/toolsetManager.js");
+  const { YamlToolFactory } = await import("../utils/yaml/yamlToolFactory.js");
+
+  return {
+    sourceManager: SourceManager.getInstance(),
+    toolsetManager: ToolsetManager.getInstance(),
+    toolFactory: YamlToolFactory.getInstance(),
+  };
+}
 
 /**
  * Creates and configures a new instance of the `McpServer`.
@@ -61,6 +80,38 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
     await registerEchoTool(server);
     await registerCatFactFetcherTool(server);
     await registerFetchImageTestTool(server);
+
+    // Load YAML tools if configured
+    if (process.env.TOOLS_YAML_PATH) {
+      logger.debug("Loading YAML tools from server instance...", context);
+
+      // Import required dependencies
+      const dependencies = await initializeYamlDependencies();
+
+      // Create loader with dependencies
+      const yamlLoader = YamlToolsLoader.createInstance({
+        sourceManager: dependencies.sourceManager,
+        toolsetManager: dependencies.toolsetManager,
+        toolFactory: dependencies.toolFactory,
+      });
+
+      const loadingResult = await yamlLoader.loadAndRegisterTools(
+        server,
+        context,
+      );
+
+      if (!loadingResult.success) {
+        logger.error("Failed to load YAML tools in server instance.", {
+          ...context,
+          error: loadingResult.error,
+        });
+      } else {
+        logger.info("YAML tools loaded successfully in server instance.", {
+          ...context,
+          stats: loadingResult.stats,
+        });
+      }
+    }
     logger.info("Resources and tools registered successfully", context);
   } catch (err) {
     logger.error("Failed to register resources/tools", {

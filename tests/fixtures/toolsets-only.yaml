@@ -1,0 +1,16 @@
+toolsets:
+  user_management:
+    tools:
+      - user_count
+      - user_search
+      - system_info
+    
+  system_monitoring:
+    tools:
+      - system_info
+      - user_count
+    
+  basic_queries:
+    tools:
+      - user_count
+      - system_info

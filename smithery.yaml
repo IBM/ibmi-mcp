@@ -19,7 +19,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       "command": "npx",
-      "args": ["mcp-ts-template"],
+      "args": ["ibmi-mcp-server"],
       "env": {
         "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
         "MCP_HTTP_PORT": config.MCP_HTTP_PORT,

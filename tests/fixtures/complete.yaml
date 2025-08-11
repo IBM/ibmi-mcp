@@ -1,0 +1,40 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  job_count:
+    source: ibmi-system
+    description: "Count active jobs on the system"
+    parameters: []
+    statement: |
+      SELECT COUNT(*) as active_jobs
+      FROM qsys2.active_job_info
+      WHERE job_status = 'ACTIVE'
+
+  library_list:
+    source: ibmi-system
+    description: "Get current library list"
+    parameters: []
+    statement: |
+      SELECT 
+        ordinal_position,
+        library_name,
+        library_type
+      FROM qsys2.library_list_info
+      ORDER BY ordinal_position
+
+toolsets:
+  system_overview:
+    tools:
+      - job_count
+      - library_list
+
+metadata:
+  version: "1.0.0"
+  description: "Complete YAML configuration for testing"
+  author: "Test Suite"

@@ -1,0 +1,18 @@
+sources:
+  existing-source:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  valid-tool:
+    source: existing-source
+    description: "This tool references a valid source"
+    statement: "SELECT 1"
+    
+  invalid-tool:
+    source: non-existent-source
+    description: "This tool references a non-existent source"
+    statement: "SELECT 1"

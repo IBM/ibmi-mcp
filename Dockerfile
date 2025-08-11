@@ -46,4 +46,4 @@ EXPOSE 3010
 
 # Command to run the application
 # This will execute the binary defined in package.json
-CMD ["npx", "mcp-ts-template"]
+CMD ["npx", "ibmi-mcp-server"]

@@ -25,7 +25,7 @@ Add paths to `.gitattributes` when:
 - You have project-specific docs or config that upstream might also touch.
 
 **Rule of thumb:**  
-If upstream changes this file, and you *never* want their version → **protect it**.
+If upstream changes this file, and you _never_ want their version → **protect it**.
 
 ---
 

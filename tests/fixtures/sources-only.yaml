@@ -1,0 +1,20 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+    
+  ibmi-backup:
+    host: ${DB2i_BACKUP_HOST}
+    user: ${DB2i_BACKUP_USER}
+    password: ${DB2i_BACKUP_PASS}
+    port: 8076
+    ignore-unauthorized: true
+    
+  local-db:
+    host: localhost
+    user: local_user
+    password: local_pass
+    port: 5432

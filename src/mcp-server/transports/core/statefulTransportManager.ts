@@ -52,7 +52,10 @@ export class StatefulTransportManager
   extends BaseTransportManager
   implements IStatefulTransportManager
 {
-  private readonly transports = new Map<string, StreamableHTTPServerTransport>();
+  private readonly transports = new Map<
+    string,
+    StreamableHTTPServerTransport
+  >();
   private readonly servers = new Map<string, McpServer>();
   private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;

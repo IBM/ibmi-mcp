@@ -1,12 +1,12 @@
 ````markdown
-# mcp-ts-template: Architectural Standard & Developer Mandate
+# ibmi-mcp-server: Architectural Standard & Developer Mandate
 
 **Effective Date:** 2025-07-17
 **Version:** 2.2
 
 ## Preamble
 
-This document constitutes the official mandate governing all development practices, architectural patterns, and operational procedures for projects originating from the mcp-ts-template. It is the single source of truth for ensuring code quality, consistency, and long-term maintainability. Adherence to these standards is not optional; it is a condition of all development activity.
+This document constitutes the official mandate governing all development practices, architectural patterns, and operational procedures for projects originating from the ibmi-mcp-server. It is the single source of truth for ensuring code quality, consistency, and long-term maintainability. Adherence to these standards is not optional; it is a condition of all development activity.
 
 ## I. Core Architectural Principles
 

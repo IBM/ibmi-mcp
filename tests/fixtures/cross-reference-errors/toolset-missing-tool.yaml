@@ -1,0 +1,23 @@
+sources:
+  test-source:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  existing-tool:
+    source: test-source
+    description: "This tool exists"
+    statement: "SELECT 1"
+
+toolsets:
+  valid-toolset:
+    tools:
+      - existing-tool
+      
+  invalid-toolset:
+    tools:
+      - existing-tool
+      - non-existent-tool

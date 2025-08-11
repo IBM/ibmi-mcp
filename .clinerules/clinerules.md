@@ -1,11 +1,11 @@
-# mcp-ts-template: Architectural Standard & Developer Mandate
+# ibmi-mcp-server: Architectural Standard & Developer Mandate
 
 **Effective Date:** 2025-08-01
 **Version:** 2.3
 
 ## Preamble
 
-This document constitutes the official mandate governing all development practices, architectural patterns, and operational procedures for projects originating from the mcp-ts-template. It is the single source of truth for ensuring code quality, consistency, and long-term maintainability. Adherence to these standards is not optional; it is a condition of all development activity.
+This document constitutes the official mandate governing all development practices, architectural patterns, and operational procedures for projects originating from the ibmi-mcp-server. It is the single source of truth for ensuring code quality, consistency, and long-term maintainability. Adherence to these standards is not optional; it is a condition of all development activity.
 
 ## I. Core Architectural Principles
 
@@ -517,3 +517,4 @@ vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 5.  **Security Testing:** Test actual authentication, authorization, and input validation flows.
 
 This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
+````
