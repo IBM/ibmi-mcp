@@ -1,12 +1,20 @@
 # IBM i MCP Agent Examples
 
-This directory contains example AI agents that demonstrate how to interact with the IBM i MCP Server.
+This directory contains example AI agents that interact with the IBM i MCP Server.
 
 ## Quick Setup
 
-### 1. Install Dependencies
+### 1. Install uv (recommeded)
 
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+or create a virtual environment manually:
+
+```bash
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -40,83 +48,21 @@ npm run start:http
 
 ```bash
 # Use a custom prompt
-python agno_agent.py -p "What's my system status?"
+uv run agent.py -p "What's my system status?"
 
 # Or run with the default prompt
-python agno_agent.py
+uv run agent.py
 
 # Get help
-python agno_agent.py -h
+uv run agent.py -h
 ```
 
-## Available Agents
+**Note:** You can also activate the virtual environment with `source .venv/bin/activate` and run python files with `python`.
 
-### agno_agent.py
+## Available test agents and scripts
 
-The main example agent that connects to your IBM i MCP server and allows natural language queries.
+- `agent.py`: The main example agent that connects to your IBM i MCP server and allows natural language queries.
+- `test_tool_annotations.py`: A test script that demonstrates how to use tool annotations with the agent.
+- `test_toolset_resources.py`: A test script that demonstrates how to use toolset resources with the agent.
 
-**Features:**
-
-- Connects to IBM i MCP server via HTTP
-- Supports custom prompts with `-p` parameter
-- Automatically discovers available tools
-- Provides debug output showing tool selection
-
-**Example Usage:**
-
-```bash
-python agno_agent.py -p "Show me user profiles with security issues"
-python agno_agent.py -p "What jobs are consuming the most CPU?"
-python agno_agent.py -p "How many remote connections are active?"
-```
-
-## Model Support
-
-**Current:** OpenAI GPT models (via OpenAI API)
-
-**Future Support Planned:**
-
-- Anthropic Claude models
-- Local models via Ollama
-- Azure OpenAI
-- Google Gemini
-- Additional model providers
-
-The agent framework is designed to be model-agnostic, making it easy to switch between different AI providers.
-
-## Troubleshooting
-
-### Common Issues
-
-**"No API key found"**
-
-- Ensure your `.env` file contains `OPENAI_API_KEY=your-key-here`
-- Verify the `.env` file is in the `tests/agents/` directory
-
-**"Connection refused"**
-
-- Make sure the MCP server is running: `npm run start:http`
-- Check the server is accessible at `http://127.0.0.1:3010/mcp`
-
-**"No tools found"**
-
-- Verify your YAML tools configuration in the main `.env` file
-- Check `TOOLS_YAML_PATH` points to a valid YAML file
-
-### Debug Mode
-
-The agent runs with debug mode enabled by default, showing:
-
-- Available tools discovered
-- Tool selection process
-- SQL queries being executed
-- Response formatting
-
-## Contributing
-
-When adding new agent examples:
-
-1. Follow the existing pattern of using environment variables
-2. Include clear documentation and usage examples
-3. Support both prompted and interactive modes
-4. Add appropriate error handling and debug output
+## MCP Context Forge (Coming Soon)

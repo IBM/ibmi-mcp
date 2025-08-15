@@ -12,9 +12,19 @@ import { z } from "zod";
 // Simple schemas for testing
 const YamlToolParameterSchema = z.object({
   name: z.string().min(1),
-  type: z.enum(["string", "number", "boolean", "integer"]),
+  type: z.enum(["string", "number", "boolean", "integer", "float", "array"]),
   description: z.string().optional(),
   default: z.any().optional(),
+  required: z.boolean().optional(),
+  itemType: z
+    .enum(["string", "number", "boolean", "integer", "float"])
+    .optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  minLength: z.number().optional(),
+  maxLength: z.number().optional(),
+  enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  pattern: z.string().optional(),
 });
 
 const YamlSourceSchema = z.object({
@@ -30,6 +40,9 @@ const YamlToolSchema = z.object({
   description: z.string().min(1),
   statement: z.string().min(1),
   parameters: z.array(YamlToolParameterSchema).optional(),
+  domain: z.string().optional(),
+  category: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
 });
 
 const YamlToolsetSchema = z.object({
@@ -238,7 +251,14 @@ sources:
 
   describe("Parameter Validation", () => {
     it("should validate valid parameter types", () => {
-      const validTypes = ["string", "number", "boolean", "integer"];
+      const validTypes = [
+        "string",
+        "number",
+        "boolean",
+        "integer",
+        "float",
+        "array",
+      ];
 
       validTypes.forEach((type) => {
         const param = {
@@ -271,6 +291,115 @@ sources:
 
       const result = YamlToolParameterSchema.safeParse(paramWithoutName);
       expect(result.success).toBe(false);
+    });
+
+    it("should validate array parameters with itemType", () => {
+      const arrayParam = {
+        name: "ids",
+        type: "array",
+        itemType: "integer",
+        description: "Array of user IDs",
+        minLength: 1,
+        maxLength: 100,
+      };
+
+      const result = YamlToolParameterSchema.safeParse(arrayParam);
+      expect(result.success).toBe(true);
+    });
+
+    it("should validate parameters with validation constraints", () => {
+      const constrainedParam = {
+        name: "age",
+        type: "integer",
+        description: "User age",
+        min: 0,
+        max: 120,
+        required: true,
+      };
+
+      const result = YamlToolParameterSchema.safeParse(constrainedParam);
+      expect(result.success).toBe(true);
+    });
+
+    it("should validate parameters with enum values", () => {
+      const enumParam = {
+        name: "status",
+        type: "string",
+        description: "User status",
+        enum: ["active", "inactive", "pending"],
+        required: true,
+      };
+
+      const result = YamlToolParameterSchema.safeParse(enumParam);
+      expect(result.success).toBe(true);
+    });
+
+    it("should validate parameters with pattern", () => {
+      const patternParam = {
+        name: "username",
+        type: "string",
+        description: "IBM i username",
+        pattern: "^[A-Z0-9_]{1,10}$",
+        required: true,
+      };
+
+      const result = YamlToolParameterSchema.safeParse(patternParam);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe("Tool Configuration Validation", () => {
+    it("should parse tools with regular parameters", () => {
+      const toolWithParams = `
+tools:
+  user-query:
+    source: test-source
+    description: "Query user information"
+    statement: "SELECT * FROM users WHERE name = :username AND age > :minAge"
+    parameters:
+      - name: username
+        type: string
+        description: "User name to search for"
+        required: true
+      - name: minAge
+        type: integer
+        description: "Minimum age filter"
+        min: 0
+        max: 120
+        default: 18
+`;
+
+      const result = parseYaml(toolWithParams);
+      expect(result.success).toBe(true);
+      expect(result.config?.tools?.["user-query"]?.parameters).toHaveLength(2);
+      expect(result.config?.tools?.["user-query"]?.parameters?.[0].name).toBe(
+        "username",
+      );
+      expect(result.config?.tools?.["user-query"]?.parameters?.[0].type).toBe(
+        "string",
+      );
+      expect(result.config?.tools?.["user-query"]?.parameters?.[1].name).toBe(
+        "minAge",
+      );
+      expect(result.config?.tools?.["user-query"]?.parameters?.[1].type).toBe(
+        "integer",
+      );
+    });
+
+    it("should validate tools without any parameters", () => {
+      const toolWithoutParams = `
+tools:
+  simple-query:
+    source: test-source
+    description: "Simple static query"
+    statement: "SELECT COUNT(*) as total_users FROM users"
+`;
+
+      const result = parseYaml(toolWithoutParams);
+      expect(result.success).toBe(true);
+      expect(
+        result.config?.tools?.["simple-query"]?.parameters,
+      ).toBeUndefined();
     });
   });
 

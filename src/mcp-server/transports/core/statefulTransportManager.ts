@@ -383,7 +383,7 @@ export class StatefulTransportManager
     this.servers.delete(sessionId);
     this.sessions.delete(sessionId);
 
-    logger.info(
+    logger.debug(
       `MCP Session closed and resources released: ${sessionId}`,
       sessionContext,
     );

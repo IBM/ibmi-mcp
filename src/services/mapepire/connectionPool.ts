@@ -141,12 +141,43 @@ export class IBMiConnectionPool {
           );
         }
 
-        logger.debug("Executing SQL query", {
+        logger.debug("Executing SQL query with parameters", {
           ...operationContext,
           queryLength: query.length,
           hasParameters: !!params && params.length > 0,
           paramCount: params?.length || 0,
+          parameterTypes: params?.map((p) =>
+            Array.isArray(p) ? "array" : typeof p,
+          ),
         });
+
+        // Validate parameter types for mapepire compatibility
+        if (params && params.length > 0) {
+          for (let i = 0; i < params.length; i++) {
+            const param = params[i];
+            if (param !== null && param !== undefined) {
+              const isValidType =
+                typeof param === "string" ||
+                typeof param === "number" ||
+                (Array.isArray(param) &&
+                  param.every(
+                    (item) =>
+                      typeof item === "string" || typeof item === "number",
+                  ));
+              if (!isValidType) {
+                logger.warning(
+                  `Parameter ${i} has invalid type for mapepire binding`,
+                  {
+                    ...operationContext,
+                    paramIndex: i,
+                    paramType: typeof param,
+                    paramValue: param,
+                  },
+                );
+              }
+            }
+          }
+        }
 
         const result = await this.pool.execute(query, { parameters: params });
 
@@ -154,6 +185,8 @@ export class IBMiConnectionPool {
           ...operationContext,
           rowCount: result.data?.length || 0,
           success: result.success,
+          sqlReturnCode: result.sql_rc,
+          executionTime: result.execution_time,
         });
 
         return result as QueryResult<T>;

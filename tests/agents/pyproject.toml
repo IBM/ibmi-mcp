@@ -5,10 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "agno==1.7.4",
+    "agno==1.7.11",
     "anthropic>=0.57.1",
     "duckduckgo-search>=8.1.1",
-    "mcp>=1.11.0",
+    "mcp>=1.12.4",
     "mcp-contextforge-gateway>=0.3.1",
     "openai>=1.96.0",
     "python-dotenv>=1.1.1",

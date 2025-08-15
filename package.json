@@ -19,12 +19,12 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cyanheads/mcp-ts-template.git"
+    "url": "git+https://github.com/ajshedivy/ibmi-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/cyanheads/mcp-ts-template/issues"
+    "url": "https://github.com/ajshedivy/ibmi-mcp-server/issues"
   },
-  "homepage": "https://github.com/cyanheads/mcp-ts-template#readme",
+  "homepage": "https://github.com/ajshedivy/ibmi-mcp-server#readme",
   "scripts": {
     "build": "tsc",
     "postbuild": "tsx scripts/make-executable.ts dist/index.js",
@@ -138,7 +138,7 @@
     "tracing",
     "metrics"
   ],
-  "author": "cyanheads <casey@caseyjhand.com> (https://github.com/cyanheads/mcp-ts-template#readme)",
+  "author": "ajshedivy <adam.shedivy@ibm.com> (https://github.com/ajshedivy/ibmi-mcp-server#readme)",
   "license": "Apache-2.0",
   "funding": [
     {

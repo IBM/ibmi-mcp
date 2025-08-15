@@ -2,6 +2,10 @@
  * @fileoverview Shared SQL template processor for consistent template handling
  * Eliminates duplication between YamlSqlExecutor and SqlLoader
  *
+ * @deprecated This module is deprecated and no longer actively used.
+ * Template functionality has been consolidated into the unified ParameterProcessor.
+ * This file is kept for reference but should not be used in new code.
+ *
  * @module src/utils/sql/sqlTemplateProcessor
  */
 
@@ -47,6 +51,9 @@ export interface TemplateProcessingResult {
 /**
  * Shared SQL template processor
  * Provides consistent template processing across the application
+ *
+ * @deprecated This class is deprecated and no longer actively used.
+ * Use the unified ParameterProcessor instead for all parameter processing needs.
  */
 export class SqlTemplateProcessor {
   /**

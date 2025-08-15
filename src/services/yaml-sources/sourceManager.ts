@@ -313,6 +313,7 @@ export class SourceManager {
 
         logger.debug(`Executing SQL query on source: ${sourceName}`, {
           ...operationContext,
+          query: query,
           queryLength: query.length,
           hasParameters: !!params && params.length > 0,
           paramCount: params?.length || 0,

@@ -18,10 +18,11 @@ import http from "http";
 import { config, environment } from "../config/index.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 import { ManagedMcpServer } from "./core/managedMcpServer.js";
-import { registerEchoResource } from "./resources/echoResource/index.js";
-import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
-import { registerEchoTool } from "./tools/echoTool/index.js";
-import { registerFetchImageTestTool } from "./tools/imageTest/index.js";
+// import { registerEchoResource } from "./resources/echoResource/index.js";
+// import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
+// import { registerEchoTool } from "./tools/echoTool/index.js";
+// import { registerFetchImageTestTool } from "./tools/imageTest/index.js";
+import { registerToolsetsResource } from "./resources/toolsetsResource/index.js";
 import { startHttpTransport } from "./transports/http/index.js";
 import { startStdioTransport } from "./transports/stdio/index.js";
 import { YamlToolsLoader } from "../utils/yaml/yamlToolsLoader.js";
@@ -76,10 +77,10 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
 
   try {
     logger.debug("Registering resources and tools...", context);
-    await registerEchoResource(server);
-    await registerEchoTool(server);
-    await registerCatFactFetcherTool(server);
-    await registerFetchImageTestTool(server);
+    // await registerEchoResource(server);
+    // await registerEchoTool(server);
+    // await registerCatFactFetcherTool(server);
+    // await registerFetchImageTestTool(server);
 
     // Load YAML tools if configured
     if (process.env.TOOLS_YAML_PATH) {
@@ -112,6 +113,12 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
         });
       }
     }
+
+    // Register toolsets resource (only if YAML tools are loaded)
+    if (process.env.TOOLS_YAML_PATH) {
+      await registerToolsetsResource(server);
+    }
+
     logger.info("Resources and tools registered successfully", context);
   } catch (err) {
     logger.error("Failed to register resources/tools", {

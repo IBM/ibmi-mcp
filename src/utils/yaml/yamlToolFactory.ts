@@ -7,7 +7,6 @@
 
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import {
   ProcessedYamlTool,
   YamlTool,
@@ -61,8 +60,8 @@ export interface ToolFactoryStats {
  * Generates MCP tools dynamically from YAML definitions
  */
 export class YamlToolFactory {
-  private static instance: YamlToolFactory | undefined;
-  private generatedTools: Map<string, GeneratedToolInfo> = new Map();
+  private static instance: YamlToolFactory;
+  private generatedTools = new Map<string, GeneratedToolInfo>();
   private toolsetManager: ToolsetManager;
 
   /**
@@ -91,6 +90,7 @@ export class YamlToolFactory {
   ): z.ZodObject<Record<string, z.ZodTypeAny>> {
     const schemaShape: Record<string, z.ZodTypeAny> = {};
 
+    // Process parameters
     for (const param of parameters) {
       let zodType: z.ZodTypeAny;
 
@@ -105,8 +105,27 @@ export class YamlToolFactory {
         case "integer":
           zodType = z.number().int();
           break;
+        case "float":
+          zodType = z.number();
+          break;
         case "boolean":
           zodType = z.boolean();
+          break;
+        case "array":
+          // For array parameters, create array of the specified item type
+          if (param.itemType === "string") {
+            zodType = z.array(z.string());
+          } else if (
+            param.itemType === "number" ||
+            param.itemType === "integer" ||
+            param.itemType === "float"
+          ) {
+            zodType = z.array(z.number());
+          } else if (param.itemType === "boolean") {
+            zodType = z.array(z.boolean());
+          } else {
+            zodType = z.array(z.unknown());
+          }
           break;
         default:
           throw new McpError(
@@ -186,7 +205,6 @@ export class YamlToolFactory {
           toolsets,
           registered: false,
         };
-
         this.generatedTools.set(toolName, generatedToolInfo);
 
         // Register the tool with MCP server
@@ -253,6 +271,8 @@ export class YamlToolFactory {
     });
 
     // Register the tool using the same pattern as existing tools
+    // Merge in any user-provided custom metadata specific to this tool.
+    // We namespace it under customMetadata to avoid collisions with core fields.
     server.tool(
       toolName,
       config.description,
@@ -263,11 +283,12 @@ export class YamlToolFactory {
         domain: config.domain,
         category: config.category,
         readOnlyHint: true, // YAML tools are read-only by design
+        ...(config.metadata ? { customMetadata: config.metadata } : {}),
       },
       async (
         params: Record<string, unknown>,
-        mcpContext: unknown,
-      ): Promise<CallToolResult> => {
+        mcpContext: Record<string, unknown>,
+      ) => {
         const handlerContext = requestContextService.createRequestContext({
           parentRequestId: registrationContext.requestId,
           operation: "HandleYamlToolRequest",
@@ -277,12 +298,13 @@ export class YamlToolFactory {
         });
 
         try {
-          // Execute the SQL statement
-          const result = await YamlSqlExecutor.executeStatement(
+          // Execute the SQL statement using parameter binding
+          const result = await YamlSqlExecutor.executeStatementWithParameters(
             toolName,
             config.source,
             config.statement,
             params,
+            config.parameters || [],
             handlerContext,
           );
 
@@ -473,7 +495,6 @@ export class YamlToolFactory {
     toolsetCount: number;
   } {
     const stats = this.getStats();
-
     return {
       totalTools: stats.totalGenerated,
       registeredTools: stats.totalRegistered,

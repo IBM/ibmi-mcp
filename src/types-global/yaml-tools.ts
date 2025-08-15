@@ -23,18 +23,34 @@ export interface YamlSource {
 }
 
 /**
- * Parameter definition for YAML tools
- * Supports basic parameter types with optional defaults
+ * Parameter definition for YAML tools (secure parameter binding)
+ * Supports enhanced parameter types with validation for :param and ? placeholders
  */
 export interface YamlToolParameter {
   /** Parameter name */
   name: string;
   /** Parameter type */
-  type: "string" | "number" | "boolean" | "integer";
+  type: "string" | "number" | "boolean" | "integer" | "float" | "array";
   /** Parameter description */
   description?: string;
   /** Default value for the parameter */
-  default?: string | number | boolean;
+  default?: string | number | boolean | unknown[];
+  /** Whether parameter is required (overrides default) */
+  required?: boolean;
+  /** Array item type (only for array parameters) */
+  itemType?: "string" | "number" | "boolean" | "integer" | "float";
+  /** Minimum value (for numeric types) */
+  min?: number;
+  /** Maximum value (for numeric types) */
+  max?: number;
+  /** Minimum length (for string/array types) */
+  minLength?: number;
+  /** Maximum length (for string/array types) */
+  maxLength?: number;
+  /** Valid values (enum validation) */
+  enum?: (string | number | boolean)[];
+  /** Custom validation pattern (regex for strings) */
+  pattern?: string;
 }
 
 /**
@@ -46,9 +62,9 @@ export interface YamlTool {
   source: string;
   /** Tool description */
   description: string;
-  /** SQL statement template with parameter placeholders */
+  /** SQL statement with parameter placeholders (:param or ?) */
   statement: string;
-  /** Parameter definitions */
+  /** Parameter definitions for secure binding (:param and ? placeholders) */
   parameters?: YamlToolParameter[];
   /** Optional domain categorization */
   domain?: string;
@@ -162,5 +178,9 @@ export interface YamlToolExecutionResult<T = unknown> {
     executionTime: number;
     rowCount: number;
     affectedRows?: number;
+    /** Parameter processing mode used */
+    parameterMode?: string;
+    /** Number of parameters processed */
+    parameterCount?: number;
   };
 }

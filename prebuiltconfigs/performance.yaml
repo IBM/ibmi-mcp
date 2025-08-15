@@ -1,3 +1,11 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
 tools:
   system_status:
     source: ibmi-system
@@ -104,7 +112,7 @@ tools:
       SELECT CPU_TIME, A.* FROM 
       TABLE(QSYS2.ACTIVE_JOB_INFO(SUBSYSTEM_LIST_FILTER => 'QUSRWRK,QSYSWRK')) A 
       ORDER BY CPU_TIME DESC 
-      FETCH FIRST {{limit}} ROWS ONLY
+      FETCH FIRST :limit ROWS ONLY
 
 
 
