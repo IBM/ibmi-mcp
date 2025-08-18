@@ -135,7 +135,7 @@ export class YamlToolsLoader {
         if (!config.toolsYamlPath) {
           throw new McpError(
             BaseErrorCode.CONFIGURATION_ERROR,
-            "YAML tools path not configured. Please provide --tools parameter.",
+            "YAML tools path not configured. Please set TOOLS_YAML_PATH.",
             { toolsYamlPath: config.toolsYamlPath },
           );
         }

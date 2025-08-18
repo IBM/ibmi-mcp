@@ -15,6 +15,44 @@
 
 </div>
 
+- [ibmi-mcp-server](#ibmi-mcp-server)
+  - [✨ Key Features](#-key-features)
+  - [Quick Start](#quick-start)
+    - [1. Installation](#1-installation)
+    - [2. Build the Project](#2-build-the-project)
+    - [3. Create Server .env File](#3-create-server-env-file)
+    - [4. Running the Server](#4-running-the-server)
+    - [5. Run Example Agent](#5-run-example-agent)
+      - [Run the example Agent:](#run-the-example-agent)
+      - [Run the Example Scripts:](#run-the-example-scripts)
+    - [6. Running Tests](#6-running-tests)
+  - [⚙️ Configuration](#️-configuration)
+  - [SQL Tool Configuration](#sql-tool-configuration)
+    - [Sources](#sources)
+    - [Tools](#tools)
+    - [Toolsets](#toolsets)
+  - [Docker \& Podman Deployment](#docker--podman-deployment)
+    - [Prerequisites](#prerequisites)
+      - [Docker](#docker)
+      - [Podman (Alternative to Docker)](#podman-alternative-to-docker)
+    - [Quick Start with Docker](#quick-start-with-docker)
+    - [Quick Start with Podman](#quick-start-with-podman)
+    - [Container Architecture](#container-architecture)
+    - [🔧 Service Management](#-service-management)
+      - [Start Services](#start-services)
+      - [Stop Services](#stop-services)
+      - [View Logs](#view-logs)
+      - [Rebuild Services](#rebuild-services)
+    - [MCP Context Forge UI:](#mcp-context-forge-ui)
+    - [Virtual Server Catalog Demo (Comming soon!!)](#virtual-server-catalog-demo-comming-soon)
+  - [Architecture Overview](#architecture-overview)
+  - [🏗️ Project Structure](#️-project-structure)
+  - [🧩 Extending the System](#-extending-the-system)
+    - [The "Logic Throws, Handler Catches" Pattern](#the-logic-throws-handler-catches-pattern)
+  - [🌍 Explore More MCP Resources](#-explore-more-mcp-resources)
+  - [📜 License](#-license)
+
+
 This repository provides a robust MCP server implementation for IBM i. 
 
 ## ✨ Key Features
@@ -34,16 +72,6 @@ This repository provides a robust MCP server implementation for IBM i.
 | **🧪 Integration Testing**  | Integrated with Vitest for fast and reliable integration testing. Includes example tests for core logic and a coverage reporter.                     | `vitest.config.ts`, `tests/`                                         |
 | **⏱️ Performance Metrics**  | Built-in utility to automatically measure and log the execution time and payload size of every tool call.                                            | `src/utils/internal/performance.ts`                                  |
 
-## Architecture Overview
-
-This template is built on a set of architectural principles to ensure modularity, testability, and operational clarity.
-
-- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered. It uses a `ManagedMcpServer` wrapper to provide enhanced introspection capabilities. It acts the same way as the native McpServer, but with additional features like introspection and enhanced error handling.
-- **Transports (`src/mcp-server/transports/`)**: The transport layer connects the core server to the outside world. It supports both `stdio` for direct process communication and a streamable **Hono**-based `http` server.
-- **"Logic Throws, Handler Catches"**: This is the immutable cornerstone of our error-handling strategy.
-  - **Core Logic (`logic.ts`)**: This layer is responsible for pure, self-contained business logic. It **throws** a structured `McpError` on any failure.
-  - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors. It is the exclusive location where errors are processed and formatted into a final response.
-- **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is passed through the entire call stack, ensuring comprehensive and structured logging.
 
 ## Quick Start
 
@@ -79,6 +107,8 @@ DB2i_PASS=
 DB2i_PORT=8076
 DB2i_IGNORE_UNAUTHORIZED=true
 ```
+
+See more on configuration options in the [Configuration](#⚙️-configuration) section.
 
 ### 4. Running the Server
 
@@ -164,7 +194,63 @@ Configure the server using these environment variables (or a `.env` file):
 | `DB2i_PORT`                           | Port for the Mapepire daemon/gateway used for Db2 for i.                                   | `8076`                                 |
 | `DB2i_IGNORE_UNAUTHORIZED`            | If `true`, skip TLS certificate verification for Mapepire (self-signed certs, etc.).       | `true`                                 |
 
+To set the server environment variables, create a `.env` file in the root of this project:
 
+```bash
+cp .env.example .env
+code .env
+```
+
+Then edit the `.env` file with your IBM i connection details.
+
+## SQL Tool Configuration
+
+The Primary way to confgure tools used by this MCP server is through `tools.yaml` files (see `prebuiltconfigs/` for examples). There are 3 main sections to each yaml file: `sources`, `tools`, and `toolsets`. Below is a breakdown of each section
+
+### Sources
+The sources section of your `tools.yaml` defines the data sources the MCP server has access to
+
+```yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+```
+
+> [!NOTE]
+> The environment variables `DB2i_HOST`, `DB2i_USER`, `DB2i_PASS`, and `DB2i_PORT` can be set in the server `.env` file. see [Configuration](#⚙️-configuration)
+
+
+### Tools
+The tools section of your tools.yaml defines the actions your agent can take: what kind of tool it is, which source(s) it affects, what parameters it uses, etc.
+
+```yaml
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Overall system performance statistics with CPU, memory, and I/O metrics"
+    parameters: []
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS=>'YES',DETAILED_INFO=>'ALL')) X
+
+```
+
+### Toolsets
+The toolsets section of your `tools.yaml` allows you to define groups of tools that you want to be able to load together. This can be useful for defining different sets for different agents or different applications.
+
+```yaml
+toolsets:
+  ibmi-system-tools:
+    tools:
+      - system_status
+      - job_status
+      - disk_usage
+```
+
+More documentation on SQL tools coming soon!
 
 ## Docker & Podman Deployment
 
@@ -325,6 +411,17 @@ Once the MCP server is connect, you can then manage the tools provided by the se
 
 ### Virtual Server Catalog Demo (Comming soon!!)
 
+## Architecture Overview
+
+This template is built on a set of architectural principles to ensure modularity, testability, and operational clarity.
+
+- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered. It uses a `ManagedMcpServer` wrapper to provide enhanced introspection capabilities. It acts the same way as the native McpServer, but with additional features like introspection and enhanced error handling.
+- **Transports (`src/mcp-server/transports/`)**: The transport layer connects the core server to the outside world. It supports both `stdio` for direct process communication and a streamable **Hono**-based `http` server.
+- **"Logic Throws, Handler Catches"**: This is the immutable cornerstone of our error-handling strategy.
+  - **Core Logic (`logic.ts`)**: This layer is responsible for pure, self-contained business logic. It **throws** a structured `McpError` on any failure.
+  - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors. It is the exclusive location where errors are processed and formatted into a final response.
+- **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is passed through the entire call stack, ensuring comprehensive and structured logging.
+ 
 ## 🏗️ Project Structure
 
 - **`src/mcp-server/`**: Contains the core MCP server, tools, resources, and transport handlers.
