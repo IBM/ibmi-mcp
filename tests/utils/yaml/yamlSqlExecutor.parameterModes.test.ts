@@ -15,7 +15,7 @@ vi.mock("../../../src/utils/scheduling/index.js", () => ({
 
 import { YamlSqlExecutor } from "../../../src/utils/yaml/yamlSqlExecutor.js";
 import { SourceManager } from "../../../src/services/yaml-sources/sourceManager.js";
-import { YamlToolParameter } from "../../../src/types-global/yaml-tools.js";
+import { YamlToolParameter } from "../../../src/utils/yaml/types.js";
 import { requestContextService } from "../../../src/utils/internal/requestContext.js";
 
 describe("YamlSqlExecutor - Parameter Binding", () => {

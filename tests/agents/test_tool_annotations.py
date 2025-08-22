@@ -39,7 +39,7 @@ async def main(prompt=None, dry_run=False):
                 description=f"An agent that specializes in IBM i performance analysis.",
                 show_tool_calls=True,
                 debug_mode=True,
-                debug_level=1,
+                debug_level=2,
                 markdown=True,
                 additional_context={
                     "tool_annotations": {
@@ -53,7 +53,7 @@ async def main(prompt=None, dry_run=False):
             # Use provided prompt or default prompt
             user_prompt = prompt if prompt else "what are the top 5 jobs consuming CPU?"
 
-            await agent.aprint_response(user_prompt, stream=False)
+            await agent.acli_app(user_prompt, stream=False)
 
 
 if __name__ == "__main__":

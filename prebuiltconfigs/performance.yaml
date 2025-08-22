@@ -114,7 +114,19 @@ tools:
       ORDER BY CPU_TIME DESC 
       FETCH FIRST :limit ROWS ONLY
 
-
+  execute_sql:
+    source: ibmi-system
+    description: "Execute arbitrary SQL statements against the IBM i database for data analysis and troubleshooting"
+    parameters:
+      - name: sql
+        type: string
+        description: "The SQL statement to execute"
+    statement: |
+      :sql
+    security:
+      readOnly: true
+      maxQueryLength: 15000
+      forbiddenKeywords: ["TRUNCATE", "FORMAT", "DELETE", "UPDATE", "DROP"]
 
 toolsets:
   performance:
@@ -130,3 +142,4 @@ toolsets:
       - collection_services
       - collection_categories
       - active_job_info
+      - execute_sql

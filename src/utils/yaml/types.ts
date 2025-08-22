@@ -5,6 +5,8 @@
  * @module src/types-global/yaml-tools
  */
 
+import { ColumnMetaData } from "@ibm/mapepire-js";
+
 /**
  * Database source configuration for YAML tools
  * Supports IBM i DB2 connections with optional SSL configuration
@@ -57,6 +59,18 @@ export interface YamlToolParameter {
  * Individual tool definition in YAML configuration
  * Defines a single executable SQL tool with metadata
  */
+/**
+ * Security configuration for execute_sql tool
+ */
+export interface YamlToolSecurityConfig {
+  /** Whether to restrict to read-only operations (default: true for safety) */
+  readOnly?: boolean;
+  /** Maximum SQL query length in characters (default: 10000) */
+  maxQueryLength?: number;
+  /** Additional forbidden SQL keywords beyond the default list */
+  forbiddenKeywords?: string[];
+}
+
 export interface YamlTool {
   /** Source name to connect to (references YamlSource key) */
   source: string;
@@ -66,14 +80,22 @@ export interface YamlTool {
   statement: string;
   /** Parameter definitions for secure binding (:param and ? placeholders) */
   parameters?: YamlToolParameter[];
+
+  /** ToolAnnotations defaults */
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+  readOnlyHint?: boolean;
+
   /** Optional domain categorization */
   domain?: string;
   /** Optional category within domain */
   category?: string;
   /** Optional tool-specific metadata */
   metadata?: Record<string, unknown>;
+  /** Security configuration (for execute_sql tool) */
+  security?: YamlToolSecurityConfig;
 }
-
 /**
  * Toolset definition - groups of related tools
  * Replaces the existing suite system
@@ -96,7 +118,7 @@ export interface YamlToolset {
 export interface YamlToolsConfig {
   /** Database sources configuration */
   sources?: Record<string, YamlSource>;
-  /** Tool definitions */
+  /** Tool definitions (SQL tools with predefined statements) */
   tools?: Record<string, YamlTool>;
   /** Toolset definitions */
   toolsets?: Record<string, YamlToolset>;
@@ -160,7 +182,7 @@ export interface YamlToolExecutionContext {
   /** Bound parameters */
   parameters: Record<string, unknown>;
   /** Request context for logging */
-  requestContext: import("../utils/internal/requestContext.js").RequestContext;
+  requestContext: import("../internal/requestContext.js").RequestContext;
 }
 
 /**
@@ -178,6 +200,7 @@ export interface YamlToolExecutionResult<T = unknown> {
     executionTime: number;
     rowCount: number;
     affectedRows?: number;
+    columnsTypes?: ColumnMetaData[];
     /** Parameter processing mode used */
     parameterMode?: string;
     /** Number of parameters processed */

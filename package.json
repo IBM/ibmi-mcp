@@ -45,11 +45,12 @@
     "tree": "tsx scripts/tree.ts",
     "fetch-spec": "tsx scripts/fetch-openapi-spec.ts",
     "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\"",
-    "inspector": "npx mcp-inspector --config mcp.json --server mcp-ts-template",
+    "inspector": "npx @modelcontextprotocol/inspector --config mcp.json --server default-server",
     "db:duckdb-example": "MCP_LOG_LEVEL=debug tsc && node dist/storage/duckdbExample.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "validate": "tsx scripts/validate-config.ts",
     "audit": "npm audit --production",
     "audit:fix": "npm audit fix --production",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run build"

@@ -16,7 +16,11 @@ export const ToolsetInfoSchema = z.object({
   name: z.string().describe("The name of the toolset"),
   description: z.string().describe("A description of the toolset's purpose"),
   tools: z.array(z.string()).describe("Array of tool names in this toolset"),
-  toolCount: z.number().int().min(0).describe("Number of tools in this toolset"),
+  toolCount: z
+    .number()
+    .int()
+    .min(0)
+    .describe("Number of tools in this toolset"),
 });
 
 // Zod schema for toolsets resource parameters
@@ -59,9 +63,13 @@ export const ToolsetsResourceResponseSchema = z.object({
 });
 
 // Inferred TypeScript types
-export type ToolsetsResourceParams = z.infer<typeof ToolsetsResourceParamsSchema>;
+export type ToolsetsResourceParams = z.infer<
+  typeof ToolsetsResourceParamsSchema
+>;
 export type ToolsetInfo = z.infer<typeof ToolsetInfoSchema>;
-export type ToolsetsResourceResponse = z.infer<typeof ToolsetsResourceResponseSchema>;
+export type ToolsetsResourceResponse = z.infer<
+  typeof ToolsetsResourceResponseSchema
+>;
 
 /**
  * Processes the core logic for the `toolsets` resource.
@@ -85,10 +93,10 @@ export async function toolsetsResourceLogic(
   });
 
   const toolsetManager = ToolsetManager.getInstance();
-  
+
   // Get toolset statistics
   const stats = toolsetManager.getToolsetStats();
-  
+
   if (stats.totalToolsets === 0) {
     throw new McpError(
       BaseErrorCode.INITIALIZATION_FAILED,
@@ -98,8 +106,9 @@ export async function toolsetsResourceLogic(
   }
 
   // Extract toolset name from URI path if provided
-  const pathSegments = uri.pathname.split('/').filter(Boolean);
-  const toolsetNameFromUri = pathSegments.length > 0 ? pathSegments[0] : undefined;
+  const pathSegments = uri.pathname.split("/").filter(Boolean);
+  const toolsetNameFromUri =
+    pathSegments.length > 0 ? pathSegments[0] : undefined;
   const requestedToolset = params.toolsetName || toolsetNameFromUri;
 
   let toolsetsToProcess: string[] = [];
@@ -111,18 +120,24 @@ export async function toolsetsResourceLogic(
       throw new McpError(
         BaseErrorCode.VALIDATION_ERROR,
         `Toolset '${requestedToolset}' not found`,
-        { 
-          requestedToolset, 
-          availableToolsets: toolsetManager.getAllToolsetNames() 
+        {
+          requestedToolset,
+          availableToolsets: toolsetManager.getAllToolsetNames(),
         },
       );
     }
     toolsetsToProcess = [requestedToolset];
-    logger.debug(`Filtering for specific toolset: ${requestedToolset}`, context);
+    logger.debug(
+      `Filtering for specific toolset: ${requestedToolset}`,
+      context,
+    );
   } else {
     // Get all toolsets
     toolsetsToProcess = toolsetManager.getAllToolsetNames();
-    logger.debug(`Processing all ${toolsetsToProcess.length} toolsets`, context);
+    logger.debug(
+      `Processing all ${toolsetsToProcess.length} toolsets`,
+      context,
+    );
   }
 
   // Build toolset information array
@@ -131,7 +146,10 @@ export async function toolsetsResourceLogic(
   for (const toolsetName of toolsetsToProcess) {
     const toolsetConfig = toolsetManager.getToolsetConfig(toolsetName);
     if (!toolsetConfig) {
-      logger.warning(`Skipping missing toolset configuration: ${toolsetName}`, context);
+      logger.warning(
+        `Skipping missing toolset configuration: ${toolsetName}`,
+        context,
+      );
       continue;
     }
 
@@ -152,8 +170,8 @@ export async function toolsetsResourceLogic(
 
   const response: ToolsetsResourceResponse = {
     totalToolsets: requestedToolset ? toolsets.length : stats.totalToolsets,
-    totalTools: requestedToolset 
-      ? toolsets.reduce((sum, ts) => sum + ts.toolCount, 0) 
+    totalTools: requestedToolset
+      ? toolsets.reduce((sum, ts) => sum + ts.toolCount, 0)
       : stats.totalTools,
     toolsets,
     statistics: {

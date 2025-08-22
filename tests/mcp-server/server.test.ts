@@ -6,6 +6,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { config } from "../../src/config/index.js";
+import { resolveConfiguration } from "../../src/config/resolver.js";
 import { initializeAndStartServer } from "../../src/mcp-server/server.js";
 import { startStdioTransport } from "../../src/mcp-server/transports/stdio/index.js";
 import { startHttpTransport } from "../../src/mcp-server/transports/http/index.js";
@@ -88,6 +89,16 @@ vi.mock("../../src/mcp-server/transports/stdio/index.js", () => ({
 describe("MCP Server Initialization", () => {
   let exitSpy;
 
+  // Helper function to create test resolved configuration
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const createTestResolvedConfig = (overrides: any = {}) => {
+    return resolveConfiguration({
+      transport: overrides.mcpTransportType,
+      tools: overrides.toolsYamlPath,
+      ...overrides,
+    });
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock process.exit to prevent tests from terminating the process
@@ -101,8 +112,10 @@ describe("MCP Server Initialization", () => {
   });
 
   it("should initialize and start with stdio transport", async () => {
-    config.mcpTransportType = "stdio";
-    await initializeAndStartServer();
+    const resolvedConfig = createTestResolvedConfig({
+      mcpTransportType: "stdio",
+    });
+    await initializeAndStartServer(resolvedConfig);
     expect(McpServer).toHaveBeenCalledTimes(1);
     // expect(startStdioTransport).toHaveBeenCalledTimes(1);
     // expect(startHttpTransport).not.toHaveBeenCalled();
@@ -113,8 +126,10 @@ describe("MCP Server Initialization", () => {
   });
 
   it("should initialize and start with http transport", async () => {
-    config.mcpTransportType = "http";
-    await initializeAndStartServer();
+    const resolvedConfig = createTestResolvedConfig({
+      mcpTransportType: "http",
+    });
+    await initializeAndStartServer(resolvedConfig);
     expect(startHttpTransport).toHaveBeenCalledTimes(1);
     // createMcpServerInstance is passed as a factory to startHttpTransport,
     // so McpServer constructor itself is not called directly in this test path.
@@ -125,7 +140,7 @@ describe("MCP Server Initialization", () => {
   it("should throw an error for an unsupported transport type and exit", async () => {
     (config as unknown as { mcpTransportType: string }).mcpTransportType =
       "invalid";
-    await initializeAndStartServer();
+    await initializeAndStartServer(config);
     expect(ErrorHandler.handleError).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
@@ -137,11 +152,13 @@ describe("MCP Server Initialization", () => {
   });
 
   it("should handle critical errors during initialization and exit", async () => {
-    config.mcpTransportType = "stdio";
+    const resolvedConfig = createTestResolvedConfig({
+      mcpTransportType: "stdio",
+    });
     const testError = new Error("Critical Failure");
     vi.mocked(startStdioTransport).mockRejectedValueOnce(testError);
 
-    await initializeAndStartServer();
+    await initializeAndStartServer(resolvedConfig);
 
     expect(ErrorHandler.handleError).toHaveBeenCalledWith(
       testError,
@@ -160,7 +177,7 @@ describe("MCP Server Initialization", () => {
     const registrationError = new Error("Registration failed");
     vi.mocked(registerEchoTool).mockRejectedValueOnce(registrationError);
 
-    await initializeAndStartServer();
+    await initializeAndStartServer(config);
 
     expect(ErrorHandler.handleError).toHaveBeenCalledWith(
       registrationError,

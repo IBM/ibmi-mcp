@@ -7,16 +7,66 @@
  * @module src/index
  */
 
-// IMPORTANT: This line MUST be the first import to ensure OpenTelemetry is
-// initialized before any other modules are loaded.
+// to ensure OpenTelemetry is initialized correctly
 import { shutdownOpenTelemetry } from "./utils/telemetry/instrumentation.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
 import { config, environment } from "./config/index.js";
+import { resolveConfiguration } from "./config/resolver.js";
 import { initializeAndStartServer } from "./mcp-server/server.js";
 import { requestContextService } from "./utils/index.js";
 import { logger, McpLogLevel } from "./utils/internal/logger.js";
+import {
+  parseCliArguments,
+  showHelp,
+  validateToolsPath,
+} from "./utils/cli/argumentParser.js";
+
+// Parse CLI arguments and handle immediate responses
+const cliArgs = parseCliArguments();
+
+// Handle help request immediately
+if (cliArgs.help) {
+  showHelp();
+  process.exit(0);
+}
+
+// Handle any parsing errors
+if (cliArgs.errors && cliArgs.errors.length > 0) {
+  console.error("CLI Argument Errors:");
+  cliArgs.errors.forEach((error) => console.error(`  ✘ ${error}`));
+  process.exit(1);
+}
+
+// Show warnings but continue execution
+if (cliArgs.warnings && cliArgs.warnings.length > 0) {
+  console.warn("CLI Argument Warnings:");
+  cliArgs.warnings.forEach((warning) => console.warn(`  ⚠ ${warning}`));
+}
+
+// Validate tools path if provided
+if (cliArgs.tools) {
+  const validation = validateToolsPath(cliArgs.tools);
+  if (!validation.valid) {
+    console.error(`Tools path validation failed: ${validation.message}`);
+    process.exit(1);
+  }
+  if (validation.message) {
+    console.log(`ℹ ${validation.message}`);
+  }
+}
+
+// Resolve final configuration with CLI arguments taking precedence
+const resolvedConfig = resolveConfiguration(cliArgs);
+
+// Log resolved configuration
+if (cliArgs.tools) {
+  console.log(`ℹ Using tools path: ${resolvedConfig.toolsYamlPath}`);
+}
+if (cliArgs.transport) {
+  console.info(`Using MCP transport type: ${resolvedConfig.mcpTransportType}`);
+}
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
@@ -37,7 +87,7 @@ const shutdown = async (signal: string): Promise<void> => {
     await shutdownOpenTelemetry();
 
     let closePromise: Promise<void> = Promise.resolve();
-    const transportType = config.mcpTransportType;
+    const transportType = resolvedConfig.mcpTransportType;
 
     if (transportType === "stdio" && mcpStdioServer) {
       logger.info(
@@ -105,21 +155,21 @@ const start = async (): Promise<void> => {
     requestContextService.createRequestContext({ operation: "LoggerInit" }),
   );
 
-  const transportType = config.mcpTransportType;
+  const transportType = resolvedConfig.mcpTransportType;
   const startupContext = requestContextService.createRequestContext({
     operation: `ServerStartupSequence_${transportType}`,
-    applicationName: config.mcpServerName,
-    applicationVersion: config.mcpServerVersion,
+    applicationName: resolvedConfig.mcpServerName,
+    applicationVersion: resolvedConfig.mcpServerVersion,
     nodeEnvironment: environment,
   });
 
   logger.info(
-    `Starting ${config.mcpServerName} (Version: ${config.mcpServerVersion}, Transport: ${transportType}, Env: ${environment})...`,
+    `Starting ${resolvedConfig.mcpServerName} (Version: ${resolvedConfig.mcpServerVersion}, Transport: ${transportType}, Env: ${environment})...`,
     startupContext,
   );
 
   try {
-    const serverInstance = await initializeAndStartServer();
+    const serverInstance = await initializeAndStartServer(resolvedConfig);
 
     if (transportType === "stdio" && serverInstance instanceof McpServer) {
       mcpStdioServer = serverInstance;
@@ -131,7 +181,7 @@ const start = async (): Promise<void> => {
     }
 
     logger.info(
-      `${config.mcpServerName} is now running and ready.`,
+      `${resolvedConfig.mcpServerName} is now running and ready.`,
       startupContext,
     );
 

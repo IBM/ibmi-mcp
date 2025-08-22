@@ -13,7 +13,7 @@ import {
 } from "../internal/requestContext.js";
 import { ErrorHandler } from "../internal/errorHandler.js";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { YamlToolParameter } from "../../types-global/yaml-tools.js";
+import { YamlToolParameter } from "../yaml/types.js";
 
 /**
  * Parameter processing mode

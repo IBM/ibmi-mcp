@@ -10,8 +10,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   ProcessedYamlTool,
   YamlTool,
+  YamlToolExecutionResult,
   YamlToolParameter,
-} from "../../types-global/yaml-tools.js";
+} from "./types.js";
 import { YamlSqlExecutor } from "./yamlSqlExecutor.js";
 import { ToolsetManager } from "./toolsetManager.js";
 import { ErrorHandler, logger } from "../internal/index.js";
@@ -54,6 +55,23 @@ export interface ToolFactoryStats {
   /** Total parameters across all tools */
   totalParameters: number;
 }
+
+export const yamlToolOutputSchema = z
+  .object({
+    success: z.boolean().describe("Whether the SQL execution was successful"),
+    columns: z
+      .array(z.any())
+      .optional()
+      .describe("Column metadata for the query result"),
+    data: z
+      .array(z.record(z.any()))
+      .describe(
+        "Query result rows as an array of objects with mixed data types",
+      ),
+    error: z.string().optional().describe("Error message if execution failed"),
+  })
+  .strict()
+  .describe("SQL query execution result with dynamic column structure");
 
 /**
  * YAML Tool Factory
@@ -178,6 +196,15 @@ export class YamlToolFactory {
           sourceName: source.host,
           toolsetCount: toolsets.length,
           parameterCount: config.parameters?.length || 0,
+          configAnnotations: {
+            readOnlyHint: config.readOnlyHint,
+            destructiveHint: config.destructiveHint,
+            idempotentHint: config.idempotentHint,
+            openWorldHint: config.openWorldHint,
+            domain: config.domain,
+            category: config.category,
+          },
+          metadata: config.metadata,
         });
 
         // Validate SQL statement
@@ -273,17 +300,24 @@ export class YamlToolFactory {
     // Register the tool using the same pattern as existing tools
     // Merge in any user-provided custom metadata specific to this tool.
     // We namespace it under customMetadata to avoid collisions with core fields.
-    server.tool(
+    server.registerTool(
       toolName,
-      config.description,
-      zodSchema.shape,
       {
         title: this.formatToolTitle(toolName),
-        toolsets,
-        domain: config.domain,
-        category: config.category,
-        readOnlyHint: true, // YAML tools are read-only by design
-        ...(config.metadata ? { customMetadata: config.metadata } : {}),
+        description: config.description,
+        inputSchema: zodSchema.shape,
+        outputSchema: yamlToolOutputSchema.shape,
+        annotations: {
+          title: this.formatToolTitle(toolName),
+          domain: config.domain,
+          category: config.category,
+          readOnlyHint: config.readOnlyHint ?? true, // YAML tools are read-only by design
+          destructiveHint: config.destructiveHint,
+          idempotentHint: config.idempotentHint,
+          openWorldHint: config.openWorldHint,
+          toolsets: toolsets,
+          ...(config.metadata ? { customMetadata: config.metadata } : {}),
+        },
       },
       async (
         params: Record<string, unknown>,
@@ -299,20 +333,25 @@ export class YamlToolFactory {
 
         try {
           // Execute the SQL statement using parameter binding
-          const result = await YamlSqlExecutor.executeStatementWithParameters(
-            toolName,
-            config.source,
-            config.statement,
-            params,
-            config.parameters || [],
-            handlerContext,
-          );
+          const result: YamlToolExecutionResult =
+            await YamlSqlExecutor.executeStatementWithParameters(
+              toolName,
+              config.source,
+              config.statement,
+              params,
+              config.parameters || [],
+              handlerContext,
+            );
 
           return {
             content: [
               { type: "text", text: JSON.stringify(result.data, null, 2) },
             ],
-            isError: false,
+            structuredContent: {
+              success: result.success,
+              columns: result.metadata?.columnsTypes,
+              data: result.data,
+            },
           };
         } catch (error) {
           const handledError = ErrorHandler.handleError(error, {
@@ -344,6 +383,12 @@ export class YamlToolFactory {
               },
             ],
             isError: true,
+            structuredContent: {
+              success: false,
+              columns: [],
+              data: [],
+              error: mcpError.message,
+            },
           };
         }
       },

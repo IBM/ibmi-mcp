@@ -5,7 +5,7 @@
  * @module src/utils/yaml/toolsetManager
  */
 
-import { YamlToolsConfig, YamlToolset } from "../../types-global/yaml-tools.js";
+import { YamlToolsConfig, YamlToolset } from "./types.js";
 import { ErrorHandler, logger } from "../internal/index.js";
 import {
   requestContextService,
@@ -110,7 +110,9 @@ export class ToolsetManager {
         }
 
         // Validate that all tools referenced in toolsets exist
-        const allToolNames = Object.keys(config.tools || {});
+        const allToolNames = [
+          ...Object.keys(config.tools || {}), // Regular YAML tools
+        ];
         for (const [toolsetName, toolset] of Object.entries(
           this.toolsetConfig,
         )) {
@@ -118,7 +120,7 @@ export class ToolsetManager {
             if (!allToolNames.includes(toolName)) {
               throw new McpError(
                 BaseErrorCode.VALIDATION_ERROR,
-                `Toolset '${toolsetName}' references unknown tool '${toolName}'`,
+                `Toolset '${toolsetName}' references unknown tool '${toolName}'. Available tools: ${allToolNames.join(", ")}`,
                 { toolsetName, toolName, availableTools: allToolNames },
               );
             }

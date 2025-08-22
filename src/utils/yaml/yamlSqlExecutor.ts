@@ -6,10 +6,7 @@
  */
 
 import { SourceManager } from "../../services/yaml-sources/sourceManager.js";
-import {
-  YamlToolExecutionResult,
-  YamlToolParameter,
-} from "../../types-global/yaml-tools.js";
+import { YamlToolExecutionResult, YamlToolParameter } from "./types.js";
 import { ErrorHandler, logger } from "../internal/index.js";
 import {
   requestContextService,
@@ -191,11 +188,12 @@ export class YamlSqlExecutor {
         });
 
         return {
-          success: true,
+          success: result.success,
           data: result.data,
           metadata: {
             executionTime,
             rowCount: result.data?.length || 0,
+            columnsTypes: result.metadata.columns,
             affectedRows: (result.metadata as { affectedRows?: number })
               ?.affectedRows,
             parameterMode:

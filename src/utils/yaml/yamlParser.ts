@@ -14,7 +14,7 @@ import {
   YamlToolParameter,
   YamlParsingResult,
   ProcessedYamlTool,
-} from "../../types-global/yaml-tools.js";
+} from "./types.js";
 import { ErrorHandler, logger } from "../internal/index.js";
 import {
   requestContextService,
@@ -54,6 +54,19 @@ const YamlToolSchema = z.object({
   domain: z.string().optional(),
   category: z.string().optional(),
   metadata: z.record(z.any()).optional(),
+  // MCP Tool annotation hints
+  readOnlyHint: z.boolean().optional(),
+  destructiveHint: z.boolean().optional(),
+  idempotentHint: z.boolean().optional(),
+  openWorldHint: z.boolean().optional(),
+  // Security configuration for execute_sql tool
+  security: z
+    .object({
+      readOnly: z.boolean().optional(),
+      maxQueryLength: z.number().optional(),
+      forbiddenKeywords: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 /**

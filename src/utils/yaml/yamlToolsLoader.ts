@@ -6,7 +6,6 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { config } from "../../config/index.js";
 import { YamlConfigBuilder } from "./yamlConfigBuilder.js";
 import { SourceManager } from "../../services/yaml-sources/sourceManager.js";
 import { YamlSqlExecutor } from "./yamlSqlExecutor.js";
@@ -18,12 +17,15 @@ import {
   RequestContext,
 } from "../internal/requestContext.js";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import {
-  YamlToolsConfig,
-  ProcessedYamlTool,
-} from "../../types-global/yaml-tools.js";
+import { YamlToolsConfig, ProcessedYamlTool } from "./types.js";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
+import {
+  registerExecuteSqlTool,
+  setExecuteSqlConfig,
+  type ExecuteSqlToolConfig,
+} from "../../mcp-server/tools/executeSql/index.js";
+import type { ResolvedConfig } from "../../config/resolver.js";
 
 /**
  * YAML tools loading result
@@ -114,11 +116,13 @@ export class YamlToolsLoader {
   /**
    * Load and register all YAML tools from configuration
    * @param server - MCP server instance
+   * @param resolvedConfig - Resolved configuration with CLI precedence applied
    * @param context - Request context for logging
    * @returns Loading result
    */
   async loadAndRegisterTools(
     server: McpServer,
+    resolvedConfig: ResolvedConfig,
     context?: RequestContext,
   ): Promise<YamlToolsLoadingResult> {
     const operationContext =
@@ -131,18 +135,19 @@ export class YamlToolsLoader {
       async () => {
         logger.info("Starting YAML tools loading process", operationContext);
 
+        const yamlToolsPath = resolvedConfig.toolsYamlPath;
         // Check if tools YAML path is configured
-        if (!config.toolsYamlPath) {
+        if (!yamlToolsPath) {
           throw new McpError(
             BaseErrorCode.CONFIGURATION_ERROR,
             "YAML tools path not configured. Please set TOOLS_YAML_PATH.",
-            { toolsYamlPath: config.toolsYamlPath },
+            { toolsYamlPath: yamlToolsPath },
           );
         }
 
         // Use YamlConfigBuilder for flexible configuration loading
         logger.info(
-          `Loading YAML configuration from: ${config.toolsYamlPath}`,
+          `Loading YAML configuration from: ${yamlToolsPath}`,
           operationContext,
         );
 
@@ -151,29 +156,29 @@ export class YamlToolsLoader {
         const configBuilder = new YamlConfigBuilder(operationContext);
 
         // Check if toolsYamlPath is a string or array
-        if (Array.isArray(config.toolsYamlPath)) {
-          configBuilder.addFiles(config.toolsYamlPath);
+        if (Array.isArray(yamlToolsPath)) {
+          configBuilder.addFiles(yamlToolsPath);
         } else {
           // Check if the path is a directory or file
-          const resolvedPath = resolve(config.toolsYamlPath);
+          const resolvedPath = resolve(yamlToolsPath);
           if (existsSync(resolvedPath)) {
             const stats = statSync(resolvedPath);
             if (stats.isDirectory()) {
               logger.debug(
-                `Detected directory path: ${config.toolsYamlPath}`,
+                `Detected directory path: ${yamlToolsPath}`,
                 operationContext,
               );
-              configBuilder.addDirectory(config.toolsYamlPath);
+              configBuilder.addDirectory(yamlToolsPath);
             } else {
               logger.debug(
-                `Detected file path: ${config.toolsYamlPath}`,
+                `Detected file path: ${yamlToolsPath}`,
                 operationContext,
               );
-              configBuilder.addFile(config.toolsYamlPath);
+              configBuilder.addFile(yamlToolsPath);
             }
           } else {
             // Path doesn't exist, treat as file (will error appropriately in YamlConfigBuilder)
-            configBuilder.addFile(config.toolsYamlPath);
+            configBuilder.addFile(yamlToolsPath);
           }
         }
 
@@ -188,7 +193,7 @@ export class YamlToolsLoader {
             BaseErrorCode.CONFIGURATION_ERROR,
             `Failed to build YAML configuration: ${errorMessage}`,
             {
-              toolsYamlPath: config.toolsYamlPath,
+              toolsYamlPath: yamlToolsPath,
               errors: configResult.errors,
             },
           );
@@ -230,6 +235,17 @@ export class YamlToolsLoader {
         // Initialize toolset manager
         logger.info("Initializing toolset manager", operationContext);
         await this.toolsetManager.initialize(yamlConfig, operationContext);
+
+        // Register conditional TypeScript tools (like execute_sql) when found in YAML
+        logger.info(
+          "Processing conditional TypeScript tools",
+          operationContext,
+        );
+        await this.processConditionalTypeScriptTools(
+          yamlConfig,
+          server,
+          operationContext,
+        );
 
         // Generate and register all tools
         logger.info("Generating and registering tools", operationContext);
@@ -322,6 +338,78 @@ export class YamlToolsLoader {
   }
 
   /**
+   * Process and register conditional TypeScript tools (like execute_sql) when found in YAML tools
+   * @param yamlConfig - YAML configuration containing tools
+   * @param server - MCP server instance for registration
+   * @param context - Request context for logging
+   * @private
+   */
+  private async processConditionalTypeScriptTools(
+    yamlConfig: YamlToolsConfig,
+    server: McpServer,
+    context: RequestContext,
+  ): Promise<void> {
+    if (!yamlConfig.tools) {
+      logger.debug(
+        "No tools to check for conditional TypeScript tools",
+        context,
+      );
+      return;
+    }
+
+    // Check if execute_sql is in the tools list
+    if (yamlConfig.tools.execute_sql) {
+      const executeSqlConfig = yamlConfig.tools.execute_sql;
+
+      logger.info(
+        "Found execute_sql in YAML tools - registering TypeScript implementation",
+        {
+          ...context,
+          toolName: "execute_sql",
+          source: executeSqlConfig.source,
+          securityConfig: {
+            readOnly: executeSqlConfig.security?.readOnly ?? true,
+            maxQueryLength: executeSqlConfig.security?.maxQueryLength ?? 10000,
+            forbiddenKeywordsCount:
+              executeSqlConfig.security?.forbiddenKeywords?.length ?? 0,
+          },
+        },
+      );
+
+      // Validate source exists
+      if (!yamlConfig.sources?.[executeSqlConfig.source]) {
+        throw new McpError(
+          BaseErrorCode.CONFIGURATION_ERROR,
+          `Tool 'execute_sql' references non-existent source '${executeSqlConfig.source}'`,
+          { toolName: "execute_sql", sourceName: executeSqlConfig.source },
+        );
+      }
+
+      // Configure the execute SQL tool from YAML
+      const toolConfig: ExecuteSqlToolConfig = {
+        enabled: true,
+        description:
+          executeSqlConfig.description ||
+          "Execute arbitrary SQL statements against the IBM i database",
+        security: {
+          readOnly: executeSqlConfig.security?.readOnly ?? true, // Default to read-only for safety
+          maxQueryLength: executeSqlConfig.security?.maxQueryLength ?? 10000,
+          forbiddenKeywords: executeSqlConfig.security?.forbiddenKeywords ?? [],
+        },
+      };
+
+      // Set the configuration and register the TypeScript tool
+      setExecuteSqlConfig(toolConfig);
+      await registerExecuteSqlTool(server);
+
+      logger.info("TypeScript execute_sql tool registered successfully", {
+        ...context,
+        toolName: "execute_sql",
+      });
+    }
+  }
+
+  /**
    * Process tools for registration by creating ProcessedYamlTool objects
    * @param yamlConfig - The YAML configuration
    * @param context - Request context for logging
@@ -339,6 +427,11 @@ export class YamlToolsLoader {
     }
 
     for (const [toolName, toolConfig] of Object.entries(yamlConfig.tools)) {
+      // Skip execute_sql as it's handled by conditional TypeScript tool registration
+      if (toolName === "execute_sql") {
+        continue;
+      }
+
       const sourceConfig = yamlConfig.sources?.[toolConfig.source];
       if (!sourceConfig) {
         throw new McpError(

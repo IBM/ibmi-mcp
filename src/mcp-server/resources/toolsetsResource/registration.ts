@@ -6,12 +6,8 @@
  * @see {@link src/mcp-server/resources/toolsetsResource/logic.ts} for the core business logic and schemas.
  */
 
-import {
-  McpServer,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
-import type {
-  ReadResourceResult,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { BaseErrorCode } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
@@ -19,9 +15,7 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import { 
-  toolsetsResourceLogic
-} from "./logic.js";
+import { toolsetsResourceLogic } from "./logic.js";
 import { ToolsetManager } from "../../../utils/yaml/toolsetManager.js";
 
 /**
@@ -50,7 +44,8 @@ export const registerToolsetsResource = async (
         "toolsets://",
         {
           name: "All Toolsets",
-          description: "Complete catalog of all available toolsets and their tools",
+          description:
+            "Complete catalog of all available toolsets and their tools",
           mimeType: "application/json",
         },
         async (
@@ -71,11 +66,7 @@ export const registerToolsetsResource = async (
             });
 
           try {
-            const result = await toolsetsResourceLogic(
-              uri,
-              {},
-              handlerContext,
-            );
+            const result = await toolsetsResourceLogic(uri, {}, handlerContext);
 
             return {
               contents: [
@@ -101,17 +92,17 @@ export const registerToolsetsResource = async (
       // Register individual toolset resources
       const toolsetManager = ToolsetManager.getInstance();
       const allToolsetNames = toolsetManager.getAllToolsetNames();
-      
+
       for (const toolsetName of allToolsetNames) {
         const toolsetConfig = toolsetManager.getToolsetConfig(toolsetName);
         const toolsInToolset = toolsetManager.getToolsInToolset(toolsetName);
-        
+
         server.resource(
           `${resourceName}-${toolsetName}`,
           `toolsets://${toolsetName}`,
           {
             name: `Toolset: ${toolsetName}`,
-            description: toolsetConfig?.description 
+            description: toolsetConfig?.description
               ? `${toolsetConfig.description} (${toolsInToolset.length} tools)`
               : `${toolsetName} toolset with ${toolsInToolset.length} tools`,
             mimeType: "application/json",

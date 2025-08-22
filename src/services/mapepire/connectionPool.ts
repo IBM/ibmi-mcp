@@ -6,7 +6,7 @@
  * @module src/services/mapepire/connectionPool
  */
 
-import pkg, { DaemonServer, BindingValue } from "@ibm/mapepire-js";
+import pkg, { DaemonServer, BindingValue, QueryResult } from "@ibm/mapepire-js";
 const { Pool, getCertificate } = pkg;
 import { config } from "../../config/index.js";
 import { logger } from "../../utils/internal/logger.js";
@@ -20,12 +20,12 @@ import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 /**
  * Query result structure from mapepire-js
  */
-export interface QueryResult<T = unknown> {
-  data: T[];
-  metadata?: unknown;
-  success: boolean;
-  is_done: boolean;
-}
+// export interface QueryResult<T = unknown> {
+//   data: T[];
+//   metadata?: unknown;
+//   success: boolean;
+//   is_done: boolean;
+// }
 
 /**
  * IBM i connection pool manager with lazy initialization
@@ -116,11 +116,11 @@ export class IBMiConnectionPool {
    * Execute a SQL query against the IBM i database
    * Automatically initializes the pool if not already done
    */
-  static async executeQuery<T = unknown>(
+  static async executeQuery(
     query: string,
     params?: BindingValue[],
     context?: RequestContext,
-  ): Promise<QueryResult<T>> {
+  ): Promise<QueryResult<unknown>> {
     const operationContext =
       context ||
       requestContextService.createRequestContext({
@@ -189,7 +189,7 @@ export class IBMiConnectionPool {
           executionTime: result.execution_time,
         });
 
-        return result as QueryResult<T>;
+        return result;
       },
       {
         operation: "ExecuteQuery",

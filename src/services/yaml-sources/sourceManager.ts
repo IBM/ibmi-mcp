@@ -5,11 +5,10 @@
  * @module src/services/yaml-sources/sourceManager
  */
 
-import pkg, { BindingValue } from "@ibm/mapepire-js";
+import pkg, { BindingValue, QueryResult } from "@ibm/mapepire-js";
 const { Pool, getCertificate } = pkg;
 import { DaemonServer } from "@ibm/mapepire-js";
-import { YamlSource } from "../../types-global/yaml-tools.js";
-import { QueryResult } from "../mapepire/connectionPool.js";
+import { YamlSource } from "../../utils/yaml/types.js";
 import { ErrorHandler, logger } from "../../utils/internal/index.js";
 import {
   requestContextService,

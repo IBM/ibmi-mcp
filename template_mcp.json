@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "default-server": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "TOOLS_YAML_PATH": "prebuiltconfigs",
+        "NODE_OPTIONS": "--no-deprecation",
+        "DB2i_HOST": "<DB2i_HOST>",
+        "DB2i_USER": "<DB2i_USER>",
+        "DB2i_PASS": "<DB2i_PASS>",
+        "DB2i_PORT": "<DB2i_PORT>",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}

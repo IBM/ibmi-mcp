@@ -9,7 +9,7 @@ import { resolve, join } from "path";
 import { existsSync } from "fs";
 import { glob } from "glob";
 import { YamlParser } from "./yamlParser.js";
-import { YamlToolsConfig } from "../../types-global/yaml-tools.js";
+import { YamlToolsConfig } from "./types.js";
 import { ErrorHandler, logger } from "../internal/index.js";
 import {
   requestContextService,

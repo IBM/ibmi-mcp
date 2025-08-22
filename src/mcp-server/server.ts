@@ -15,7 +15,8 @@
  */
 
 import http from "http";
-import { config, environment } from "../config/index.js";
+import { environment } from "../config/index.js";
+import type { ResolvedConfig } from "../config/resolver.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 import { ManagedMcpServer } from "./core/managedMcpServer.js";
 // import { registerEchoResource } from "./resources/echoResource/index.js";
@@ -48,24 +49,30 @@ async function initializeYamlDependencies() {
 /**
  * Creates and configures a new instance of the `McpServer`.
  *
+ * @param resolvedConfig - The resolved configuration with CLI precedence applied
  * @returns A promise resolving with the configured `ManagedMcpServer` instance.
  * @throws {McpError} If any resource or tool registration fails.
  * @private
  */
-async function createMcpServerInstance(): Promise<ManagedMcpServer> {
+async function createMcpServerInstance(
+  resolvedConfig: ResolvedConfig,
+): Promise<ManagedMcpServer> {
   const context = requestContextService.createRequestContext({
     operation: "createMcpServerInstance",
   });
   logger.info("Initializing MCP server instance", context);
 
   requestContextService.configure({
-    appName: config.mcpServerName,
-    appVersion: config.mcpServerVersion,
+    appName: resolvedConfig.mcpServerName,
+    appVersion: resolvedConfig.mcpServerVersion,
     environment,
   });
 
   const server = new ManagedMcpServer(
-    { name: config.mcpServerName, version: config.mcpServerVersion },
+    {
+      name: resolvedConfig.mcpServerName,
+      version: resolvedConfig.mcpServerVersion,
+    },
     {
       capabilities: {
         logging: {},
@@ -83,7 +90,7 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
     // await registerFetchImageTestTool(server);
 
     // Load YAML tools if configured
-    if (process.env.TOOLS_YAML_PATH) {
+    if (resolvedConfig.toolsYamlPath) {
       logger.debug("Loading YAML tools from server instance...", context);
 
       // Import required dependencies
@@ -98,6 +105,7 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
 
       const loadingResult = await yamlLoader.loadAndRegisterTools(
         server,
+        resolvedConfig,
         context,
       );
 
@@ -115,7 +123,7 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
     }
 
     // Register toolsets resource (only if YAML tools are loaded)
-    if (process.env.TOOLS_YAML_PATH) {
+    if (resolvedConfig.toolsYamlPath) {
       await registerToolsetsResource(server);
     }
 
@@ -135,12 +143,15 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
 /**
  * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
  *
+ * @param resolvedConfig - The resolved configuration with CLI precedence applied
  * @returns Resolves with `McpServer` for 'stdio' or `http.Server` for 'http'.
  * @throws {Error} If transport type is unsupported or setup fails.
  * @private
  */
-async function startTransport(): Promise<ManagedMcpServer | http.Server> {
-  const transportType = config.mcpTransportType;
+async function startTransport(
+  resolvedConfig: ResolvedConfig,
+): Promise<ManagedMcpServer | http.Server> {
+  const transportType = resolvedConfig.mcpTransportType;
   const context = requestContextService.createRequestContext({
     operation: "startTransport",
     transport: transportType,
@@ -149,14 +160,14 @@ async function startTransport(): Promise<ManagedMcpServer | http.Server> {
 
   if (transportType === "http") {
     const { server } = await startHttpTransport(
-      createMcpServerInstance,
+      () => createMcpServerInstance(resolvedConfig),
       context,
     );
     return server as http.Server;
   }
 
   if (transportType === "stdio") {
-    const server = await createMcpServerInstance();
+    const server = await createMcpServerInstance(resolvedConfig);
     await startStdioTransport(server, context);
     return server;
   }
@@ -172,16 +183,18 @@ async function startTransport(): Promise<ManagedMcpServer | http.Server> {
 
 /**
  * Main application entry point. Initializes and starts the MCP server.
+ *
+ * @param resolvedConfig - The resolved configuration with CLI precedence applied
  */
-export async function initializeAndStartServer(): Promise<
-  ManagedMcpServer | http.Server
-> {
+export async function initializeAndStartServer(
+  resolvedConfig: ResolvedConfig,
+): Promise<ManagedMcpServer | http.Server> {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
   });
   logger.info("MCP Server initialization sequence started.", context);
   try {
-    const result = await startTransport();
+    const result = await startTransport(resolvedConfig);
     logger.info(
       "MCP Server initialization sequence completed successfully.",
       context,
