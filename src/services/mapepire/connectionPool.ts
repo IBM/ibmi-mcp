@@ -113,6 +113,100 @@ export class IBMiConnectionPool {
   }
 
   /**
+   * Execute a SQL query with automatic pagination to fetch all results
+   * Uses the query/execute/fetchMore pattern for large result sets
+   */
+  static async executeQueryWithPagination(
+    query: string,
+    params?: BindingValue[],
+    context?: RequestContext,
+    fetchSize: number = 300,
+  ): Promise<{ data: unknown[]; success: boolean; sql_rc?: unknown; execution_time?: number }> {
+    const operationContext =
+      context ||
+      requestContextService.createRequestContext({
+        operation: "ExecuteQueryWithPagination",
+      });
+
+    return ErrorHandler.tryCatch(
+      async () => {
+        // Initialize pool if needed
+        if (!this.isInitialized) {
+          await this.initialize();
+        }
+
+        if (!this.pool) {
+          throw new McpError(
+            BaseErrorCode.SERVICE_NOT_INITIALIZED,
+            "Connection pool is not available",
+          );
+        }
+
+        logger.debug("Executing SQL query with pagination", {
+          ...operationContext,
+          queryLength: query.length,
+          hasParameters: !!params && params.length > 0,
+          paramCount: params?.length || 0,
+          fetchSize,
+        });
+
+        // Create query object with parameters
+        const queryObj = this.pool.query(query, { parameters: params });
+        
+        // Execute initial query
+        let result = await queryObj.execute();
+        const allData: unknown[] = [];
+        
+        if (result.success && result.data) {
+          allData.push(...result.data);
+        }
+
+        // Fetch more results until done
+        let fetchCount = 1;
+        while (!result.is_done && fetchCount < 100) { // Safety limit
+          logger.debug("Fetching more results", {
+            ...operationContext,
+            fetchCount,
+            currentDataLength: allData.length,
+          });
+          
+          result = await queryObj.fetchMore(fetchSize);
+          
+          if (result.success && result.data) {
+            allData.push(...result.data);
+          }
+          
+          fetchCount++;
+        }
+
+        // Close the query
+        await queryObj.close();
+
+        logger.debug("Paginated query completed", {
+          ...operationContext,
+          totalRows: allData.length,
+          fetchCount,
+          success: result.success,
+          sqlReturnCode: result.sql_rc,
+          executionTime: result.execution_time,
+        });
+
+        return {
+          data: allData,
+          success: result.success,
+          sql_rc: result.sql_rc,
+          execution_time: result.execution_time,
+        };
+      },
+      {
+        operation: "ExecuteQueryWithPagination",
+        context: operationContext,
+        errorCode: BaseErrorCode.DATABASE_ERROR,
+      },
+    );
+  }
+
+  /**
    * Execute a SQL query against the IBM i database
    * Automatically initializes the pool if not already done
    */

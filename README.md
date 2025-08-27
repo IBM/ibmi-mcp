@@ -259,16 +259,18 @@ The MCP Inspector is a tool for exploring and debugging the MCP server's capabil
 Here are the steps to run the MCP Inspector:
 
 1. Make sure to build the server
-    ```bash
-    cd ibmi-mcp-server/
-    npm run build
-    ```
+   ```bash
+   cd ibmi-mcp-server/
+   npm run build
+   ```
 2. Create an `mcp.json` file:
+
    ```bash
    cp template_mcp.json mcp.json
    ```
 
    Fill out the connection details in `mcp.json` with your IBM i system information. You should use the same credentials as in your `.env` file:
+
    ```json
    {
      "mcpServers": {
@@ -290,10 +292,11 @@ Here are the steps to run the MCP Inspector:
    ```
 
 3. Start the MCP Inspector
-    ```bash
-    npm run mcp-inspector
-    ```
+   ```bash
+   npm run mcp-inspector
+   ```
 4. Click on the URL displayed in the terminal to open the MCP Inspector in your web browser.
+
    ```bash
     Starting MCP inspector...
     ⚙️ Proxy server listening on 127.0.0.1:6277
@@ -304,15 +307,14 @@ Here are the steps to run the MCP Inspector:
       http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=EXAMPLE_TOKEN
 
     🔍 MCP Inspector is up and running at http://127.0.0.1:6274 🚀
-    ```
+   ```
 
-  ![alt text](images/inspector.png)
-  
+![alt text](images/inspector.png)
+
 5. Use the MCP Inspector to explore and test your MCP server's capabilities
-   
-    - View available tools and their parameters
-    - Test queries against the server
-    - Debug issues with tool execution
+   - View available tools and their parameters
+   - Test queries against the server
+   - Debug issues with tool execution
 
 ## Docker & Podman Deployment
 
