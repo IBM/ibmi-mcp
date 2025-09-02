@@ -32,6 +32,11 @@
     - [Tools](#tools)
     - [Toolsets](#toolsets)
   - [MCP Inspector](#mcp-inspector)
+  - [Docker \& Podman Deployment](#docker--podman-deployment)
+    - [Prerequisites](#prerequisites)
+      - [Docker](#docker)
+      - [Podman (Alternative to Docker)](#podman-alternative-to-docker)
+    - [Quick Start with Docker](#quick-start-with-docker)
     - [Quick Start with Podman](#quick-start-with-podman)
     - [Container Architecture](#container-architecture)
     - [🔧 Service Management](#-service-management)
@@ -116,6 +121,18 @@ See more on configuration options in the [Configuration](#⚙️-configuration) 
   ```bash
   npm run start:http
   ```
+
+  By Default, the server registers SQL tools stored in the `prebuiltconfigs` directory. This path is set in the `.env` file (`TOOLS_YAML_PATH`). You can override the SQL tools path using the CLI:
+
+  - CLI Option: `--tools <path>`
+    ```bash
+    npm run start:http -- --tools <path>
+    ```
+  - Transport Options: `--transport <type>`
+    ```bash
+    npm run start:http -- --transport http # or stdio
+    ```
+
 
 ### 5. Run Example Agent
 

@@ -6,11 +6,11 @@ import {
   getExecuteSqlConfig,
   isExecuteSqlEnabled,
   type ExecuteSqlToolConfig,
-} from "../../../../src/mcp-server/tools/executeSql/registration.js";
-import { IBMiConnectionPool } from "../../../../src/services/mapepire/connectionPool.js";
+} from "../../../../src/ibmi-mcp-server/tools/executeSql/registration.js";
+import { IBMiConnectionPool } from "../../../../src/ibmi-mcp-server/services/connectionPool.js";
 
 // Mock dependencies
-vi.mock("../../../../src/services/mapepire/connectionPool.js");
+vi.mock("../../../../src/ibmi-mcp-server/services/connectionPool.js");
 
 // Type for MCP tool handler function
 type ToolHandlerFunction = (

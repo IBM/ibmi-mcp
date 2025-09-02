@@ -14,65 +14,38 @@
  * @module src/mcp-server/server
  */
 
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
-import { environment } from "../config/index.js";
-import type { ResolvedConfig } from "../config/resolver.js";
-import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
-import { ManagedMcpServer } from "./core/managedMcpServer.js";
-// import { registerEchoResource } from "./resources/echoResource/index.js";
-// import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
-// import { registerEchoTool } from "./tools/echoTool/index.js";
-// import { registerFetchImageTestTool } from "./tools/imageTest/index.js";
-import { registerToolsetsResource } from "./resources/toolsetsResource/index.js";
-import { startHttpTransport } from "./transports/http/index.js";
-import { startStdioTransport } from "./transports/stdio/index.js";
-import { YamlToolsLoader } from "../utils/yaml/yamlToolsLoader.js";
-
-/**
- * Lazy initialization of YAML tools dependencies
- * Only loads when YAML tools are actually needed
- */
-async function initializeYamlDependencies() {
-  const { SourceManager } = await import(
-    "../services/yaml-sources/sourceManager.js"
-  );
-  const { ToolsetManager } = await import("../utils/yaml/toolsetManager.js");
-  const { YamlToolFactory } = await import("../utils/yaml/yamlToolFactory.js");
-
-  return {
-    sourceManager: SourceManager.getInstance(),
-    toolsetManager: ToolsetManager.getInstance(),
-    toolFactory: YamlToolFactory.getInstance(),
-  };
-}
+import { config } from "@/config/index.js";
+// import type { ResolvedConfig } from "@/config/resolver.js";
+import { ErrorHandler, requestContextService } from "@/utils/index.js";
+import {
+  logFatal,
+  logOperationError,
+  logOperationStart,
+  logOperationSuccess,
+} from "@/utils/internal/logging-helpers.js";
+import { registerAllResources } from "@/mcp-server/resources/index.js";
+import { registerAllTools } from "@/mcp-server/tools/index.js";
+import { startHttpTransport } from "@/mcp-server/transports/http/index.js";
+import { startStdioTransport } from "@/mcp-server/transports/stdio/index.js";
+import { registerSQLTools } from "@/ibmi-mcp-server/index.js";
 
 /**
  * Creates and configures a new instance of the `McpServer`.
  *
- * @param resolvedConfig - The resolved configuration with CLI precedence applied
- * @returns A promise resolving with the configured `ManagedMcpServer` instance.
+ * @returns A promise resolving with the configured `McpServer` instance.
  * @throws {McpError} If any resource or tool registration fails.
  * @private
  */
-async function createMcpServerInstance(
-  resolvedConfig: ResolvedConfig,
-): Promise<ManagedMcpServer> {
+async function createMcpServerInstance(): Promise<McpServer> {
   const context = requestContextService.createRequestContext({
     operation: "createMcpServerInstance",
   });
-  logger.info("Initializing MCP server instance", context);
+  logOperationStart(context, "Initializing MCP server instance");
 
-  requestContextService.configure({
-    appName: resolvedConfig.mcpServerName,
-    appVersion: resolvedConfig.mcpServerVersion,
-    environment,
-  });
-
-  const server = new ManagedMcpServer(
-    {
-      name: resolvedConfig.mcpServerName,
-      version: resolvedConfig.mcpServerVersion,
-    },
+  const server = new McpServer(
+    { name: config.mcpServerName, version: config.mcpServerVersion },
     {
       capabilities: {
         logging: {},
@@ -83,57 +56,14 @@ async function createMcpServerInstance(
   );
 
   try {
-    logger.debug("Registering resources and tools...", context);
-    // await registerEchoResource(server);
-    // await registerEchoTool(server);
-    // await registerCatFactFetcherTool(server);
-    // await registerFetchImageTestTool(server);
+    logOperationStart(context, "Registering resources and tools...");
+    await registerAllResources(server);
+    await registerSQLTools(server);
+    await registerAllTools(server);
 
-    // Load YAML tools if configured
-    if (resolvedConfig.toolsYamlPath) {
-      logger.debug("Loading YAML tools from server instance...", context);
-
-      // Import required dependencies
-      const dependencies = await initializeYamlDependencies();
-
-      // Create loader with dependencies
-      const yamlLoader = YamlToolsLoader.createInstance({
-        sourceManager: dependencies.sourceManager,
-        toolsetManager: dependencies.toolsetManager,
-        toolFactory: dependencies.toolFactory,
-      });
-
-      const loadingResult = await yamlLoader.loadAndRegisterTools(
-        server,
-        resolvedConfig,
-        context,
-      );
-
-      if (!loadingResult.success) {
-        logger.error("Failed to load YAML tools in server instance.", {
-          ...context,
-          error: loadingResult.error,
-        });
-      } else {
-        logger.info("YAML tools loaded successfully in server instance.", {
-          ...context,
-          stats: loadingResult.stats,
-        });
-      }
-    }
-
-    // Register toolsets resource (only if YAML tools are loaded)
-    if (resolvedConfig.toolsYamlPath) {
-      await registerToolsetsResource(server);
-    }
-
-    logger.info("Resources and tools registered successfully", context);
+    logOperationSuccess(context, "Resources and tools registered successfully");
   } catch (err) {
-    logger.error("Failed to register resources/tools", {
-      ...context,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
+    logOperationError(context, "Failed to register resources/tools", err);
     throw err;
   }
 
@@ -143,78 +73,70 @@ async function createMcpServerInstance(
 /**
  * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
  *
- * @param resolvedConfig - The resolved configuration with CLI precedence applied
  * @returns Resolves with `McpServer` for 'stdio' or `http.Server` for 'http'.
  * @throws {Error} If transport type is unsupported or setup fails.
  * @private
  */
-async function startTransport(
-  resolvedConfig: ResolvedConfig,
-): Promise<ManagedMcpServer | http.Server> {
-  const transportType = resolvedConfig.mcpTransportType;
+async function startTransport(): Promise<McpServer | http.Server> {
+  const transportType = config.mcpTransportType;
   const context = requestContextService.createRequestContext({
     operation: "startTransport",
     transport: transportType,
   });
-  logger.info(`Starting transport: ${transportType}`, context);
+  logOperationStart(context, `Starting transport: ${transportType}`);
 
   if (transportType === "http") {
     const { server } = await startHttpTransport(
-      () => createMcpServerInstance(resolvedConfig),
+      () => createMcpServerInstance(),
       context,
     );
     return server as http.Server;
   }
 
   if (transportType === "stdio") {
-    const server = await createMcpServerInstance(resolvedConfig);
+    const server = await createMcpServerInstance();
     await startStdioTransport(server, context);
     return server;
   }
 
-  logger.crit(
-    `Unsupported transport type configured: ${transportType}`,
-    context,
-  );
-  throw new Error(
+  const error = new Error(
     `Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`,
   );
+  logFatal(
+    context,
+    `Unsupported transport type configured: ${transportType}`,
+    error,
+  );
+  // logFatal will exit, but throw for type safety and clarity
+  throw error;
 }
 
 /**
  * Main application entry point. Initializes and starts the MCP server.
  *
- * @param resolvedConfig - The resolved configuration with CLI precedence applied
  */
-export async function initializeAndStartServer(
-  resolvedConfig: ResolvedConfig,
-): Promise<ManagedMcpServer | http.Server> {
+export async function initializeAndStartServer(): Promise<
+  McpServer | http.Server
+> {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
   });
-  logger.info("MCP Server initialization sequence started.", context);
+  logOperationStart(context, "MCP Server initialization sequence started.");
   try {
-    const result = await startTransport(resolvedConfig);
-    logger.info(
-      "MCP Server initialization sequence completed successfully.",
+    const result = await startTransport();
+    logOperationSuccess(
       context,
+      "MCP Server initialization sequence completed successfully.",
     );
     return result;
   } catch (err) {
-    logger.crit("Critical error during MCP server initialization.", {
-      ...context,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
+    logFatal(context, "Critical error during MCP server initialization.", err);
+    // This part is likely unreachable as logFatal exits, but kept for robustness.
     ErrorHandler.handleError(err, {
       ...context,
       operation: "initializeAndStartServer_Catch",
       critical: true,
     });
-    logger.info(
-      "Exiting process due to critical initialization error.",
-      context,
-    );
     process.exit(1);
   }
 }

@@ -1,17 +1,16 @@
 from agno.agent import Agent
-from agno.models.openai import OpenAIChat
-from agno.models.anthropic import Claude
 from agno.tools.mcp import MCPTools
 from dotenv import load_dotenv
-import os
 import argparse
+
+from utils import get_model
 
 load_dotenv(override=True)
 
 url = "http://127.0.0.1:3010/mcp"
 
 
-async def main(prompt=None, dry_run=False):
+async def main(prompt=None, dry_run=False, model_id="watsonx:meta-llama/llama-3-3-70b-instruct"):
     async with MCPTools(url=url, transport="streamable-http") as tools:
         # Print available tools for debugging
         result = await tools.session.list_tools()
@@ -20,7 +19,7 @@ async def main(prompt=None, dry_run=False):
         # Create agent with all tools but instruct it to prefer security tools
         if not dry_run:
             agent = Agent(
-                model=OpenAIChat(),
+                model=get_model(model_id),
                 tools=[tools],  # Use original tools but with specific instructions
                 name="agno-agent",
                 description=f"An agent that specializes in IBM i performance analysis.",
@@ -57,7 +56,18 @@ if __name__ == "__main__":
         action="store_true",
         help="Run in dry mode without executing actions",
     )
+    
+    parser.add_argument(
+        "--model-id", 
+        type=str,
+        default="openai:gpt-4o",
+        help="Model identifier in the format 'provider:model'. Supported providers: "
+             "ollama (e.g., ollama:qwen2.5:latest), "
+             "openai (e.g., openai:gpt-4o), "
+             "anthropic (e.g., anthropic:claude-3-sonnet), "
+             "watsonx (e.g., watsonx:granite-13b)"
+    )
 
     args = parser.parse_args()
 
-    asyncio.run(main(args.prompt, args.dry_run))
+    asyncio.run(main(args.prompt, args.dry_run, args.model_id))

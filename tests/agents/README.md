@@ -62,7 +62,7 @@ uv run agent.py -h
 ## Available test agents and scripts
 
 - `agent.py`: The main example agent that connects to your IBM i MCP server and allows natural language queries.
-- `test_tool_annotations.py`: A test script that demonstrates how to use tool annotations with the agent.
-- `test_toolset_resources.py`: A test script that demonstrates how to use toolset resources with the agent.
+- `list_tool_annotations.py`: A test script that demonstrates how to use tool annotations with the agent.
+- `list_toolset_resources.py`: A test script that demonstrates how to use toolset resources with the agent.
 
 ## MCP Context Forge (Coming Soon)

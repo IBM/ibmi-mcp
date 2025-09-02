@@ -5,9 +5,9 @@
  * It handles both the initialization (startup) and graceful shutdown of the SDK.
  * @module src/utils/telemetry/instrumentation
  */
+import { config } from "@/config/index.js";
 import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { WinstonInstrumentation } from "@opentelemetry/instrumentation-winston";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
@@ -23,90 +23,18 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from "@opentelemetry/semantic-conventions/incubating";
-import path from "path";
-import winston from "winston";
-import { config } from "../../config/index.js";
 
 export let sdk: NodeSDK | null = null;
 
 if (config.openTelemetry.enabled) {
   // --- Custom Diagnostic Logger for OpenTelemetry ---
-  class OtelDiagnosticLogger extends DiagConsoleLogger {
-    private winstonLogger: winston.Logger;
-    constructor(logLevel: DiagLogLevel) {
-      super();
-      const logsDir = config.logsPath;
-      if (!logsDir) {
-        if (process.stdout.isTTY) {
-          console.error(
-            "OpenTelemetry Diagnostics: Log directory not available. Diagnostics will be written to console only.",
-          );
-        }
-        this.winstonLogger = winston.createLogger({
-          level: DiagLogLevel[logLevel].toLowerCase(),
-          transports: [new winston.transports.Console()],
-        });
-        return;
-      }
-      this.winstonLogger = winston.createLogger({
-        level: DiagLogLevel[logLevel].toLowerCase(),
-        format: winston.format.combine(
-          winston.format.timestamp(),
-          winston.format.json(),
-        ),
-        transports: [
-          new winston.transports.File({
-            filename: path.join(logsDir, "opentelemetry.log"),
-            maxsize: 5 * 1024 * 1024,
-            maxFiles: 3,
-          }),
-        ],
-      });
-    }
-    public override error = (message: string, ...args: unknown[]): void => {
-      this.winstonLogger.error(message, { args });
-    };
-    public override warn = (message: string, ...args: unknown[]): void => {
-      this.winstonLogger.warn(message, { args });
-    };
-    public override info = (message: string, ...args: unknown[]): void => {
-      this.winstonLogger.info(message, { args });
-    };
-    public override debug = (message: string, ...args: unknown[]): void => {
-      this.winstonLogger.debug(message, { args });
-    };
-    public override verbose = (message: string, ...args: unknown[]): void => {
-      this.winstonLogger.verbose(message, { args });
-    };
-  }
+  // This logger uses the standard console to avoid circular dependencies with the main application logger.
+  class OtelDiagnosticLogger extends DiagConsoleLogger {}
 
   /**
-   * A custom SpanProcessor that writes ended spans to a log file using Winston.
+   * A custom SpanProcessor that writes ended spans to a log file using Pino.
    */
   class FileSpanProcessor implements SpanProcessor {
-    private traceLogger: winston.Logger;
-
-    constructor() {
-      const logsDir = config.logsPath;
-      if (!logsDir) {
-        diag.error(
-          "[FileSpanProcessor] Cannot initialize: logsPath is not available.",
-        );
-        this.traceLogger = winston.createLogger({ silent: true });
-        return;
-      }
-      this.traceLogger = winston.createLogger({
-        format: winston.format.json(),
-        transports: [
-          new winston.transports.File({
-            filename: path.join(logsDir, "traces.log"),
-            maxsize: 10 * 1024 * 1024, // 10MB
-            maxFiles: 5,
-          }),
-        ],
-      });
-    }
-
     forceFlush(): Promise<void> {
       return Promise.resolve();
     }
@@ -124,12 +52,17 @@ if (config.openTelemetry.enabled) {
         attributes: span.attributes,
         events: span.events,
       };
-      this.traceLogger.info(loggableSpan);
+      // Dynamically import the logger in a non-blocking way to prevent circular dependencies.
+      import("@/utils/internal/logger.js")
+        .then(({ logger }) => {
+          logger.info({ span: loggableSpan }, "Trace Span End");
+        })
+        .catch((err) => {
+          diag.error("Failed to dynamically import logger for OTel span.", err);
+        });
     }
     shutdown(): Promise<void> {
-      return new Promise((resolve) =>
-        this.traceLogger.on("finish", resolve).end(),
-      );
+      return Promise.resolve();
     }
   }
 
@@ -138,7 +71,7 @@ if (config.openTelemetry.enabled) {
       DiagLogLevel[
         config.openTelemetry.logLevel as keyof typeof DiagLogLevel
       ] ?? DiagLogLevel.INFO;
-    diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), otelLogLevel);
+    diag.setLogger(new OtelDiagnosticLogger(), otelLogLevel);
 
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: config.openTelemetry.serviceName,
@@ -183,9 +116,6 @@ if (config.openTelemetry.enabled) {
             ignoreIncomingRequestHook: (req) => req.url === "/healthz",
           },
           "@opentelemetry/instrumentation-fs": { enabled: false },
-        }),
-        new WinstonInstrumentation({
-          enabled: true,
         }),
       ],
     });

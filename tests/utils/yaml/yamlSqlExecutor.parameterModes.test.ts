@@ -6,16 +6,16 @@
 import { describe, it, expect, beforeEach, vi, Mock } from "vitest";
 
 // Mock the SourceManager BEFORE importing anything that depends on it
-vi.mock("../../../src/services/yaml-sources/sourceManager.js");
+vi.mock("../../../src/ibmi-mcp-server/services/sourceManager.js");
 
 // Mock the scheduling module to prevent scheduler instantiation
 vi.mock("../../../src/utils/scheduling/index.js", () => ({
   schedulerService: vi.fn(),
 }));
 
-import { YamlSqlExecutor } from "../../../src/utils/yaml/yamlSqlExecutor.js";
-import { SourceManager } from "../../../src/services/yaml-sources/sourceManager.js";
-import { YamlToolParameter } from "../../../src/utils/yaml/types.js";
+import { YamlSqlExecutor } from "../../../src/ibmi-mcp-server/utils/yaml/yamlSqlExecutor.js";
+import { SourceManager } from "../../../src/ibmi-mcp-server/services/sourceManager.js";
+import { YamlToolParameter } from "../../../src/ibmi-mcp-server/utils/yaml/types.js";
 import { requestContextService } from "../../../src/utils/internal/requestContext.js";
 
 describe("YamlSqlExecutor - Parameter Binding", () => {

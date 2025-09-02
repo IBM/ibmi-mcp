@@ -3,13 +3,13 @@ import {
   ExecuteSqlInputSchema,
   executeSqlLogic,
   ExecuteSqlResponseSchema,
-} from "../../../../src/mcp-server/tools/executeSql/logic.js";
+} from "../../../../src/ibmi-mcp-server/tools/executeSql/logic.js";
 import { McpError } from "../../../../src/types-global/errors.js";
 import { requestContextService } from "../../../../src/utils/index.js";
-import { IBMiConnectionPool } from "../../../../src/services/mapepire/connectionPool.js";
+import { IBMiConnectionPool } from "../../../../src/ibmi-mcp-server/services/connectionPool.js";
 
 // Mock the IBMiConnectionPool
-vi.mock("../../../../src/services/mapepire/connectionPool.js");
+vi.mock("../../../../src/ibmi-mcp-server/services/connectionPool.js");
 
 describe("executeSqlLogic", () => {
   const context = requestContextService.createRequestContext({
