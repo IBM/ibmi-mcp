@@ -194,6 +194,9 @@ export class YamlToolsLoader {
 
         // Initialize source manager
         if (yamlConfig.sources) {
+          if (Object.keys(yamlConfig.sources).length > 0 && config.mcpSessionMode === "stateless") {
+            logger.error(operationContext, "Multiple sources detected in non-stateful mode");
+          }
           logger.info(operationContext, "Registering sources");
           for (const [sourceName, sourceConfig] of Object.entries(
             yamlConfig.sources,
