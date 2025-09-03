@@ -21,6 +21,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ErrorHandler, RequestContext } from "../../../utils/index.js";
+import { MCP_SPEC_VERSION } from "../../constants.js";
 import {
   logOperationStart,
   logOperationSuccess,
@@ -79,7 +80,7 @@ export async function startStdioTransport(
     );
     if (process.stdout.isTTY) {
       console.log(
-        `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`,
+        `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: ${MCP_SPEC_VERSION} Stdio Transport)\n`,
       );
     }
   } catch (err) {
