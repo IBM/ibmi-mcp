@@ -185,3 +185,5 @@ duckdata/
 .claude
 data/
 devdocs.md
+
+tmp/
