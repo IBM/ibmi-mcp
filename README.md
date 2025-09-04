@@ -118,12 +118,12 @@ See more on configuration options in the [Configuration](#⚙️-configuration) 
   npm run start:stdio
   ```
 - **Via Streamable HTTP:**
+
   ```bash
   npm run start:http
   ```
 
   By Default, the server registers SQL tools stored in the `prebuiltconfigs` directory. This path is set in the `.env` file (`TOOLS_YAML_PATH`). You can override the SQL tools path using the CLI:
-
   - CLI Option: `--tools <path>`
     ```bash
     npm run start:http -- --tools <path>
@@ -132,7 +132,6 @@ See more on configuration options in the [Configuration](#⚙️-configuration) 
     ```bash
     npm run start:http -- --transport http # or stdio
     ```
-
 
 ### 5. Run Example Agent
 

@@ -37,8 +37,6 @@ export const registerSQLTools = async (server: McpServer): Promise<void> => {
       toolFactory: dependencies.toolFactory,
     });
 
-    await yamlLoader.loadAndRegisterTools(
-      server
-    );
+    await yamlLoader.loadAndRegisterTools(server);
   }
 };

@@ -63,7 +63,7 @@ function createPinoLogger(): PinoLogger {
   const isStdioTransport = config.mcpTransportType === "stdio";
   const resolvedLogsDir = config.logsPath;
   const logLevel = mcpToPinoLevel[config.logLevel as McpLogLevel] || "info";
-  
+
   // Build a transport target list so we can combine console + file outputs.
   const targets: TransportTargetOptions[] = [];
 

@@ -133,7 +133,10 @@ export class YamlToolsLoader {
     return ErrorHandler.tryCatch(
       async () => {
         logger.info(operationContext, "Starting YAML tools loading process");
-        logger.info(operationContext, `current config: ${JSON.stringify(config, null, 2)}`);
+        logger.info(
+          operationContext,
+          `current config: ${JSON.stringify(config, null, 2)}`,
+        );
 
         const yamlToolsPath = config.toolsYamlPath;
         // Check if tools YAML path is configured
@@ -156,7 +159,11 @@ export class YamlToolsLoader {
         const configBuilder = new YamlConfigBuilder(operationContext);
 
         // Add sources using helper to keep this method concise
-        this.configureBuilderSources(configBuilder, yamlToolsPath, operationContext);
+        this.configureBuilderSources(
+          configBuilder,
+          yamlToolsPath,
+          operationContext,
+        );
 
         // Build configuration with merging support
         const configResult = await configBuilder.build();
@@ -194,8 +201,14 @@ export class YamlToolsLoader {
 
         // Initialize source manager
         if (yamlConfig.sources) {
-          if (Object.keys(yamlConfig.sources).length > 0 && config.mcpSessionMode === "stateless") {
-            logger.error(operationContext, "Multiple sources detected in non-stateful mode");
+          if (
+            Object.keys(yamlConfig.sources).length > 0 &&
+            config.mcpSessionMode === "stateless"
+          ) {
+            logger.error(
+              operationContext,
+              "Multiple sources detected in non-stateful mode",
+            );
           }
           logger.info(operationContext, "Registering sources");
           for (const [sourceName, sourceConfig] of Object.entries(

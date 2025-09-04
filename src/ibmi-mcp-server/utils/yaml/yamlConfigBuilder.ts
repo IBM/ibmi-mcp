@@ -347,7 +347,9 @@ export class YamlConfigBuilder {
     for (const w of YamlConfigBuilder.watchers.values()) {
       try {
         w.close();
-      } catch { /* empty */ }
+      } catch {
+        /* empty */
+      }
     }
     YamlConfigBuilder.watchers.clear();
     YamlConfigBuilder.fileToKeys.clear();
