@@ -1,0 +1,693 @@
+---
+title: "YAML Configuration"
+description: "Complete guide to configuring SQL tools using YAML files including sources, tools, toolsets, and parameter processing."
+---
+
+# YAML Configuration System
+
+The YAML configuration system is the primary way to define reusable, parameterized SQL tools for the IBM i MCP Server. This powerful system allows you to create sophisticated database operations through declarative configuration files.
+
+## Configuration File Structure
+
+Every YAML configuration file follows a three-section structure that defines database connections, SQL operations, and logical groupings:
+
+<CodeGroup>
+```yaml Basic Structure
+# Required: Database connection definitions
+sources:
+  connection-name:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+
+# Required: SQL tool definitions  
+tools:
+  tool-name:
+    source: connection-name
+    description: "What this tool does"
+    statement: "SELECT * FROM TABLE"
+
+# Optional: Tool groupings
+toolsets:
+  group-name:
+    description: "Collection of related tools"  
+    tools: [tool-name]
+```
+
+```yaml Complete Example
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  system_status:
+    source: ibmi-system
+    description: "System performance metrics with CPU, memory, and I/O data"
+    parameters: []
+    statement: |
+      SELECT SYSTEM_NAME, CURRENT_TIMESTAMP as REPORT_TIME,
+             CPU_UTILIZATION, TOTAL_MEMORY, AVAILABLE_MEMORY,
+             TOTAL_DISK_CAPACITY, AVAILABLE_DISK_CAPACITY
+      FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS=>'YES')) X
+
+  user_jobs:
+    source: ibmi-system
+    description: "Active jobs for a specific user profile"
+    parameters:
+      - name: user_name
+        type: string
+        required: true
+        description: "IBM i user profile name"
+        pattern: "^[A-Z0-9]{1,10}$"
+    statement: |
+      SELECT JOB_NAME, SUBSYSTEM, JOB_TYPE, CPU_USED, 
+             ELAPSED_CPU_TIME, FUNCTION
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) 
+      WHERE AUTHORIZATION_NAME = UPPER(?)
+      ORDER BY CPU_USED DESC
+
+toolsets:
+  system-monitoring:
+    description: "System performance and health monitoring tools"
+    tools:
+      - system_status
+      - user_jobs
+```
+</CodeGroup>
+
+## Sources Configuration
+
+Sources define database connections that tools can reference. This promotes connection reuse and centralized credential management.
+
+### Basic Source Definition
+
+<ParamField path="host" type="string" required>
+  **IBM i system hostname or IP address**
+  
+  The network address where your Mapepire daemon or gateway is accessible.
+  
+  ```yaml
+  host: ${DB2i_HOST}          # Environment variable
+  host: my-ibmi.company.com   # Direct hostname
+  host: 192.168.1.100         # IP address
+  ```
+</ParamField>
+
+<ParamField path="user" type="string" required>
+  **IBM i user profile**
+  
+  User account with appropriate database permissions. Should follow IBM i naming conventions.
+  
+  ```yaml
+  user: ${DB2i_USER}    # From environment
+  user: QSECOFR         # System administrator
+  user: APPUSER         # Application user
+  ```
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  **User profile password**
+  
+  <Warning>
+  Always use environment variables for passwords. Never commit credentials to version control.
+  </Warning>
+  
+  ```yaml
+  password: ${DB2i_PASS}        # Recommended: environment variable
+  password: ${IBM_USER_PASS}    # Alternative environment variable
+  ```
+</ParamField>
+
+<ParamField path="port" type="number" default="8076">
+  **Mapepire daemon port**
+  
+  Port number where the Mapepire service is listening.
+  
+  ```yaml
+  port: 8076    # Standard Mapepire port
+  port: 9876    # Custom port configuration
+  ```
+</ParamField>
+
+<ParamField path="ignore-unauthorized" type="boolean" default="false">
+  **SSL certificate validation**
+  
+  Skip SSL certificate validation for self-signed certificates or development environments.
+  
+  ```yaml
+  ignore-unauthorized: true   # Skip SSL validation (dev/testing)
+  ignore-unauthorized: false  # Enforce SSL validation (production)
+  ```
+</ParamField>
+
+### Multiple Sources Example
+
+```yaml
+sources:
+  # Production IBM i system
+  ibmi-production:
+    host: ${PROD_IBMI_HOST}
+    user: ${PROD_IBMI_USER}
+    password: ${PROD_IBMI_PASS}
+    port: 8076
+    ignore-unauthorized: false
+
+  # Development system
+  ibmi-development:
+    host: dev-ibmi.company.com
+    user: DEVUSER
+    password: ${DEV_PASSWORD}
+    port: 8076
+    ignore-unauthorized: true
+
+  # Test system with different port
+  ibmi-testing:
+    host: test-ibmi.company.com
+    user: TESTUSER
+    password: ${TEST_PASSWORD}
+    port: 9076
+    ignore-unauthorized: true
+```
+
+## Tools Configuration
+
+Tools define individual SQL operations with parameters, validation, and documentation.
+
+### Basic Tool Structure
+
+<ParamField path="source" type="string" required>
+  **Source connection reference**
+  
+  Must match a source name defined in the `sources` section.
+  
+  ```yaml
+  source: ibmi-system  # References the source named 'ibmi-system'
+  ```
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  **Tool description for AI agents**
+  
+  Clear, detailed description that helps AI agents understand when and how to use this tool.
+  
+  <Tip>
+  Write descriptions from the AI agent's perspective. Include what data is returned and any important constraints.
+  </Tip>
+  
+  ```yaml
+  description: "Retrieve active job information including CPU usage, subsystem, and current function for performance monitoring"
+  ```
+</ParamField>
+
+<ParamField path="statement" type="string" required>
+  **SQL statement to execute**
+  
+  The SQL query with optional parameter placeholders (`?`). Use multiline YAML strings for complex queries.
+  
+  ```yaml
+  statement: |
+    SELECT JOB_NAME, SUBSYSTEM, CPU_USED, FUNCTION
+    FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) 
+    WHERE CPU_USED >= ?
+    ORDER BY CPU_USED DESC
+    FETCH FIRST ? ROWS ONLY
+  ```
+</ParamField>
+
+<ParamField path="parameters" type="array">
+  **Parameter definitions**
+  
+  Array of parameter objects that define validation and metadata for SQL placeholders.
+  
+  ```yaml
+  parameters:
+    - name: min_cpu_percent
+      type: number
+      required: false
+      default: 0
+      description: "Minimum CPU percentage to include"
+  ```
+</ParamField>
+
+### Parameter Configuration
+
+Each parameter in the `parameters` array supports comprehensive validation:
+
+<Tabs>
+<Tab title="String Parameters">
+```yaml
+parameters:
+  - name: user_name
+    type: string
+    required: true
+    description: "IBM i user profile name"
+    minLength: 1
+    maxLength: 10
+    pattern: "^[A-Z0-9]{1,10}$"  # IBM i naming convention
+  
+  - name: subsystem_name
+    type: string
+    required: false
+    default: "QINTER"
+    description: "Subsystem to filter jobs"
+    enum: ["QINTER", "QBATCH", "QSYSWRK", "QCMN"]
+```
+</Tab>
+
+<Tab title="Numeric Parameters">
+```yaml
+parameters:
+  - name: max_rows
+    type: number
+    required: false
+    default: 100
+    description: "Maximum number of rows to return"
+    min: 1
+    max: 10000
+  
+  - name: cpu_threshold
+    type: number
+    required: false
+    default: 5.0
+    description: "CPU usage percentage threshold"
+    min: 0.0
+    max: 100.0
+```
+</Tab>
+
+<Tab title="Boolean Parameters">
+```yaml
+parameters:
+  - name: detailed_output
+    type: boolean
+    required: false
+    default: false
+    description: "Include detailed performance metrics"
+  
+  - name: include_system_jobs
+    type: boolean
+    required: false
+    default: false
+    description: "Include IBM i system jobs in results"
+```
+</Tab>
+</Tabs>
+
+### Advanced SQL Patterns
+
+<AccordionGroup>
+<Accordion title="Conditional Logic">
+Use CASE statements to handle optional parameters:
+
+```yaml
+statement: |
+  SELECT JOB_NAME, SUBSYSTEM, CPU_USED
+  FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+  WHERE CASE 
+    WHEN ? IS NULL THEN 1=1 
+    ELSE SUBSYSTEM = ? 
+  END
+  AND CPU_USED >= ?
+  ORDER BY CPU_USED DESC
+  FETCH FIRST ? ROWS ONLY
+```
+
+Parameters: `[subsystem_filter, subsystem_filter, min_cpu, max_rows]`
+</Accordion>
+
+<Accordion title="Date Range Queries">
+Handle date parameters with proper formatting:
+
+```yaml
+statement: |
+  SELECT JOB_NAME, JOB_ENTERED_SYSTEM_TIME, JOB_END_TIME
+  FROM TABLE(QSYS2.JOB_INFO(JOB_STATUS_FILTER => 'ALL'))
+  WHERE JOB_ENTERED_SYSTEM_TIME >= ?
+  AND JOB_ENTERED_SYSTEM_TIME <= ?
+  ORDER BY JOB_ENTERED_SYSTEM_TIME DESC
+
+parameters:
+  - name: start_date
+    type: string
+    required: true
+    description: "Start date in YYYY-MM-DD format"
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+  - name: end_date
+    type: string
+    required: true  
+    description: "End date in YYYY-MM-DD format"
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+```
+</Accordion>
+
+<Accordion title="Dynamic Column Selection">
+Use parameters to control output format:
+
+```yaml
+statement: |
+  SELECT JOB_NAME, SUBSYSTEM,
+  CASE WHEN ? = true THEN CPU_USED ELSE NULL END as CPU_USED,
+  CASE WHEN ? = true THEN MEMORY_POOL ELSE NULL END as MEMORY_POOL,
+  CASE WHEN ? = true THEN FUNCTION ELSE NULL END as FUNCTION
+  FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+  ORDER BY CPU_USED DESC
+  FETCH FIRST ? ROWS ONLY
+
+parameters:
+  - name: include_cpu
+    type: boolean
+    default: true
+  - name: include_memory
+    type: boolean 
+    default: false
+  - name: include_function
+    type: boolean
+    default: false
+  - name: max_rows
+    type: number
+    default: 50
+```
+</Accordion>
+</AccordionGroup>
+
+## Toolsets Configuration
+
+Toolsets group related tools together for better organization and discovery by AI agents.
+
+### Basic Toolset Structure
+
+<ParamField path="description" type="string">
+  **Toolset description**
+  
+  Explains the purpose and scope of tools in this grouping.
+  
+  ```yaml
+  description: "System monitoring tools for performance analysis and health checks"
+  ```
+</ParamField>
+
+<ParamField path="tools" type="array" required>
+  **List of tool names**
+  
+  Array of tool names that belong to this toolset. Tools must be defined in the `tools` section.
+  
+  ```yaml
+  tools:
+    - system_status
+    - active_jobs
+    - disk_usage
+    - memory_pools
+  ```
+</ParamField>
+
+### Complete Toolset Example
+
+```yaml
+toolsets:
+  system-monitoring:
+    description: "Real-time system performance monitoring and health check tools"
+    tools:
+      - system_status
+      - cpu_utilization
+      - memory_pools
+      - disk_usage
+      - active_jobs
+
+  user-management:
+    description: "User profile administration and security management tools"
+    tools:
+      - user_info
+      - user_authorities
+      - password_status
+      - sign_on_history
+
+  job-control:
+    description: "Job queue management and batch processing control tools"  
+    tools:
+      - job_queue_status
+      - submitted_jobs
+      - job_log_entries
+      - subsystem_status
+```
+
+## Configuration File Organization
+
+### Single File Approach
+
+For smaller deployments, use a single comprehensive file:
+
+```yaml title="complete-tools.yaml"
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+
+tools:
+  # System monitoring tools
+  system_status:
+    source: ibmi-system
+    description: "System performance metrics"
+    statement: "SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS()) X"
+
+  # User management tools
+  user_info:
+    source: ibmi-system
+    description: "User profile information"
+    statement: "SELECT * FROM QSYS2.USER_INFO"
+
+toolsets:
+  all-tools:
+    description: "Complete set of available tools"
+    tools: [system_status, user_info]
+```
+
+### Multiple File Approach
+
+For larger deployments, organize by functional area:
+
+```bash
+prebuiltconfigs/
+├── sources.yaml              # Shared connection definitions
+├── system-monitoring.yaml    # Performance and health tools
+├── user-management.yaml      # Security and user tools  
+├── job-management.yaml       # Job control and monitoring
+└── database-admin.yaml       # Database administration
+```
+
+<CodeGroup>
+```yaml sources.yaml
+sources:
+  ibmi-production:
+    host: ${PROD_IBMI_HOST}
+    user: ${PROD_IBMI_USER}
+    password: ${PROD_IBMI_PASS}
+    port: 8076
+    ignore-unauthorized: false
+
+  ibmi-development:
+    host: ${DEV_IBMI_HOST}
+    user: ${DEV_IBMI_USER}
+    password: ${DEV_IBMI_PASS}
+    port: 8076
+    ignore-unauthorized: true
+```
+
+```yaml system-monitoring.yaml
+tools:
+  system_status:
+    source: ibmi-production
+    description: "System performance metrics including CPU, memory, and I/O"
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(
+        RESET_STATISTICS=>'YES',
+        DETAILED_INFO=>'ALL'
+      )) X
+
+  disk_usage:
+    source: ibmi-production
+    description: "Storage utilization across all Auxiliary Storage Pools"
+    statement: |
+      SELECT ASP_NUMBER, ASP_TYPE, ASP_STATE,
+             TOTAL_CAPACITY_AVAILABLE,
+             STORAGE_THRESHOLD_PERCENTAGE,
+             TOTAL_CAPACITY - AVAILABLE_CAPACITY as USED_CAPACITY
+      FROM QSYS2.ASP_INFO
+      ORDER BY ASP_NUMBER
+
+toolsets:
+  system-monitoring:
+    description: "System performance and health monitoring tools"
+    tools:
+      - system_status
+      - disk_usage
+```
+
+```yaml user-management.yaml
+tools:
+  user_info:
+    source: ibmi-production
+    description: "Comprehensive user profile information and security status"
+    parameters:
+      - name: user_name
+        type: string
+        required: false
+        description: "Specific user profile name, or all users if not specified"
+    statement: |
+      SELECT USER_NAME, USER_CLASS, STATUS, 
+             SIGN_ON_ATTEMPTS_NOT_VALID,
+             PASSWORD_EXPIRATION_INTERVAL,
+             LAST_USED_TIMESTAMP
+      FROM QSYS2.USER_INFO
+      WHERE CASE WHEN ? IS NULL THEN 1=1 ELSE USER_NAME = UPPER(?) END
+      ORDER BY USER_NAME
+
+toolsets:
+  user-management:
+    description: "User profile administration and security management"
+    tools:
+      - user_info
+```
+</CodeGroup>
+
+## Configuration Processing
+
+### File Loading and Merging
+
+The server processes YAML configurations in this order:
+
+<Steps>
+<Step title="File Discovery">
+Scan the configured path for YAML files:
+
+```bash
+TOOLS_YAML_PATH=prebuiltconfigs  # Directory
+TOOLS_YAML_PATH=/path/to/tools.yaml  # Single file
+TOOLS_YAML_PATH=/configs/**/*.yaml   # Glob pattern
+```
+</Step>
+
+<Step title="YAML Parsing">
+Parse each file and validate structure:
+
+- Schema validation against tool configuration format
+- Parameter type validation
+- Reference integrity checking (source names, tool names)
+</Step>
+
+<Step title="Configuration Merging">
+Merge multiple files with conflict resolution:
+
+```bash
+# Control merging behavior
+YAML_MERGE_ARRAYS=false           # Replace arrays vs merge
+YAML_ALLOW_DUPLICATE_TOOLS=false  # Error on duplicate tool names
+YAML_ALLOW_DUPLICATE_SOURCES=false # Error on duplicate sources
+YAML_VALIDATE_MERGED=true         # Validate final configuration
+```
+</Step>
+
+<Step title="Tool Registration">
+Register merged tools with MCP server:
+
+- Create MCP tool metadata from YAML descriptions
+- Generate parameter schemas for validation
+- Register runtime handlers for SQL execution
+</Step>
+</Steps>
+
+### Environment Variable Substitution
+
+YAML files support environment variable substitution using `${VARIABLE_NAME}` syntax:
+
+<Tabs>
+<Tab title="Connection Credentials">
+```yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}                    # Required
+    user: ${DB2i_USER}                    # Required
+    password: ${DB2i_PASS}                # Required
+    port: ${DB2i_PORT:-8076}              # With default value
+    ignore-unauthorized: ${SSL_IGNORE:-true}  # Boolean with default
+```
+</Tab>
+
+<Tab title="Configuration Paths">
+```yaml
+sources:
+  ibmi-system:
+    host: ${IBM_HOST}
+    user: ${IBM_USER}
+    password: ${IBM_PASS}
+    port: ${IBM_PORT:-8076}
+    ignore-unauthorized: ${SSL_IGNORE:-true}
+```
+</Tab>
+
+<Tab title="Environment-Specific Settings">
+```yaml
+tools:
+  system_status:
+    source: ibmi-system
+    description: "System status for ${ENVIRONMENT:-production} environment"
+    statement: |
+      SELECT '${ENVIRONMENT:-production}' as ENVIRONMENT,
+             SYSTEM_NAME, CPU_UTILIZATION, TOTAL_MEMORY
+      FROM TABLE(QSYS2.SYSTEM_STATUS()) X
+      FETCH FIRST ${MAX_ROWS:-100} ROWS ONLY
+```
+</Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Security" icon="shield">
+    **Protect Sensitive Data**
+    
+    - Use environment variables for all credentials
+    - Apply least-privilege user permissions
+    - Implement parameter validation patterns
+    - Regular credential rotation
+  </Card>
+  
+  <Card title="Performance" icon="gauge">
+    **Optimize Query Execution**
+    
+    - Include explicit FETCH FIRST clauses
+    - Use appropriate indexes in WHERE clauses
+    - Avoid SELECT * in production queries
+    - Test with realistic data volumes
+  </Card>
+  
+  <Card title="Maintainability" icon="wrench">
+    **Organize for Scale**
+    
+    - Group related tools in separate files
+    - Use consistent naming conventions
+    - Document complex SQL logic
+    - Version control all configurations
+  </Card>
+  
+  <Card title="Usability" icon="user">
+    **Optimize for AI Agents**
+    
+    - Write clear, detailed descriptions
+    - Provide meaningful parameter names
+    - Include usage examples in descriptions
+    - Test with actual AI interactions
+  </Card>
+</CardGroup>
+
+---
+
+<Tip>
+Start with the pre-built configurations in `prebuiltconfigs/` and modify them for your specific needs. This provides tested examples and patterns you can adapt.
+</Tip>

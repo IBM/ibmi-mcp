@@ -1,0 +1,485 @@
+---
+title: "Sources Configuration"
+description: "Configure database connections and credentials for IBM i MCP Server SQL tools using the sources section of YAML files."
+---
+
+# Sources Configuration
+
+Sources define database connections that SQL tools can reference. They provide centralized credential management, connection pooling, and reusability across multiple tools. Each source represents a connection to an IBM i system through the Mapepire daemon or gateway.
+
+## Source Definition Structure
+
+Every source in your YAML configuration follows this structure:
+
+```yaml
+sources:
+  connection-name:
+    host: string              # Required: IBM i hostname or IP
+    user: string              # Required: IBM i user profile
+    password: string          # Required: User password
+    port: number              # Optional: Mapepire port (default: 8076)
+    ignore-unauthorized: bool # Optional: Skip SSL validation (default: false)
+```
+
+## Required Parameters
+
+<ParamField path="host" type="string" required>
+  **IBM i system hostname or IP address**
+  
+  The network address where your Mapepire daemon or gateway is running. This should be accessible from where your MCP server is deployed.
+  
+  ```yaml
+  # Using environment variables (recommended)
+  host: ${DB2i_HOST}
+  
+  # Direct hostname
+  host: my-ibmi-system.company.com
+  
+  # IP address
+  host: 192.168.1.100
+  ```
+  
+  <Tip>
+  Use environment variables for all connection details to keep credentials secure and support multiple environments.
+  </Tip>
+</ParamField>
+
+<ParamField path="user" type="string" required>
+  **IBM i user profile name**
+  
+  A valid IBM i user profile with appropriate database permissions. The user should have access to the databases, schemas, and objects that your SQL tools will query.
+  
+  ```yaml
+  # Environment variable (recommended)
+  user: ${DB2i_USER}
+  
+  # Direct user name
+  user: QSECOFR         # System administrator
+  user: APPUSER         # Application service account
+  user: READONLY        # Read-only account
+  ```
+  
+  <Warning>
+  Ensure the user profile has only the minimum necessary permissions for your SQL tools. Avoid using QSECOFR unless absolutely required.
+  </Warning>
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  **IBM i user profile password**
+  
+  The password for the specified user profile. Always use environment variables for passwords to prevent credential exposure.
+  
+  ```yaml
+  # Always use environment variables for passwords
+  password: ${DB2i_PASS}
+  password: ${IBM_USER_PASSWORD}
+  password: ${PROD_IBMI_PASS}
+  ```
+  
+  <Warning>
+  **Never commit passwords to version control.** Use environment variables, Docker secrets, or secure configuration management systems.
+  </Warning>
+</ParamField>
+
+## Optional Parameters
+
+<ParamField path="port" type="number" default="8076">
+  **Mapepire daemon or gateway port**
+  
+  The port number where the Mapepire service is listening on your IBM i system.
+  
+  ```yaml
+  port: 8076    # Standard Mapepire port
+  port: 9876    # Custom configuration
+  port: ${DB2i_PORT:-8076}  # Environment variable with default
+  ```
+</ParamField>
+
+<ParamField path="ignore-unauthorized" type="boolean" default="false">
+  **SSL certificate validation control**
+  
+  When set to `true`, skips SSL certificate validation. Useful for development environments with self-signed certificates.
+  
+  ```yaml
+  # Development environment
+  ignore-unauthorized: true
+  
+  # Production environment (enforce SSL validation)
+  ignore-unauthorized: false
+  
+  # Environment-specific
+  ignore-unauthorized: ${SSL_IGNORE_UNAUTHORIZED:-false}
+  ```
+  
+  <Warning>
+  Only set this to `true` in development environments. Production deployments should use valid SSL certificates.
+  </Warning>
+</ParamField>
+
+## Environment-Specific Sources
+
+Configure different sources for different deployment environments:
+
+<Tabs>
+<Tab title="Development">
+```yaml
+sources:
+  ibmi-development:
+    host: dev-ibmi.company.com
+    user: DEVUSER
+    password: ${DEV_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: true  # Allow self-signed certs
+
+  ibmi-testing:
+    host: test-ibmi.company.com
+    user: TESTUSER
+    password: ${TEST_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: true
+```
+</Tab>
+
+<Tab title="Production">
+```yaml
+sources:
+  ibmi-production:
+    host: ${PROD_IBMI_HOST}
+    user: ${PROD_IBMI_USER}
+    password: ${PROD_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: false  # Enforce SSL validation
+
+  ibmi-backup:
+    host: ${BACKUP_IBMI_HOST}
+    user: ${BACKUP_IBMI_USER}
+    password: ${BACKUP_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: false
+```
+</Tab>
+
+<Tab title="Multi-System">
+```yaml
+sources:
+  # Primary production system
+  ibmi-prod-primary:
+    host: prod1-ibmi.company.com
+    user: ${PROD_USER}
+    password: ${PROD_PASSWORD}
+    port: 8076
+
+  # Secondary production system
+  ibmi-prod-secondary:
+    host: prod2-ibmi.company.com
+    user: ${PROD_USER}
+    password: ${PROD_PASSWORD}
+    port: 8076
+
+  # Reporting system (read-only)
+  ibmi-reporting:
+    host: report-ibmi.company.com
+    user: ${REPORT_USER}
+    password: ${REPORT_PASSWORD}
+    port: 8076
+```
+</Tab>
+</Tabs>
+
+## Source Naming Conventions
+
+Use consistent naming conventions for better organization:
+
+<CardGroup cols={2}>
+  <Card title="Environment-Based" icon="server">
+    **Pattern: `ibmi-{environment}`**
+    
+    ```yaml
+    sources:
+      ibmi-development:
+        host: dev-ibmi.company.com
+      
+      ibmi-staging:
+        host: stage-ibmi.company.com
+        
+      ibmi-production:
+        host: prod-ibmi.company.com
+    ```
+  </Card>
+  
+  <Card title="Purpose-Based" icon="database">
+    **Pattern: `ibmi-{purpose}`**
+    
+    ```yaml
+    sources:
+      ibmi-transactional:
+        host: oltp-ibmi.company.com
+        
+      ibmi-reporting:
+        host: report-ibmi.company.com
+        
+      ibmi-archive:
+        host: archive-ibmi.company.com
+    ```
+  </Card>
+</CardGroup>
+
+## Connection Security Best Practices
+
+### Credential Management
+
+<Steps>
+<Step title="Use Environment Variables">
+Always store credentials in environment variables, never in YAML files:
+
+```bash
+# .env file
+DB2i_HOST=my-ibmi.company.com
+DB2i_USER=APPUSER
+DB2i_PASS=secure_password_here
+DB2i_PORT=8076
+```
+
+```yaml
+# YAML configuration
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: ${DB2i_PORT}
+```
+</Step>
+
+<Step title="Apply Least Privilege">
+Create dedicated user profiles with minimal required permissions:
+
+```sql
+-- Example: Create read-only user for monitoring tools
+CREATE USER MONITORING PASSWORD('secure_password')
+  TEXT('MCP Server monitoring account');
+
+GRANT SELECT ON QSYS2.SYSTEM_STATUS TO MONITORING;
+GRANT SELECT ON QSYS2.ACTIVE_JOB_INFO TO MONITORING;
+GRANT SELECT ON QSYS2.ASP_INFO TO MONITORING;
+```
+</Step>
+
+<Step title="Rotate Credentials Regularly">
+Implement regular credential rotation:
+
+```yaml
+# Support credential rotation with environment variables
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS_CURRENT}  # Rotate this value
+    port: ${DB2i_PORT}
+```
+</Step>
+</Steps>
+
+### SSL Configuration
+
+<AccordionGroup>
+<Accordion title="Development Environment">
+For development and testing with self-signed certificates:
+
+```yaml
+sources:
+  ibmi-dev:
+    host: dev-ibmi.company.com
+    user: ${DEV_USER}
+    password: ${DEV_PASSWORD}
+    port: 8076
+    ignore-unauthorized: true  # Skip SSL validation
+```
+</Accordion>
+
+<Accordion title="Production Environment">
+For production with valid SSL certificates:
+
+```yaml
+sources:
+  ibmi-prod:
+    host: prod-ibmi.company.com
+    user: ${PROD_USER}
+    password: ${PROD_PASSWORD}
+    port: 8076
+    ignore-unauthorized: false  # Enforce SSL validation
+```
+</Accordion>
+
+<Accordion title="Mixed Environment">
+Use environment variables to control SSL validation:
+
+```yaml
+sources:
+  ibmi-system:
+    host: ${IBMI_HOST}
+    user: ${IBMI_USER}
+    password: ${IBMI_PASSWORD}
+    port: ${IBMI_PORT:-8076}
+    ignore-unauthorized: ${IBMI_IGNORE_SSL:-false}
+```
+
+Then set per environment:
+```bash
+# Development
+IBMI_IGNORE_SSL=true
+
+# Production  
+IBMI_IGNORE_SSL=false
+```
+</Accordion>
+</AccordionGroup>
+
+## Source Validation and Testing
+
+The server performs automatic validation of source configurations:
+
+### Connection Testing
+
+<Steps>
+<Step title="Startup Validation">
+The server tests all source connections during startup:
+
+```
+[INFO] Testing IBM i connections...
+[INFO] ✓ ibmi-production: Connected successfully
+[INFO] ✓ ibmi-reporting: Connected successfully
+[WARN] ✗ ibmi-backup: Connection timeout - server may be unavailable
+```
+</Step>
+
+<Step title="Runtime Health Checks">
+Periodic health checks ensure connections remain active:
+
+```
+[DEBUG] Connection health check - ibmi-production: healthy
+[DEBUG] Connection pool status: 3/10 connections active
+```
+</Step>
+
+<Step title="Automatic Reconnection">
+Failed connections are automatically retried:
+
+```
+[WARN] Connection lost to ibmi-production, attempting reconnection...
+[INFO] Successfully reconnected to ibmi-production
+```
+</Step>
+</Steps>
+
+### Configuration Validation
+
+The server validates source configurations for:
+
+<CardGroup cols={2}>
+  <Card title="Required Fields" icon="check">
+    **Completeness Check**
+    
+    - Host address is provided
+    - User profile is specified
+    - Password is available
+    - Port is valid number
+  </Card>
+  
+  <Card title="Format Validation" icon="shield">
+    **Data Format Check**
+    
+    - Host is valid hostname or IP
+    - Port is in valid range (1-65535)
+    - User follows IBM i naming rules
+    - Environment variables are resolvable
+  </Card>
+</CardGroup>
+
+## Multiple Sources in One File
+
+Organize multiple sources for different purposes:
+
+```yaml
+sources:
+  # Primary operational systems
+  ibmi-production:
+    host: ${PROD_IBMI_HOST}
+    user: ${PROD_IBMI_USER}
+    password: ${PROD_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: false
+
+  # Reporting and analytics
+  ibmi-reporting:
+    host: ${REPORT_IBMI_HOST}
+    user: ${REPORT_IBMI_USER}
+    password: ${REPORT_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: false
+
+  # Archive and historical data
+  ibmi-archive:
+    host: ${ARCHIVE_IBMI_HOST}
+    user: ${ARCHIVE_IBMI_USER}
+    password: ${ARCHIVE_IBMI_PASSWORD}
+    port: 8076
+    ignore-unauthorized: false
+
+# Tools can reference any of these sources
+tools:
+  current_system_status:
+    source: ibmi-production
+    description: "Real-time system performance from production"
+    statement: "SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS()) X"
+
+  historical_performance:
+    source: ibmi-archive
+    description: "Historical performance data from archive system"
+    statement: "SELECT * FROM PERF_HISTORY WHERE DATE >= CURRENT_DATE - 30 DAYS"
+
+  usage_reports:
+    source: ibmi-reporting
+    description: "Usage analytics from reporting system"
+    statement: "SELECT * FROM USAGE_ANALYTICS ORDER BY REPORT_DATE DESC"
+```
+
+## Troubleshooting Source Connections
+
+<AccordionGroup>
+<Accordion title="Connection Refused">
+**Error**: `Connection refused to IBM i system`
+
+**Causes & Solutions**:
+- **Network**: Check if host is reachable with `ping hostname`
+- **Firewall**: Ensure port is open between server and IBM i
+- **Mapepire Service**: Verify Mapepire daemon is running on IBM i
+- **Port**: Confirm correct port number in configuration
+</Accordion>
+
+<Accordion title="Authentication Failed">
+**Error**: `Authentication failed for user`
+
+**Causes & Solutions**:
+- **Credentials**: Verify user name and password are correct
+- **User Status**: Check if IBM i user profile is enabled
+- **Password Expiry**: Ensure password hasn't expired
+- **Special Authorities**: Verify user has necessary database permissions
+</Accordion>
+
+<Accordion title="SSL Certificate Issues">
+**Error**: `SSL certificate verification failed`
+
+**Causes & Solutions**:
+- **Self-signed Certs**: Set `ignore-unauthorized: true` for development
+- **Expired Certs**: Renew SSL certificates on IBM i system
+- **CA Trust**: Ensure certificate authority is trusted
+- **Hostname Mismatch**: Check certificate matches hostname
+</Accordion>
+</AccordionGroup>
+
+---
+
+<Note>
+Sources provide the foundation for all SQL tool operations. Take time to properly configure and secure your connections, as they directly impact the security and reliability of your entire MCP server deployment.
+</Note>

@@ -1,80 +1,287 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Get your IBM i MCP Server up and running in under 10 minutes with this step-by-step guide."
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will get your IBM i MCP Server operational in under 10 minutes. By the end, you'll have a working MCP server with SQL tools connected to your IBM i system.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+**Prerequisites**: Make sure you have completed the [Installation](/installation) steps before proceeding with this quick start guide.
 </Note>
+
+## Step-by-Step Setup
+
+### 1. Verify Prerequisites
+
+<Steps>
+<Step title="Check Node.js Version">
+  Ensure you have Node.js 20.0.0 or higher installed:
+  
+  ```bash
+  node --version  # Should output v20.0.0 or higher
+  ```
+</Step>
+
+<Step title="Verify IBM i Access">
+  Confirm you can reach your IBM i system and have the following information:
+  - IBM i hostname or IP address
+  - Valid user credentials
+  - Mapepire daemon or gateway running on your configured port (default 8076)
+</Step>
+</Steps>
+
+### 2. Initial Configuration
+
+<Steps>
+<Step title="Clone and Install">
+  ```bash
+  git clone https://github.com/ajshedivy/ibmi-mcp-server.git
+  cd ibmi-mcp-server
+  npm install
+  ```
+</Step>
+
+<Step title="Configure Environment">
+  Copy the example environment file and update it with your IBM i details:
+  
+  ```bash
+  cp .env.example .env
+  ```
+  
+  Edit the `.env` file with your specific configuration:
+  
+  ```bash
+  # IBM i Connection
+  DB2i_HOST=10.1.1.100           # Your IBM i IP/hostname
+  DB2i_USER=MYUSER               # Your IBM i user profile
+  DB2i_PASS=mypassword           # Your IBM i password
+  DB2i_PORT=8076                 # Mapepire port (usually 8076)
+  DB2i_IGNORE_UNAUTHORIZED=true  # For self-signed certificates
+  
+  # Server Configuration
+  MCP_TRANSPORT_TYPE=stdio        # Start with stdio for testing
+  MCP_LOG_LEVEL=info              # Logging verbosity
+  TOOLS_YAML_PATH=prebuiltconfigs # Location of SQL tool definitions (dir or file)
+  ```
+</Step>
+
+<Step title="Build the Project">
+  ```bash
+  npm run build
+  ```
+  
+  <Check>
+  You should see successful compilation output with no errors.
+  </Check>
+</Step>
+</Steps>
+
+### 3. First Server Run
+
+<Steps>
+<Step title="Start in STDIO Mode">
+  Start the server in STDIO transport mode for testing:
+  
+  ```bash
+  npm run start:stdio
+  ```
+  
+  You should see output similar to:
+  
+  ```
+  [INFO] IBM i MCP Server starting...
+  [INFO] Transport: stdio
+  [INFO] Loading YAML tools from: prebuiltconfigs
+  [INFO] Registered YAML tools and resources
+  [INFO] Server ready and listening on stdio
+  ```
+</Step>
+
+<Step title="Verify Connectivity">
+  Database connectivity is established on the first tool execution. To verify, run a simple tool (see Inspector section below) such as `system_status` and confirm you receive results. If you see connection errors, double‑check your `.env` configuration and ensure your IBM i system is accessible.
+</Step>
+</Steps>
+
+### 4. Test with MCP Inspector
+
+The MCP Inspector provides a web interface to test your server:
+
+<Steps>
+<Step title="Configure Inspector">
+  Create the MCP Inspector configuration:
+  
+  ```bash
+  cp template_mcp.json mcp.json
+  ```
+  
+Update (or create) `mcp.json` with your connection details:
+  
+  ```json
+  {
+    "mcpServers": {
+      "ibmi-server": {
+        "command": "node",
+        "args": ["dist/index.js"],
+        "env": {
+          "DB2i_HOST": "10.1.1.100",
+          "DB2i_USER": "MYUSER", 
+          "DB2i_PASS": "mypassword",
+          "DB2i_PORT": "8076",
+          "MCP_TRANSPORT_TYPE": "stdio",
+          "TOOLS_YAML_PATH": "prebuiltconfigs"
+        }
+      }
+    }
+  }
+  ```
+</Step>
+
+<Step title="Start Inspector">
+  ```bash
+  npm run inspector
+  ```
+  
+  Open the displayed URL in your browser:
+  ```
+  🔍 MCP Inspector running at http://127.0.0.1:6274
+  ```
+</Step>
+
+<Step title="Test Tools">
+  In the MCP Inspector:
+  1. Select your server from the dropdown
+  2. Explore available tools in the sidebar
+  3. Try running the `system_status` tool
+  4. View the results and verify data is returned from your IBM i system
+</Step>
+</Steps>
+
+## Quick Test Examples
+
+### Test System Status Tool
+
+<Tabs>
+<Tab title="MCP Inspector">
+1. Open MCP Inspector at `http://localhost:6274`
+2. Select the `system_status` tool
+3. Click "Run Tool" (no parameters needed)
+4. View IBM i system performance data
+
+Expected output:
+```json
+{
+  "results": [
+    {
+      "SYSTEM_NAME": "MYIBMI",
+      "CPU_UTILIZATION": 15.2,
+      "TOTAL_MEMORY": 8192,
+      "AVAILABLE_MEMORY": 6144,
+      ...
+    }
+  ]
+}
+```
+</Tab>
+
+<Tab title="HTTP Mode">
+Switch to HTTP transport (MCP over JSON‑RPC via HTTP):
+
+```bash
+# Update .env
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_PORT=3010
+
+# Restart server
+npm run start:http
+```
+
+Test with curl (JSON‑RPC request to the MCP endpoint):
+```bash
+curl -sS -X POST http://localhost:3010/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "system_status", "arguments": {} }
+  }'
+```
+</Tab>
+</Tabs>
+
+## What's Included
+
+Your IBM i MCP Server comes with pre-configured tools organized by category (from `prebuiltconfigs/`):
+
+<CardGroup cols={2}>
+  <Card title="System Monitoring" icon="chart-line">
+    - **system_status**: CPU, memory, and I/O metrics
+    - **system_activity**: Current system activity details
+    - **remote_connections**: Established remote connections
+    - **memory_pools**: Memory pool sizes and thread utilization
+    - **temp_storage_buckets** / **unnamed_temp_storage**: Temp storage usage
+    - **http_server**: HTTP server performance metrics
+    - **system_values**: Numeric system values
+    - **collection_services** / **collection_categories**: Collection Services
+    - **active_job_info**: Top CPU consumers in key subsystems
+  </Card>
+  
+  <Card title="Database Operations" icon="database">
+    - **execute_sql**: Dynamic SQL execution with safety restrictions (YAML example)
+    - **describe_object**: Generate object DDL via QSYS2.GENERATE_SQL
+    - Additional discovery/browse/search utilities in `sys-admin.yaml`
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Check>
+Congratulations! Your IBM i MCP Server is now running and ready to provide AI agents with secure database access.
+</Check>
+
+### Recommended Next Actions
+
+<CardGroup cols={3}>
+  <Card title="Create Custom Tools" icon="hammer" href="/examples/first-tool">
+    Build your first custom SQL tool tailored to your business needs
+  </Card>
+  
+  <Card title="Configure Authentication" icon="lock" href="/advanced/authentication/overview">
+    Set up JWT or OAuth for production security
+  </Card>
+  
+  <Card title="Deploy with Docker" icon="docker" href="/advanced/deployment/docker">
+    Containerize your server for production deployment
+  </Card>
+</CardGroup>
+
+### Troubleshooting Quick Issues
+
+<AccordionGroup>
+<Accordion title="Server won't start">
+- Check Node.js version: `node --version`
+- Verify build completed: `ls dist/` should show compiled files
+- Check environment file: `cat .env` for correct IBM i details
+</Accordion>
+
+<Accordion title="Can't connect to IBM i">
+- Test network connectivity: `ping your-ibmi-host`
+- Verify Mapepire daemon is running on IBM i
+- Check firewall rules between your server and IBM i
+- Confirm user credentials are valid
+</Accordion>
+
+<Accordion title="No tools showing in Inspector">
+- Verify YAML files exist: `ls prebuiltconfigs/`
+- Check server logs for YAML parsing errors
+- Ensure `TOOLS_YAML_PATH` points to correct directory
+</Accordion>
+</AccordionGroup>
+
+---
+
+<Info>
+**Pro Tip**: Use the MCP Inspector regularly during development to test tools and debug configurations. It's the fastest way to validate your server setup.
+</Info>

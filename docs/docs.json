@@ -1,68 +1,102 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "IBM i MCP Server",
+  "description": "Production-grade TypeScript MCP server for IBM i database operations with advanced SQL tools, authentication, and observability features.",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0066CC",
+    "light": "#4285F4",
+    "dark": "#1e3a8a"
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
               "index",
+              "installation",
               "quickstart",
-              "development"
+              "configuration"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/architecture"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "SQL Tools System",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "sql-tools/overview",
+              "sql-tools/sources",
+              "sql-tools/tools",
+              "sql-tools/toolsets"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Advanced",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Authentication",
             "pages": [
-              "api-reference/introduction"
+              "advanced/authentication/overview",
+              "advanced/authentication/jwt",
+              "advanced/authentication/oauth"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Deployment",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "advanced/deployment/docker",
+              "advanced/deployment/production",
+              "advanced/deployment/monitoring"
+            ]
+          },
+          {
+            "group": "Observability",
+            "pages": [
+              "advanced/observability/logging",
+              "advanced/observability/tracing",
+              "advanced/observability/metrics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Development Guides",
+            "pages": [
+              "guides/yaml-tools",
+              "guides/building-agents",
+              "guides/best-practices"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Tutorials",
+            "pages": [
+              "examples/first-tool"
+            ]
+          },
+          {
+            "group": "Use Cases",
+            "pages": [
+              "examples/performance",
+              "examples/system-health",
+              "examples/system-administration"
             ]
           }
         ]
@@ -71,19 +105,19 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "GitHub Repository",
+          "href": "https://github.com/ajshedivy/ibmi-mcp-server",
+          "icon": "github"
         },
         {
-          "anchor": "Community",
-          "href": "https://mintlify.com/community",
-          "icon": "slack"
+          "anchor": "IBM i Resources",
+          "href": "https://www.ibm.com/docs/en/i",
+          "icon": "server"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "MCP Specification",
+          "href": "https://modelcontextprotocol.io/specification",
+          "icon": "book-open"
         }
       ]
     }
@@ -95,14 +129,14 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "Issues",
+        "href": "https://github.com/ajshedivy/ibmi-mcp-server/issues"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "label": "GitHub",
+      "href": "https://github.com/ajshedivy/ibmi-mcp-server"
     }
   },
   "contextual": {
@@ -119,9 +153,8 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/ajshedivy/ibmi-mcp-server",
+      "linkedin": "https://www.linkedin.com/in/adamshedivy"
     }
   }
 }

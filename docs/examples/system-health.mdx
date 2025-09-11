@@ -1,0 +1,158 @@
+---
+title: "Use Case: System Monitoring"
+description: "Monitor IBM i system health with system_status, system_activity, http_server, and remote_connections — verify with MCP Inspector and run an agent."
+---
+
+# Use Case: System Monitoring
+
+This guide uses the actual SQL tools from `prebuiltconfigs/performance.yaml` focused on system monitoring. You will load the YAML, verify with MCP Inspector, and run an example agent.
+
+## The SQL we want to use
+
+```sql
+-- Overall system status
+SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(
+  RESET_STATISTICS=>'YES',
+  DETAILED_INFO=>'ALL'
+)) X;
+
+-- System activity
+SELECT * FROM TABLE(QSYS2.SYSTEM_ACTIVITY_INFO());
+
+-- HTTP server performance
+SELECT SERVER_NAME CONCAT '_' CONCAT REPLACE(HTTP_FUNCTION, ' ','_') as SERVER_FUNC,
+       SERVER_NORMAL_CONNECTIONS, SERVER_SSL_CONNECTIONS, SERVER_ACTIVE_THREADS,
+       SERVER_IDLE_THREADS, SERVER_TOTAL_REQUESTS, SERVER_TOTAL_REQUESTS_REJECTED,
+       SERVER_TOTAL_RESPONSES, REQUESTS, RESPONSES, NONCACHE_RESPONSES,
+       BYTES_RECEIVED, BYTES_SENT, NONCACHE_PROCESSING_TIME, CACHE_PROCESSING_TIME
+FROM QSYS2.HTTP_SERVER_INFO;
+
+-- Remote connections (established)
+SELECT COUNT(REMOTE_ADDRESS) as REMOTE_CONNECTIONS
+FROM QSYS2.NETSTAT_INFO
+WHERE TCP_STATE = 'ESTABLISHED'
+  AND REMOTE_ADDRESS != '::1'
+  AND REMOTE_ADDRESS != '127.0.0.1';
+```
+
+## YAML configuration mapping
+
+```yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: ${DB2i_PORT:-8076}
+    ignore-unauthorized: ${DB2i_IGNORE_UNAUTHORIZED:-true}
+
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Overall system status"
+    parameters: []
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(
+        RESET_STATISTICS=>'YES',
+        DETAILED_INFO=>'ALL'
+      )) X
+
+  system_activity:
+    source: ibmi-system
+    description: "System activity metrics"
+    parameters: []
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_ACTIVITY_INFO())
+
+  http_server:
+    source: ibmi-system
+    description: "HTTP server performance metrics"
+    parameters: []
+    statement: |
+      SELECT SERVER_NAME CONCAT '_' CONCAT REPLACE(HTTP_FUNCTION, ' ','_') as SERVER_FUNC,
+             SERVER_NORMAL_CONNECTIONS, SERVER_SSL_CONNECTIONS, SERVER_ACTIVE_THREADS,
+             SERVER_IDLE_THREADS, SERVER_TOTAL_REQUESTS, SERVER_TOTAL_REQUESTS_REJECTED,
+             SERVER_TOTAL_RESPONSES, REQUESTS, RESPONSES, NONCACHE_RESPONSES,
+             BYTES_RECEIVED, BYTES_SENT, NONCACHE_PROCESSING_TIME, CACHE_PROCESSING_TIME
+      FROM QSYS2.HTTP_SERVER_INFO
+
+  remote_connections:
+    source: ibmi-system
+    description: "Established remote connections"
+    parameters: []
+    statement: |
+      SELECT COUNT(REMOTE_ADDRESS) as REMOTE_CONNECTIONS
+      FROM QSYS2.NETSTAT_INFO
+      WHERE TCP_STATE = 'ESTABLISHED'
+        AND REMOTE_ADDRESS != '::1'
+        AND REMOTE_ADDRESS != '127.0.0.1'
+
+toolsets:
+  system_monitoring:
+    description: "System monitoring tools"
+    tools:
+      - system_status
+      - system_activity
+      - http_server
+      - remote_connections
+```
+
+## 1) Load the monitoring tools
+
+```bash
+TOOLS_YAML_PATH=prebuiltconfigs
+
+npm run build
+npm run start:http   # or start:stdio
+```
+
+Optional validation:
+
+```bash
+npm run validate -- --tools-dir prebuiltconfigs
+```
+
+## 2) Verify with MCP Inspector
+
+```bash
+npm run inspector
+```
+
+Run these tools with `{}` to confirm results:
+
+- system_status — Overall health snapshot
+- system_activity — Detailed activity metrics
+- http_server — HTTP server performance stats
+- remote_connections — Count of established remote connections
+
+Optional (HTTP JSON‑RPC example):
+
+```bash
+curl -sS -X POST http://127.0.0.1:3010/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "system_status", "arguments": {} }
+  }'
+```
+
+## 3) Run an example agent
+
+Use the test agent to generate a monitoring summary.
+
+```bash
+cd tests/agents
+uv run agent.py -p "Provide a system health summary using system_status, system_activity, http_server, and remote_connections"
+```
+
+Tips
+- Ask the agent to highlight trends or anomalies in CPU, memory, and connections.
+- Use `list_tool_annotations.py` to see tool descriptions and parameters.
+
+## 4) Extend
+
+- Schedule periodic calls (external scheduler) and persist summaries
+- Add thresholds and basic alerting inside your agent logic
+- Combine with `memory_pools` and temp storage tools for deeper analysis

@@ -1,0 +1,443 @@
+---
+title: "Server Architecture"
+description: "Deep dive into the IBM i MCP Server's architectural patterns, design principles, and the unique 'Logic Throws, Handler Catches' pattern."
+---
+
+# Server Architecture
+
+The IBM i MCP Server is built on a foundation of architectural principles designed to ensure modularity, testability, and operational clarity. Understanding these patterns will help you extend the system effectively and maintain code quality.
+
+## Core Architectural Principles
+
+### 1. The "Logic Throws, Handler Catches" Pattern
+
+This is the immutable cornerstone of the server's error-handling and control-flow strategy.
+
+<Tabs>
+<Tab title="Logic Layer">
+**Location**: `logic.ts` files
+
+The logic layer is responsible for pure, self-contained business logic execution:
+
+- Pure functions: stateless operations that take input and produce output
+- Error handling: throws structured `McpError` on any operational failure  
+- No side effects: no direct interaction with transport layers or response formatting
+- Input validation: uses Zod schemas for type-safe parameter validation
+
+```typescript
+// Example: echoTool/logic.ts
+export async function echoToolLogic(
+  params: EchoToolInput,
+  context: RequestContext,
+): Promise<EchoToolResponse> {
+  // Pure business logic
+  if (params.message === "fail") {
+    throw new McpError(
+      JsonRpcErrorCode.ValidationError,
+      "Deliberate failure triggered",
+    );
+  }
+  
+  // Process and return result
+  return { processedMessage: params.message.toUpperCase() };
+}
+```
+</Tab>
+
+<Tab title="Handler Layer">
+**Location**: `registration.ts` files
+
+The handler layer interfaces with the MCP transport and manages the complete request lifecycle:
+
+- Transport integration: connects logic to MCP server infrastructure
+- Error management: catches all errors from logic layer using try/catch
+- Response formatting: formats both success and error responses
+- Context management: creates and manages request contexts
+
+```typescript
+// Example: echoTool/registration.ts
+export const registerEchoTool = async (server: McpServer) => {
+  server.registerTool(
+    "echo_message",
+    { /* tool metadata */ },
+    async (params: EchoToolInput, callContext) => {
+      const context = requestContextService.createRequestContext({
+        operation: "echo",
+      });
+      try {
+        // 1. Invoke logic within try block
+        const result = await echoToolLogic(params, context);
+        
+        // 2. Format success response
+        return {
+          structuredContent: result,
+          content: [{ type: "text", text: JSON.stringify(result) }],
+        };
+      } catch (error) {
+        // 3. Catch and process errors
+        const mcpError = ErrorHandler.handleError(error, context);
+        
+        // 4. Format error response
+        return {
+          isError: true,
+          content: [{ type: "text", text: mcpError.message }],
+          structuredContent: {
+            code: mcpError.code,
+            message: mcpError.message,
+            details: mcpError.details,
+          },
+        };
+      }
+    },
+  );
+};
+```
+</Tab>
+</Tabs>
+
+<Note>
+This pattern ensures that business logic remains pure and testable while transport concerns are handled separately. Logic never contains try/catch blocks for response formatting.
+</Note>
+
+### 2. Structured, Traceable Operations
+
+Every operation is fully traceable through structured logging and context propagation.
+
+<CardGroup cols={2}>
+  <Card title="RequestContext" icon="fingerprint">
+    **Unique operation tracking**
+    
+    Each operation gets a `RequestContext` with a unique `requestId` that flows through the entire call stack.
+    
+    ```typescript
+    const context = requestContextService.createRequestContext({
+      operation: "HandleToolRequest",
+      toolName: "system_status",
+    });
+    ```
+  </Card>
+  
+  <Card title="Structured Logging" icon="list">
+    **Centralized logging**
+    
+    All logging flows through a centralized logger that includes the `RequestContext` for complete traceability.
+    
+    ```typescript
+    logger.info({ ...context, toolInput: params }, "Processing request");
+    ```
+  </Card>
+</CardGroup>
+
+### 3. Application Lifecycle
+
+Understanding the complete operational flow from server startup to tool execution:
+
+<Steps>
+<Step title="Server Startup (Once)">
+**Entry Point**: `src/index.ts`
+
+1. Initialize logger and telemetry
+2. Parse CLI overrides and environment
+3. Call `initializeAndStartServer()` from `server.ts`
+4. Establish global process listeners for graceful shutdown
+
+**Server orchestration**: `src/mcp-server/server.ts`
+
+1. Create core `McpServer` instance from SDK
+2. Import and register all resources and tools (including YAML tools)
+3. Start selected transport (stdio or HTTP)
+</Step>
+
+<Step title="Transport Connection">
+**Transport selection**: based on `MCP_TRANSPORT_TYPE`
+
+- Stdio: direct process communication for development
+- HTTP: Hono-based streamable server for production
+</Step>
+
+<Step title="Tool Execution (Per Request)">
+**Request flow**: for each incoming tool call
+
+1. Transport layer: receives and parses MCP request
+2. Server core: validates against registered input schema
+3. Handler execution: invokes the runtime handler function
+4. Logic execution: handler calls pure business logic
+5. Response formatting: success/error response creation
+6. Transport response: final response sent to client
+</Step>
+</Steps>
+
+## Transport Layer Architecture
+
+<Tabs>
+<Tab title="STDIO Transport">
+**Use Case**: development, testing, CLI agents
+
+```typescript
+// Direct process communication
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+**Characteristics**
+- Process-level security model  
+- No network overhead  
+- Ideal for desktop AI applications  
+- Synchronous request/response model
+</Tab>
+
+<Tab title="HTTP Transport">
+**Use Case**: production deployments, web applications
+
+```typescript
+// Hono-based streamable server (simplified)
+const app = new Hono();
+app.post('/mcp', async (c) => { /* ... */ });
+```
+
+**Characteristics**
+- JSON-RPC over HTTP (streamable)  
+- Authentication and authorization support (JWT/OAuth)  
+- CORS configuration for web clients  
+- Optional stateful sessions  
+- Server-Sent Events for streaming responses
+</Tab>
+</Tabs>
+
+## Tool Architecture
+
+Tools follow a strict three-file pattern that enforces separation of concerns:
+
+<CardGroup cols={3}>
+  <Card title="index.ts" icon="export">
+    **Barrel export**
+    
+    Simple re-export of the registration function. No other logic.
+    
+    ```typescript
+    export { registerEchoTool } from "./registration.js";
+    ```
+  </Card>
+  
+  <Card title="logic.ts" icon="gear">
+    **Business logic**
+    
+    - Zod schemas and TypeScript types
+    - Pure business logic functions
+    - Structured error throwing
+    
+    ```typescript
+    export const EchoInputSchema = z.object({
+      message: z.string(),
+    });
+    
+    export async function echoLogic(params, context) {
+      // Pure logic here
+    }
+    ```
+  </Card>
+  
+  <Card title="registration.ts" icon="server">
+    **MCP integration**
+    
+    - Tool registration with server
+    - Request/response handling
+    - Error catching and formatting
+    
+    ```typescript
+    export const registerEchoTool = (server) => {
+      server.registerTool(/* config */);
+    };
+    ```
+  </Card>
+</CardGroup>
+
+## SQL Tools System Architecture
+
+The server supports two types of SQL tools with different architectural patterns:
+
+### Dynamic SQL Tools
+
+<Tabs>
+<Tab title="execute_sql Tool">
+**Runtime SQL execution**
+
+```typescript
+const params = {
+  sql: "SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS()) FETCH FIRST 10 ROWS ONLY",
+};
+
+// Security restrictions applied
+const restrictedKeywords = ["DROP", "DELETE", "TRUNCATE"];
+```
+
+**Architecture**
+- Input validation with Zod schemas  
+- SQL keyword restriction enforcement  
+- Connection pool management  
+- Result set formatting
+</Tab>
+
+<Tab title="generate_sql Tool">
+**AI-assisted SQL generation**
+
+```typescript
+const params = {
+  description: "Show me active jobs using high CPU",
+  target_schema: "QSYS2",
+};
+
+const generatedSQL = await generateSQL(description);
+```
+
+**Architecture**
+- OpenRouter API integration  
+- Context-aware SQL generation  
+- IBM i specific system table knowledge  
+- Generated SQL validation before execution
+</Tab>
+</Tabs>
+
+### YAML-Configured Tools
+
+**Configuration-driven approach**
+
+```yaml
+# prebuiltconfigs/system-monitoring.yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Real-time system performance metrics"
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(
+        RESET_STATISTICS=>'YES'
+      )) X
+
+toolsets:
+  monitoring:
+    tools: [system_status]
+```
+
+**Processing Architecture**
+1. YAML Parser: loads and validates configuration files
+2. Template/parameter processor: handles parameter binding
+3. Tool generator: creates MCP tools from YAML definitions
+4. Registration: automatically registers generated tools with server
+
+## Error Handling Architecture
+
+### Structured Error System
+
+```typescript
+export enum JsonRpcErrorCode {
+  ValidationError = -32007,
+  InternalError = -32603,
+  // ...
+}
+
+export class McpError extends Error {
+  constructor(
+    public code: JsonRpcErrorCode,
+    message: string,
+    public details?: Record<string, unknown>,
+  ) {
+    super(message);
+  }
+}
+```
+
+### Error Flow Pattern
+
+<Steps>
+<Step title="Logic layer error">
+Business logic throws structured `McpError`:
+
+```typescript
+throw new McpError(
+  JsonRpcErrorCode.ValidationError,
+  "Invalid SQL statement contains restricted keywords",
+  { restrictedKeywords: ["DROP", "DELETE"] },
+);
+```
+</Step>
+
+<Step title="Handler layer catch">
+Registration layer catches and processes:
+
+```typescript
+catch (error) {
+  const mcpError = ErrorHandler.handleError(error, {
+    operation: `tool:${TOOL_NAME}`,
+    context: handlerContext,
+    input: params,
+  });
+  
+  return {
+    isError: true,
+    content: [{ type: "text", text: mcpError.message }],
+    structuredContent: {
+      code: mcpError.code,
+      message: mcpError.message,
+      details: mcpError.details,
+    },
+  };
+}
+```
+</Step>
+
+<Step title="Centralized logging">
+ErrorHandler ensures consistent logging:
+
+```typescript
+logger.error(
+  {
+    ...context,
+    error: mcpError.code,
+    message: mcpError.message,
+    details: mcpError.details,
+  },
+  "Tool execution failed",
+);
+```
+</Step>
+</Steps>
+
+## Performance and Observability
+
+### Built-in Metrics & Tracing
+
+<CardGroup cols={2}>
+  <Card title="Execution Tracking" icon="stopwatch">
+    **Automatic performance measurement**
+    
+    Every tool call is automatically timed and logged.
+  </Card>
+  
+  <Card title="Distributed Tracing" icon="route">
+    **OpenTelemetry integration**
+    
+    Spans are emitted for core operations (startup, tool execution, DB calls) and can be exported.
+  </Card>
+</CardGroup>
+
+## Security Considerations
+
+- HTTP auth modes: `none`, `jwt`, or `oauth`
+- JWT requires `MCP_AUTH_SECRET_KEY`
+- OAuth requires issuer/audience configuration
+- Input sanitization and validation on all tool calls
+- Rate limiting keyed by client identity or IP
+- `execute_sql` safety: restricted keywords, max query length
+
+## Extensibility & Deployment
+
+- Add YAML tools: drop new YAML in `TOOLS_YAML_PATH`
+- Add TypeScript tools: register under `src/mcp-server/tools`
+- Use stdio for local dev; use HTTP + auth for services
+- Containerize with env-driven configuration and mounted YAML directories

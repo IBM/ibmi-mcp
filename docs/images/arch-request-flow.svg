@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="200" viewBox="0 0 560 200" role="img" aria-label="Request Flow">
+  <style>
+    .box{fill:#f5f7fa;stroke:#5b6b7a;stroke-width:1.2;rx:6;ry:6}
+    .arrow{stroke:#5b6b7a;stroke-width:1.4;marker-end:url(#a)}
+    .label{font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:12px;fill:#2d3748}
+  </style>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5b6b7a"/>
+    </marker>
+  </defs>
+  <rect class="box" x="20" y="20" width="140" height="50"/>
+  <text class="label" x="90" y="45" text-anchor="middle">Client</text>
+  <text class="label" x="90" y="61" text-anchor="middle">(JSON-RPC tools/call)</text>
+
+  <rect class="box" x="210" y="20" width="140" height="50"/>
+  <text class="label" x="280" y="45" text-anchor="middle">HTTP (Hono)</text>
+  <text class="label" x="280" y="61" text-anchor="middle">(auth, rate limit)</text>
+
+  <rect class="box" x="400" y="20" width="140" height="50"/>
+  <text class="label" x="470" y="45" text-anchor="middle">Transport Manager</text>
+
+  <rect class="box" x="110" y="110" width="140" height="50"/>
+  <text class="label" x="180" y="135" text-anchor="middle">MCP Server</text>
+
+  <rect class="box" x="310" y="110" width="140" height="50"/>
+  <text class="label" x="380" y="135" text-anchor="middle">Mapepire Pool</text>
+
+  <line class="arrow" x1="160" y1="45" x2="210" y2="45"/>
+  <line class="arrow" x1="350" y1="45" x2="400" y2="45"/>
+  <line class="arrow" x1="470" y1="70" x2="470" y2="110"/>
+  <line class="arrow" x1="250" y1="135" x2="310" y2="135"/>
+  <line class="arrow" x1="380" y1="160" x2="380" y2="180"/>
+</svg>

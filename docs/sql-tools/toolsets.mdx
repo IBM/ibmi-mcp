@@ -1,0 +1,122 @@
+---
+title: "Toolsets Configuration"
+description: "Define logical groupings of tools with titles, descriptions, and metadata."
+---
+
+# Toolsets
+
+Toolsets group related tools for easier discovery and access control. A toolset lists tool names defined in the same YAML configuration (or merged configurations) and may include descriptive metadata.
+
+## Definition Structure
+
+```yaml
+toolsets:
+  set-name:
+    title: string         # Optional: Human-readable title
+    description: string   # Optional: Summary of the toolset
+    tools: string[]       # Required: Names of tools in this set
+    metadata: object      # Optional: Arbitrary key/value metadata
+```
+
+## Required Field
+
+<ParamField path="tools" type="array" required>
+  **List of tool names**
+  
+  The `tools` array must contain one or more tool names that are defined under the `tools` section.
+  
+  ```yaml
+  toolsets:
+    performance:
+      tools:
+        - system_status
+        - system_activity
+        - active_job_info
+  ```
+</ParamField>
+
+## Optional Fields
+
+<ParamField path="title" type="string">
+  **Toolset title**
+  
+  Human-friendly name shown in UI or listings.
+  
+  ```yaml
+  title: "Sys Admin Discovery"
+  ```
+</ParamField>
+
+<ParamField path="description" type="string">
+  **Toolset description**
+  
+  Brief explanation of the scope or purpose of the set.
+  
+  ```yaml
+  description: "Performance monitoring and admin tools"
+  ```
+</ParamField>
+
+<ParamField path="metadata" type="object">
+  **Arbitrary metadata**
+  
+  Attach extra context consumers may use (e.g., display ordering, tags).
+  
+  ```yaml
+  metadata:
+    owner: platform-team
+    priority: high
+  ```
+</ParamField>
+
+## Example
+
+```yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Overall system performance statistics"
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS=>'YES',DETAILED_INFO=>'ALL')) X
+
+  system_activity:
+    source: ibmi-system
+    description: "Current system activity information"
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_ACTIVITY_INFO())
+
+  active_job_info:
+    source: ibmi-system
+    description: "Top CPU consumers in QUSRWRK/QSYSWRK"
+    parameters:
+      - name: limit
+        type: integer
+        default: 10
+    statement: |
+      SELECT CPU_TIME, A.* FROM 
+      TABLE(QSYS2.ACTIVE_JOB_INFO(SUBSYSTEM_LIST_FILTER => 'QUSRWRK,QSYSWRK')) A 
+      ORDER BY CPU_TIME DESC 
+      FETCH FIRST ? ROWS ONLY
+
+toolsets:
+  performance:
+    title: "Sys Admin Discovery"
+    description: "System performance and admin tools"
+    tools:
+      - system_status
+      - system_activity
+      - active_job_info
+```
+
+## Tips
+
+- Keep toolset names stable; tools can evolve inside sets without breaking consumers.
+- Use `title` and `description` to help human users understand sets in UIs.
+- Avoid very large sets; prefer focused groupings aligned to use cases.
+

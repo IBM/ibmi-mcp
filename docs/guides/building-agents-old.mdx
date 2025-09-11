@@ -1,0 +1,934 @@
+---
+title: "Building Agents with IBM i MCP Server"
+description: "Comprehensive guide to creating intelligent agents using AgentOS and FilteredMCPTools with real examples from the IBM i MCP Server codebase."
+---
+
+# Building Agents with IBM i MCP Server
+
+The IBM i MCP Server includes a sophisticated agent framework built on **AgentOS (agno)** with **FilteredMCPTools** for creating specialized agents that focus on specific IBM i administration tasks. This guide walks through building agents using the actual patterns and tools from the codebase.
+
+<Info>
+AgentOS provides a multi-agent operating system where each agent can be specialized for different toolsets (performance, sysadmin, custom domains) and accessed through a unified web interface at http://localhost:7777.
+</Info>
+
+## Real Agent Architecture
+
+The IBM i MCP Server uses a proven architecture based on **AgentOS** and **FilteredMCPTools**:
+
+<CardGroup cols={2}>
+  <Card title="Specialized Agents" icon="cogs">
+    **Domain-Focused Expertise**
+    
+    - Performance monitoring agents (system metrics, job analysis)
+    - Sysadmin agents (discovery, browse, search)
+    - Custom domain agents (your business logic)
+    - Multi-agent orchestration
+  </Card>
+  
+  <Card title="FilteredMCPTools Integration" icon="filter">
+    **Toolset-Based Filtering**
+    
+    - Annotation-based tool filtering
+    - MCP standard compliance (readOnlyHint, etc.)
+    - Toolset organization (performance, sysadmin_*)
+    - Custom filtering with callable functions
+  </Card>
+</CardGroup>
+
+### Core Components
+
+<Tabs>
+<Tab title="AgentOS Framework">
+**Multi-Agent Operating System**
+
+```python
+from agno.os import AgentOS
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+
+# Create specialized agents
+agent_os = AgentOS(
+    os_id="ibmi-multi-agent-os",
+    description="IBM i Multi-Agent System with Specialized Toolsets",
+    agents=[
+        performance_agent,
+        discovery_agent,
+        browse_agent,
+        search_agent
+    ]
+)
+
+# Serve on port 7777
+agent_os.serve(app="multi_agent_os:app", reload=True)
+```
+</Tab>
+
+<Tab title="FilteredMCPTools">
+**Toolset-Based Tool Access**
+
+```python
+from tools.filtered_mcp_tools import FilteredMCPTools
+
+# Performance monitoring tools only
+mcp_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp",
+    transport="streamable-http",
+    toolsets=["performance"]  # Filter by toolset
+)
+
+# Multiple toolsets
+multi_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp",
+    transport="streamable-http",
+    toolsets=["performance", "sysadmin_discovery"]
+)
+```
+</Tab>
+
+<Tab title="Agent Specialization">
+**Domain-Specific Instructions**
+
+```python
+performance_instructions = [
+    "You are a specialized IBM i performance monitoring assistant.",
+    "You have access to performance-related MCP tools only.",
+    "Focus on helping users monitor system performance, memory usage, and system activity.",
+    "Always explain what performance metrics you're checking and why.",
+    "Provide actionable insights based on the performance data you gather."
+]
+```
+</Tab>
+</Tabs>
+
+## Agent Development Framework
+
+### 1. Core Agent Structure
+
+Every successful agent follows this fundamental structure:
+
+<Tabs>
+<Tab title="Agent Core">
+**Base Agent Class**
+
+```typescript
+import { MCPClient } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+export abstract class IBMiAgent {
+  protected mcp: MCPClient;
+  protected config: AgentConfig;
+  protected isRunning: boolean = false;
+  
+  constructor(config: AgentConfig) {
+    this.config = config;
+    this.mcp = new MCPClient({
+      name: config.name,
+      version: config.version
+    }, {
+      capabilities: {
+        tools: {},
+        resources: {}
+      }
+    });
+  }
+  
+  async initialize(): Promise<void> {
+    const transport = new StdioClientTransport({
+      command: 'node',
+      args: ['/path/to/ibmi-mcp-server/dist/index.js'],
+      env: {
+        ...process.env,
+        ...this.config.environment
+      }
+    });
+    
+    await this.mcp.connect(transport);
+    await this.onInitialize();
+  }
+  
+  protected abstract onInitialize(): Promise<void>;
+  protected abstract onTick(): Promise<void>;
+  
+  async start(): Promise<void> {
+    if (this.isRunning) return;
+    
+    await this.initialize();
+    this.isRunning = true;
+    
+    // Main agent loop
+    while (this.isRunning) {
+      try {
+        await this.onTick();
+        await this.sleep(this.config.tickInterval || 5000);
+      } catch (error) {
+        await this.handleError(error);
+      }
+    }
+  }
+  
+  async stop(): Promise<void> {
+    this.isRunning = false;
+    await this.mcp.close();
+  }
+  
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  protected async handleError(error: any): Promise<void> {
+    console.error(`Agent ${this.config.name} error:`, error);
+  }
+}
+```
+</Tab>
+
+<Tab title="Configuration">
+**Agent Configuration Interface**
+
+```typescript
+export interface AgentConfig {
+  name: string;
+  version: string;
+  tickInterval?: number;
+  environment: Record<string, string>;
+  thresholds?: Record<string, number>;
+  notifications?: NotificationConfig;
+  storage?: StorageConfig;
+}
+
+export interface NotificationConfig {
+  channels: Array<{
+    type: 'email' | 'slack' | 'webhook' | 'sms';
+    endpoint: string;
+    credentials?: Record<string, string>;
+  }>;
+  rules: Array<{
+    condition: string;
+    severity: 'info' | 'warning' | 'critical';
+    channels: string[];
+  }>;
+}
+```
+</Tab>
+
+<Tab title="Utilities">
+**Agent Helper Functions**
+
+```typescript
+export class AgentUtils {
+  static async executeSQL(mcp: MCPClient, sql: string) {
+    const result = await mcp.callTool("execute_sql", { sql });
+    if (result.isError) {
+      throw new Error(`SQL execution failed: ${result.content[0]?.text}`);
+    }
+    return result.structuredContent;
+  }
+  
+  static async getSystemStatus(mcp: MCPClient) {
+    const result = await mcp.callTool("system_status", {});
+    return result.structuredContent;
+  }
+  
+  static async evaluateThreshold(
+    current: number, 
+    threshold: number, 
+    comparison: 'gt' | 'lt' | 'eq'
+  ): Promise<boolean> {
+    switch (comparison) {
+      case 'gt': return current > threshold;
+      case 'lt': return current < threshold;
+      case 'eq': return current === threshold;
+      default: return false;
+    }
+  }
+}
+```
+</Tab>
+</Tabs>
+
+### 2. Agent Types and Examples
+
+## Monitoring Agent Example
+
+Let's build a comprehensive system monitoring agent:
+
+```typescript
+export class SystemMonitorAgent extends IBMiAgent {
+  private metrics: SystemMetrics = {};
+  private alerts: Alert[] = [];
+  
+  protected async onInitialize(): Promise<void> {
+    console.log(`🤖 System Monitor Agent ${this.config.name} starting...`);
+    
+    // Verify MCP server connectivity
+    const tools = await this.mcp.listTools();
+    console.log(`📊 Connected to MCP server with ${tools.tools.length} tools available`);
+    
+    // Initialize baseline metrics
+    await this.collectBaselineMetrics();
+  }
+  
+  protected async onTick(): Promise<void> {
+    await Promise.all([
+      this.monitorSystemHealth(),
+      this.monitorDiskSpace(),
+      this.monitorJobQueues(),
+      this.monitorUserActivity(),
+      this.checkDatabaseConnectivity()
+    ]);
+    
+    await this.processAlerts();
+    await this.generateHealthReport();
+  }
+  
+  private async monitorSystemHealth(): Promise<void> {
+    try {
+      const status = await AgentUtils.executeSQL(this.mcp, `
+        SELECT 
+          system_name,
+          cpu_utilization,
+          main_storage_size,
+          current_unprotected_used,
+          elapsed_time,
+          jobs_in_system,
+          batch_jobs_running
+        FROM QSYS2.SYSTEM_STATUS()
+      `);
+      
+      if (status.data && status.data.length > 0) {
+        const systemData = status.data[0];
+        this.metrics.cpuUtilization = systemData.CPU_UTILIZATION;
+        this.metrics.memoryUsage = (systemData.CURRENT_UNPROTECTED_USED / systemData.MAIN_STORAGE_SIZE) * 100;
+        this.metrics.totalJobs = systemData.JOBS_IN_SYSTEM;
+        this.metrics.batchJobs = systemData.BATCH_JOBS_RUNNING;
+        
+        // Check CPU threshold
+        if (await AgentUtils.evaluateThreshold(
+          this.metrics.cpuUtilization, 
+          this.config.thresholds?.cpu || 80, 
+          'gt'
+        )) {
+          this.createAlert('cpu_high', 'warning', 
+            `CPU utilization is ${this.metrics.cpuUtilization}%`
+          );
+        }
+        
+        // Check memory threshold  
+        if (await AgentUtils.evaluateThreshold(
+          this.metrics.memoryUsage,
+          this.config.thresholds?.memory || 85,
+          'gt'
+        )) {
+          this.createAlert('memory_high', 'critical',
+            `Memory usage is ${this.metrics.memoryUsage.toFixed(1)}%`
+          );
+        }
+      }
+    } catch (error) {
+      this.createAlert('system_check_failed', 'critical',
+        `System health check failed: ${error.message}`
+      );
+    }
+  }
+  
+  private async monitorDiskSpace(): Promise<void> {
+    try {
+      const diskStatus = await AgentUtils.executeSQL(this.mcp, `
+        SELECT 
+          asp_number,
+          resource_name,
+          asp_state,
+          total_capacity,
+          available_capacity,
+          storage_threshold_percentage
+        FROM QSYS2.ASP_INFO
+        WHERE asp_state = 'AVAILABLE'
+      `);
+      
+      for (const disk of diskStatus.data) {
+        const usedPercentage = ((disk.TOTAL_CAPACITY - disk.AVAILABLE_CAPACITY) / disk.TOTAL_CAPACITY) * 100;
+        
+        if (usedPercentage > (this.config.thresholds?.disk || 90)) {
+          this.createAlert('disk_space_low', 'critical',
+            `Disk ${disk.RESOURCE_NAME} is ${usedPercentage.toFixed(1)}% full`
+          );
+        }
+      }
+    } catch (error) {
+      this.createAlert('disk_check_failed', 'warning',
+        `Disk space check failed: ${error.message}`
+      );
+    }
+  }
+  
+  private async monitorJobQueues(): Promise<void> {
+    try {
+      const queueStatus = await AgentUtils.executeSQL(this.mcp, `
+        SELECT 
+          subsystem_name,
+          job_queue_name,
+          job_queue_status,
+          active_jobs,
+          maximum_active_jobs
+        FROM QSYS2.JOB_QUEUE_INFO
+        WHERE job_queue_status != 'RELEASED'
+      `);
+      
+      for (const queue of queueStatus.data) {
+        if (queue.JOB_QUEUE_STATUS === 'HELD') {
+          this.createAlert('job_queue_held', 'warning',
+            `Job queue ${queue.JOB_QUEUE_NAME} in ${queue.SUBSYSTEM_NAME} is held`
+          );
+        }
+        
+        const queueUtilization = (queue.ACTIVE_JOBS / queue.MAXIMUM_ACTIVE_JOBS) * 100;
+        if (queueUtilization > (this.config.thresholds?.job_queue || 95)) {
+          this.createAlert('job_queue_full', 'critical',
+            `Job queue ${queue.JOB_QUEUE_NAME} is ${queueUtilization.toFixed(1)}% utilized`
+          );
+        }
+      }
+    } catch (error) {
+      this.createAlert('job_queue_check_failed', 'warning',
+        `Job queue check failed: ${error.message}`
+      );
+    }
+  }
+  
+  private createAlert(type: string, severity: 'info' | 'warning' | 'critical', message: string): void {
+    const alert: Alert = {
+      id: `${type}-${Date.now()}`,
+      type,
+      severity,
+      message,
+      timestamp: new Date(),
+      resolved: false
+    };
+    
+    this.alerts.push(alert);
+    console.log(`🚨 Alert: [${severity.toUpperCase()}] ${message}`);
+  }
+  
+  private async processAlerts(): Promise<void> {
+    const unprocessedAlerts = this.alerts.filter(a => !a.processed);
+    
+    for (const alert of unprocessedAlerts) {
+      await this.sendNotification(alert);
+      alert.processed = true;
+    }
+  }
+  
+  private async sendNotification(alert: Alert): Promise<void> {
+    if (!this.config.notifications) return;
+    
+    for (const rule of this.config.notifications.rules) {
+      if (this.alertMatchesRule(alert, rule)) {
+        for (const channelName of rule.channels) {
+          const channel = this.config.notifications.channels.find(c => c.type === channelName);
+          if (channel) {
+            await this.sendToChannel(alert, channel);
+          }
+        }
+      }
+    }
+  }
+  
+  private alertMatchesRule(alert: Alert, rule: any): boolean {
+    return alert.severity === rule.severity || rule.condition === 'all';
+  }
+  
+  private async sendToChannel(alert: Alert, channel: any): Promise<void> {
+    switch (channel.type) {
+      case 'webhook':
+        await this.sendWebhook(alert, channel);
+        break;
+      case 'email':
+        await this.sendEmail(alert, channel);
+        break;
+      // Add other notification types as needed
+    }
+  }
+  
+  private async sendWebhook(alert: Alert, channel: any): Promise<void> {
+    try {
+      const response = await fetch(channel.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `🚨 IBM i Alert: ${alert.message}`,
+          severity: alert.severity,
+          timestamp: alert.timestamp,
+          system: this.config.name
+        })
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to send webhook: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error(`Webhook send error: ${error.message}`);
+    }
+  }
+}
+```
+
+## Analytics Agent Example
+
+A more sophisticated agent that performs predictive analytics:
+
+```typescript
+export class DatabaseAnalyticsAgent extends IBMiAgent {
+  private historicalData: Map<string, any[]> = new Map();
+  private predictions: Map<string, Prediction> = new Map();
+  
+  protected async onInitialize(): Promise<void> {
+    console.log(`📈 Database Analytics Agent ${this.config.name} starting...`);
+    await this.loadHistoricalData();
+  }
+  
+  protected async onTick(): Promise<void> {
+    await Promise.all([
+      this.analyzeGrowthTrends(),
+      this.detectAnomalies(),
+      this.generateInsights(),
+      this.optimizeQueries()
+    ]);
+  }
+  
+  private async analyzeGrowthTrends(): Promise<void> {
+    try {
+      // Analyze table growth patterns
+      const tableGrowth = await AgentUtils.executeSQL(this.mcp, `
+        WITH table_sizes AS (
+          SELECT 
+            table_schema,
+            table_name,
+            record_count,
+            data_size,
+            CURRENT_TIMESTAMP as measurement_time
+          FROM QSYS2.SYSTABLES
+          WHERE table_schema NOT LIKE 'Q%'
+            AND table_type = 'BASE TABLE'
+            AND record_count > 1000
+        )
+        SELECT * FROM table_sizes
+        ORDER BY data_size DESC
+        FETCH FIRST 50 ROWS ONLY
+      `);
+      
+      // Store current measurements
+      this.storeHistoricalData('table_growth', tableGrowth.data);
+      
+      // Analyze trends
+      await this.calculateGrowthTrends();
+      
+    } catch (error) {
+      console.error(`Growth analysis failed: ${error.message}`);
+    }
+  }
+  
+  private async detectAnomalies(): Promise<void> {
+    try {
+      // Detect unusual patterns in job execution
+      const jobAnalysis = await AgentUtils.executeSQL(this.mcp, `
+        WITH job_stats AS (
+          SELECT 
+            DATE(job_start_timestamp) as job_date,
+            job_name,
+            COUNT(*) as execution_count,
+            AVG(CAST(cpu_time AS DECIMAL(15,3))) as avg_cpu_time,
+            MAX(CAST(cpu_time AS DECIMAL(15,3))) as max_cpu_time
+          FROM QSYS2.JOB_INFO
+          WHERE job_start_timestamp >= CURRENT_TIMESTAMP - 7 DAYS
+            AND job_type = 'BATCH'
+          GROUP BY DATE(job_start_timestamp), job_name
+        )
+        SELECT 
+          job_date,
+          job_name,
+          execution_count,
+          avg_cpu_time,
+          max_cpu_time,
+          CASE 
+            WHEN avg_cpu_time > (
+              SELECT AVG(avg_cpu_time) * 2 
+              FROM job_stats js2 
+              WHERE js2.job_name = job_stats.job_name
+            ) THEN 'HIGH_CPU_ANOMALY'
+            WHEN execution_count > (
+              SELECT AVG(execution_count) * 3
+              FROM job_stats js3
+              WHERE js3.job_name = job_stats.job_name
+            ) THEN 'HIGH_FREQUENCY_ANOMALY'
+            ELSE 'NORMAL'
+          END as anomaly_type
+        FROM job_stats
+        WHERE job_date = CURRENT_DATE
+        ORDER BY job_date DESC, avg_cpu_time DESC
+      `);
+      
+      // Process anomalies
+      const anomalies = jobAnalysis.data.filter(job => job.ANOMALY_TYPE !== 'NORMAL');
+      
+      for (const anomaly of anomalies) {
+        await this.handleAnomaly(anomaly);
+      }
+      
+    } catch (error) {
+      console.error(`Anomaly detection failed: ${error.message}`);
+    }
+  }
+  
+  private async generateInsights(): Promise<void> {
+    const insights: Insight[] = [];
+    
+    // Generate capacity planning insights
+    const capacityInsight = await this.analyzeCapacityNeeds();
+    if (capacityInsight) insights.push(capacityInsight);
+    
+    // Generate performance optimization insights
+    const performanceInsight = await this.identifyPerformanceOpportunities();
+    if (performanceInsight) insights.push(performanceInsight);
+    
+    // Generate cost optimization insights
+    const costInsight = await this.analyzeCostOptimization();
+    if (costInsight) insights.push(costInsight);
+    
+    // Store and report insights
+    for (const insight of insights) {
+      await this.reportInsight(insight);
+    }
+  }
+  
+  private async analyzeCapacityNeeds(): Promise<Insight | null> {
+    const growthData = this.historicalData.get('table_growth');
+    if (!growthData || growthData.length < 7) return null;
+    
+    // Simple linear regression for growth prediction
+    const recentGrowth = growthData.slice(-7);
+    const avgGrowthRate = this.calculateAverageGrowthRate(recentGrowth);
+    
+    if (avgGrowthRate > 10) { // 10% weekly growth
+      return {
+        type: 'capacity_planning',
+        severity: 'warning',
+        title: 'High Database Growth Detected',
+        description: `Database is growing at ${avgGrowthRate.toFixed(1)}% per week. Consider capacity planning.`,
+        recommendations: [
+          'Review data retention policies',
+          'Plan for storage expansion',
+          'Implement data archiving strategy'
+        ],
+        estimatedImpact: 'high'
+      };
+    }
+    
+    return null;
+  }
+  
+  private async identifyPerformanceOpportunities(): Promise<Insight | null> {
+    try {
+      const slowQueries = await AgentUtils.executeSQL(this.mcp, `
+        SELECT 
+          statement_text,
+          total_execution_time,
+          average_execution_time,
+          number_of_executions,
+          statement_text
+        FROM QSYS2.SYSPROGRAMSTMTS
+        WHERE average_execution_time > 1000  -- More than 1 second
+          AND number_of_executions > 10      -- Executed multiple times
+        ORDER BY total_execution_time DESC
+        FETCH FIRST 10 ROWS ONLY
+      `);
+      
+      if (slowQueries.data.length > 0) {
+        return {
+          type: 'performance_optimization',
+          severity: 'info',
+          title: 'Slow Query Patterns Detected',
+          description: `Found ${slowQueries.data.length} query patterns that could benefit from optimization.`,
+          recommendations: [
+            'Review and optimize slow-running queries',
+            'Consider adding appropriate indexes',
+            'Analyze query execution plans'
+          ],
+          estimatedImpact: 'medium',
+          data: slowQueries.data
+        };
+      }
+      
+    } catch (error) {
+      console.error(`Performance analysis failed: ${error.message}`);
+    }
+    
+    return null;
+  }
+  
+  private calculateAverageGrowthRate(data: any[]): number {
+    if (data.length < 2) return 0;
+    
+    let totalGrowth = 0;
+    for (let i = 1; i < data.length; i++) {
+      const current = data[i].DATA_SIZE;
+      const previous = data[i-1].DATA_SIZE;
+      if (previous > 0) {
+        totalGrowth += ((current - previous) / previous) * 100;
+      }
+    }
+    
+    return totalGrowth / (data.length - 1);
+  }
+}
+```
+
+## Agent Configuration Examples
+
+### Production Monitoring Configuration
+
+```yaml
+# agent-config.yaml
+name: "production-monitor"
+version: "1.2.0"
+tickInterval: 30000  # 30 seconds
+
+environment:
+  DB2i_HOST: "${PROD_HOST}"
+  DB2i_USER: "${MONITOR_USER}"
+  DB2i_PASS: "${MONITOR_PASSWORD}"
+  MCP_HTTP_PORT: "3010"
+
+thresholds:
+  cpu: 75
+  memory: 80
+  disk: 85
+  job_queue: 90
+  
+notifications:
+  channels:
+    - type: "slack"
+      endpoint: "${SLACK_WEBHOOK_URL}"
+    - type: "email"
+      endpoint: "smtp://alerts@company.com"
+      credentials:
+        smtp_host: "${SMTP_HOST}"
+        smtp_user: "${SMTP_USER}"
+        smtp_pass: "${SMTP_PASS}"
+        
+  rules:
+    - condition: "severity == 'critical'"
+      channels: ["slack", "email"]
+    - condition: "severity == 'warning'"  
+      channels: ["slack"]
+    - condition: "type == 'disk_space_low'"
+      channels: ["email"]
+```
+
+### Development & Testing
+
+```typescript
+// dev-agent.ts - Simple development agent
+export class DevMonitorAgent extends IBMiAgent {
+  protected async onInitialize(): Promise<void> {
+    console.log(`🛠️  Development Monitor starting...`);
+  }
+  
+  protected async onTick(): Promise<void> {
+    // Simplified monitoring for development
+    const status = await AgentUtils.executeSQL(this.mcp, 
+      "SELECT cpu_utilization, jobs_in_system FROM QSYS2.SYSTEM_STATUS()"
+    );
+    
+    console.log(`📊 CPU: ${status.data[0].CPU_UTILIZATION}%, Jobs: ${status.data[0].JOBS_IN_SYSTEM}`);
+    
+    // Check for development-specific conditions
+    if (status.data[0].CPU_UTILIZATION > 90) {
+      console.log(`⚠️  High CPU usage detected in development environment`);
+    }
+  }
+}
+
+// Usage
+const agent = new DevMonitorAgent({
+  name: "dev-monitor",
+  version: "0.1.0",
+  tickInterval: 10000,
+  environment: {
+    DB2i_HOST: "dev-system",
+    DB2i_USER: "devuser",
+    DB2i_PASS: "devpass"
+  }
+});
+
+agent.start();
+```
+
+## Advanced Agent Patterns
+
+### Multi-Agent Coordination
+
+```typescript
+export class AgentOrchestrator {
+  private agents: Map<string, IBMiAgent> = new Map();
+  private messageQueue: AgentMessage[] = [];
+  
+  async addAgent(id: string, agent: IBMiAgent): Promise<void> {
+    this.agents.set(id, agent);
+    await agent.initialize();
+  }
+  
+  async broadcastMessage(message: AgentMessage): Promise<void> {
+    this.messageQueue.push(message);
+    
+    for (const [id, agent] of this.agents) {
+      if (id !== message.sender) {
+        await agent.handleMessage?.(message);
+      }
+    }
+  }
+  
+  async startAll(): Promise<void> {
+    const startPromises = Array.from(this.agents.values()).map(agent => agent.start());
+    await Promise.all(startPromises);
+  }
+}
+
+// Usage
+const orchestrator = new AgentOrchestrator();
+await orchestrator.addAgent('monitor', new SystemMonitorAgent(monitorConfig));
+await orchestrator.addAgent('analytics', new DatabaseAnalyticsAgent(analyticsConfig));
+await orchestrator.startAll();
+```
+
+### Event-Driven Architecture
+
+```typescript
+export class EventDrivenAgent extends IBMiAgent {
+  private eventHandlers: Map<string, EventHandler[]> = new Map();
+  
+  onEvent(eventType: string, handler: EventHandler): void {
+    const handlers = this.eventHandlers.get(eventType) || [];
+    handlers.push(handler);
+    this.eventHandlers.set(eventType, handlers);
+  }
+  
+  async emitEvent(event: AgentEvent): Promise<void> {
+    const handlers = this.eventHandlers.get(event.type) || [];
+    
+    for (const handler of handlers) {
+      try {
+        await handler(event);
+      } catch (error) {
+        console.error(`Event handler error: ${error.message}`);
+      }
+    }
+  }
+  
+  protected async onTick(): Promise<void> {
+    // Monitor for events
+    const systemStatus = await this.checkSystemStatus();
+    
+    if (systemStatus.cpuHigh) {
+      await this.emitEvent({
+        type: 'cpu_threshold_exceeded',
+        data: systemStatus,
+        timestamp: new Date()
+      });
+    }
+    
+    if (systemStatus.memoryLow) {
+      await this.emitEvent({
+        type: 'memory_warning',
+        data: systemStatus,
+        timestamp: new Date()
+      });
+    }
+  }
+}
+```
+
+## Deployment and Operations
+
+### Docker Deployment
+
+```dockerfile
+# Dockerfile for agent deployment
+FROM node:18-slim
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy agent source
+COPY src/ ./src/
+COPY dist/ ./dist/
+
+# Set up entrypoint
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+# Environment configuration
+ENV NODE_ENV=production
+ENV MCP_SERVER_PATH="/app/dist/index.js"
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["agent"]
+```
+
+```bash
+#!/bin/bash
+# entrypoint.sh
+set -e
+
+case "$1" in
+  agent)
+    echo "Starting IBM i Agent..."
+    node dist/agent.js
+    ;;
+  monitor)
+    echo "Starting System Monitor Agent..."
+    node dist/monitor-agent.js
+    ;;
+  analytics)
+    echo "Starting Analytics Agent..."
+    node dist/analytics-agent.js
+    ;;
+  *)
+    echo "Unknown command: $1"
+    exit 1
+    ;;
+esac
+```
+
+### Production Monitoring
+
+```typescript
+// Add health check endpoint to your agents
+export class HealthCheckMixin {
+  private healthStatus: HealthStatus = {
+    status: 'healthy',
+    lastCheck: new Date(),
+    errors: []
+  };
+  
+  async getHealth(): Promise<HealthStatus> {
+    return this.healthStatus;
+  }
+  
+  protected updateHealthStatus(status: 'healthy' | 'degraded' | 'unhealthy', error?: Error): void {
+    this.healthStatus = {
+      status,
+      lastCheck: new Date(),
+      errors: error ? [error.message] : []
+    };
+  }
+}
+```
+
+---
+
+<Info>
+Building effective agents requires understanding both IBM i system behavior and modern AI/automation patterns. Start with simple monitoring agents and gradually add sophistication as you learn the system dynamics.
+</Info>

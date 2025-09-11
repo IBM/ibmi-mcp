@@ -1,0 +1,87 @@
+---
+title: "SQL Tools Overview"
+description: "How YAML-configured SQL tools work: sources, tools, and toolsets — with concise examples and links to deep dives."
+---
+
+# SQL Tools Overview
+
+SQL tools are defined in YAML files and loaded at startup (or when configured). The YAML has three sections:
+
+- sources: named IBM i database connections
+- tools: reusable SQL operations that reference a source
+- toolsets: logical groupings of related tools
+
+This page gives a quick outline and examples. See the linked pages for deep dives with full schema details.
+
+## Sources (connections)
+
+Define IBM i connections that tools can reference by name.
+
+```yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076                  # optional
+    ignore-unauthorized: true   # optional
+```
+
+- Required fields: `host`, `user`, `password`
+- Optional: `port` (number), `ignore-unauthorized` (boolean)
+
+Learn more: /sql-tools/sources
+
+## Tools (SQL operations)
+
+Define reusable queries with optional parameters and validation.
+
+```yaml
+tools:
+  active_job_info:
+    source: ibmi-system
+    description: "Top CPU consumers in QUSRWRK/QSYSWRK"
+    parameters:
+      - name: limit
+        type: integer
+        default: 10
+        description: "Number of top CPU consumers"
+    statement: |
+      SELECT CPU_TIME, A.* FROM 
+      TABLE(QSYS2.ACTIVE_JOB_INFO(SUBSYSTEM_LIST_FILTER => 'QUSRWRK,QSYSWRK')) A 
+      ORDER BY CPU_TIME DESC 
+      FETCH FIRST ? ROWS ONLY
+```
+
+- Required fields: `source`, `description`, `statement`
+- Optional: `parameters[]`, `domain`, `category`, `metadata`, and tool annotation hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`)
+- Parameters support `type`: `string`, `number`, `boolean`, `integer` with constraints: `default`, `required`, `min`, `max`, `minLength`, `maxLength`, `enum`, `pattern`
+
+Learn more: /sql-tools/tools
+
+## Toolsets (groupings)
+
+Group related tools under a named set for discovery and access control.
+
+```yaml
+toolsets:
+  performance:
+    title: "Sys Admin Discovery"
+    description: "System performance and admin tools"
+    tools:
+      - system_status
+      - system_activity
+      - active_job_info
+```
+
+- Required field: `tools` (array of tool names)
+- Optional: `title`, `description`, `metadata`
+
+Learn more: /sql-tools/toolsets
+
+---
+
+<Info>
+YAML files are validated against the runtime schemas at load time. Environment variables in the form `${VAR_NAME}` are interpolated before validation.
+</Info>
+

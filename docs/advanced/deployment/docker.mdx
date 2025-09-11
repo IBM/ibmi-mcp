@@ -1,0 +1,877 @@
+---
+title: "Docker Deployment"
+description: "Complete guide to deploying the IBM i MCP Server using Docker and Docker Compose with production-ready configurations and the MCP Context Forge gateway."
+---
+
+# Docker Deployment
+
+The IBM i MCP Server includes comprehensive Docker support for containerized deployments. This guide covers both standalone container deployment and the full-stack deployment with MCP Context Forge gateway for enterprise environments.
+
+## Docker Architecture Overview
+
+<Frame>
+<img src="/images/docker-architecture.svg" alt="IBM i MCP Server Docker Architecture" />
+</Frame>
+
+The Docker deployment includes several components that work together to provide a complete MCP gateway solution:
+
+<CardGroup cols={2}>
+  <Card title="IBM i MCP Server" icon="server">
+    **Core Container**
+    
+    The main MCP server container with IBM i SQL tools and database connectivity.
+  </Card>
+  
+  <Card title="MCP Context Forge Gateway" icon="gateway">
+    **Enterprise Gateway**
+    
+    Advanced gateway providing federation, authentication, rate limiting, and admin UI.
+  </Card>
+  
+  <Card title="Supporting Services" icon="database">
+    **Infrastructure**
+    
+    PostgreSQL, Redis, and optional monitoring services for complete deployment.
+  </Card>
+  
+  <Card title="Admin Interfaces" icon="chart-line">
+    **Management Tools**
+    
+    PgAdmin and Redis Insight for database and cache administration.
+  </Card>
+</CardGroup>
+
+## Quick Start with Docker
+
+### Prerequisites
+
+Choose your preferred container platform:
+
+<Tabs>
+<Tab title="Docker Desktop">
+**Recommended for**: Development on macOS/Windows
+
+- Download from [docker.com](https://www.docker.com/products/docker-desktop/)
+- Includes Docker Engine and Docker Compose
+- Built-in resource management and GUI
+</Tab>
+
+<Tab title="Docker Engine">
+**Recommended for**: Linux servers and production
+
+```bash
+# Ubuntu/Debian installation
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Add current user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Install Docker Compose
+sudo apt-get install docker-compose-plugin
+```
+</Tab>
+
+<Tab title="Podman">
+**Alternative**: Podman with Docker Compose compatibility
+
+```bash
+# Install Podman and podman-compose
+sudo apt-get install podman
+pip install podman-compose
+
+# Alias for Docker compatibility
+alias docker=podman
+alias docker-compose=podman-compose
+```
+</Tab>
+</Tabs>
+
+### Environment Setup
+
+<Steps>
+<Step title="Clone Repository">
+```bash
+git clone https://github.com/ajshedivy/ibmi-mcp-server.git
+cd ibmi-mcp-server
+```
+</Step>
+
+<Step title="Configure Environment">
+Create your environment configuration:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your IBM i connection details:
+
+```bash title=".env"
+# IBM i Database Connection
+DB2i_HOST=your-ibmi-hostname.company.com
+DB2i_USER=MCPUSER
+DB2i_PASS=secure_password_here
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=true
+
+# MCP Server Configuration
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_PORT=3010
+MCP_AUTH_MODE=jwt
+MCP_AUTH_SECRET_KEY=your-jwt-secret-key-minimum-32-characters-long
+
+# Tool Configuration
+TOOLS_YAML_PATH=prebuiltconfigs
+
+# Optional: Observability
+OTEL_ENABLED=false
+```
+</Step>
+
+<Step title="Start Services">
+Launch the complete stack:
+
+```bash
+# Start all services in background
+docker-compose up -d
+
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f ibmi-mcp-server
+```
+</Step>
+</Steps>
+
+## Service Components
+
+The Docker Compose configuration includes multiple services for a complete deployment:
+
+### Core Services
+
+<ParamField path="gateway" type="service">
+  **MCP Context Forge Gateway**
+  
+  - **Port**: 4444
+  - **Purpose**: Main gateway and admin interface
+  - **URL**: http://localhost:4444
+  
+  Features federation, authentication, rate limiting, and web UI for managing MCP servers.
+</ParamField>
+
+<ParamField path="ibmi-mcp-server" type="service">
+  **IBM i MCP Server**
+  
+  - **Port**: 3010 (internal)
+  - **Purpose**: IBM i database tools and SQL execution
+  - **Access**: Through gateway at http://localhost:4444
+  
+  The main server providing SQL tools for IBM i database operations.
+</ParamField>
+
+### Supporting Infrastructure
+
+<ParamField path="postgres" type="service">
+  **PostgreSQL Database**
+  
+  - **Port**: Internal only
+  - **Purpose**: Gateway configuration and session storage
+  - **Management**: Via PgAdmin on port 5050
+  
+  Stores gateway configuration, user sessions, and audit data.
+</ParamField>
+
+<ParamField path="redis" type="service">
+  **Redis Cache**
+  
+  - **Port**: 6379 (exposed)
+  - **Purpose**: Caching and rate limiting
+  - **Management**: Via Redis Insight on port 5540
+  
+  Provides caching for query results and rate limiting functionality.
+</ParamField>
+
+### Admin Interfaces
+
+<ParamField path="pgadmin" type="service">
+  **Database Administration**
+  
+  - **Port**: 5050
+  - **Purpose**: PostgreSQL management interface
+  - **Credentials**: admin@admin.com / changeme
+  
+  Web-based PostgreSQL administration tool.
+</ParamField>
+
+<ParamField path="redis_insight" type="service">
+  **Cache Administration**
+  
+  - **Port**: 5540
+  - **Purpose**: Redis monitoring and management
+  - **Setup**: Configure connection on first access
+  
+  Visual Redis management and monitoring tool.
+</ParamField>
+
+## Docker Compose Configuration
+
+### Complete Stack Configuration
+
+<CodeGroup>
+```yaml docker-compose.yml
+version: '3.8'
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+  # MCP Context Forge Gateway
+  gateway:
+    image: ibmcom/mcp-context-forge:latest
+    container_name: mcp-gateway
+    ports:
+      - "4444:4444"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/mcp_gateway
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-jwt-secret-for-gateway
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=changeme
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  # IBM i MCP Server
+  ibmi-mcp-server:
+    build: .
+    container_name: ibmi-mcp-server
+    environment:
+      - DB2i_HOST=${DB2i_HOST}
+      - DB2i_USER=${DB2i_USER}
+      - DB2i_PASS=${DB2i_PASS}
+      - DB2i_PORT=${DB2i_PORT:-8076}
+      - DB2i_IGNORE_UNAUTHORIZED=${DB2i_IGNORE_UNAUTHORIZED:-true}
+      - MCP_TRANSPORT_TYPE=http
+      - MCP_HTTP_PORT=3010
+      - MCP_HTTP_HOST=0.0.0.0
+      - MCP_AUTH_MODE=${MCP_AUTH_MODE:-jwt}
+      - MCP_AUTH_SECRET_KEY=${MCP_AUTH_SECRET_KEY}
+      - TOOLS_YAML_PATH=prebuiltconfigs
+      - MCP_LOG_LEVEL=info
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./prebuiltconfigs:/app/prebuiltconfigs:ro
+      - ./custom-configs:/app/custom-configs:ro
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: mcp-postgres
+    environment:
+      - POSTGRES_DB=mcp_gateway
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Database Admin UI
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: mcp-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=changeme
+    ports:
+      - "5050:80"
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  # Redis Admin UI  
+  redis_insight:
+    image: redislabs/redisinsight:latest
+    container_name: mcp-redis-insight
+    ports:
+      - "5540:8001"
+    networks:
+      - mcp-network
+    restart: unless-stopped
+```
+
+```dockerfile Dockerfile
+FROM node:20-alpine
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application code
+COPY dist/ ./dist/
+COPY prebuiltconfigs/ ./prebuiltconfigs/
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S mcpuser -u 1001
+RUN chown -R mcpuser:nodejs /app
+USER mcpuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3010/health || exit 1
+
+# Expose port
+EXPOSE 3010
+
+# Start application
+CMD ["node", "dist/index.js"]
+```
+</CodeGroup>
+
+### Development Configuration
+
+For development environments with hot reloading:
+
+```yaml title="docker-compose.dev.yml"
+version: '3.8'
+
+services:
+  ibmi-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - ./prebuiltconfigs:/app/prebuiltconfigs
+      - ./tsconfig.json:/app/tsconfig.json
+    environment:
+      - NODE_ENV=development
+      - MCP_LOG_LEVEL=debug
+    command: npm run dev
+```
+
+## Service Management
+
+### Starting and Stopping Services
+
+<Tabs>
+<Tab title="Complete Stack">
+```bash
+# Start all services
+docker-compose up -d
+
+# Stop all services  
+docker-compose down
+
+# Restart specific service
+docker-compose restart ibmi-mcp-server
+
+# View service status
+docker-compose ps
+```
+</Tab>
+
+<Tab title="Selective Services">
+```bash
+# Start only core services
+docker-compose up -d gateway ibmi-mcp-server postgres redis
+
+# Start without admin interfaces
+docker-compose up -d gateway ibmi-mcp-server postgres redis
+
+# Start only the MCP server
+docker-compose up -d ibmi-mcp-server
+```
+</Tab>
+
+<Tab title="Development Mode">
+```bash
+# Use development configuration
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# Follow logs for development
+docker-compose logs -f ibmi-mcp-server
+```
+</Tab>
+</Tabs>
+
+### Monitoring and Logs
+
+<Steps>
+<Step title="View Service Logs">
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f ibmi-mcp-server
+
+# Last 100 lines
+docker-compose logs --tail=100 gateway
+```
+</Step>
+
+<Step title="Service Health">
+```bash
+# Check service health
+docker-compose ps
+
+# Detailed container info
+docker inspect ibmi-mcp-server
+
+# Resource usage
+docker stats
+```
+</Step>
+
+<Step title="Debug Container Issues">
+```bash
+# Execute shell in container
+docker-compose exec ibmi-mcp-server sh
+
+# Check container filesystem
+docker-compose exec ibmi-mcp-server ls -la /app
+
+# View environment variables
+docker-compose exec ibmi-mcp-server env
+```
+</Step>
+</Steps>
+
+## Production Deployment
+
+### Security Hardening
+
+<AccordionGroup>
+<Accordion title="Secure Secrets Management">
+Use Docker secrets or external secret managers:
+
+```yaml
+# Using Docker secrets
+secrets:
+  db_password:
+    external: true
+  jwt_secret:
+    external: true
+
+services:
+  ibmi-mcp-server:
+    secrets:
+      - db_password
+      - jwt_secret
+    environment:
+      - DB2i_PASS_FILE=/run/secrets/db_password
+      - MCP_AUTH_SECRET_KEY_FILE=/run/secrets/jwt_secret
+```
+</Accordion>
+
+<Accordion title="Network Security">
+Implement proper network isolation:
+
+```yaml
+networks:
+  # Internal network for service communication
+  mcp-internal:
+    driver: bridge
+    internal: true
+  
+  # External network for public access
+  mcp-external:
+    driver: bridge
+
+services:
+  ibmi-mcp-server:
+    networks:
+      - mcp-internal
+      # No external network - access via gateway only
+  
+  gateway:
+    networks:
+      - mcp-internal
+      - mcp-external
+    ports:
+      - "443:4444"  # HTTPS only
+```
+</Accordion>
+
+<Accordion title="Resource Limits">
+Set appropriate resource constraints:
+
+```yaml
+services:
+  ibmi-mcp-server:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+</Accordion>
+</AccordionGroup>
+
+### Production Environment Variables
+
+```bash title=".env.production"
+# IBM i Connection (from secret manager)
+DB2i_HOST=prod-ibmi.company.com
+DB2i_USER=PROD_MCP_USER
+DB2i_PASS=${DB2I_PASSWORD_FROM_VAULT}
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=false
+
+# Server Configuration
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_HOST=0.0.0.0
+MCP_HTTP_PORT=3010
+MCP_AUTH_MODE=oauth
+OAUTH_ISSUER_URL=https://auth.company.com
+OAUTH_AUDIENCE=ibmi-mcp-server
+
+# Production Settings
+MCP_LOG_LEVEL=info
+NODE_ENV=production
+TOOLS_YAML_PATH=production-configs
+
+# Observability
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://traces.company.com/v1/traces
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://metrics.company.com/v1/metrics
+```
+
+### Reverse Proxy Configuration
+
+Use a reverse proxy for TLS termination and load balancing:
+
+<CodeGroup>
+```nginx nginx.conf
+upstream mcp_gateway {
+    server localhost:4444;
+}
+
+upstream mcp_server {
+    server localhost:3010;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name mcp.company.com;
+    
+    ssl_certificate /path/to/certificate.pem;
+    ssl_certificate_key /path/to/private-key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+    
+    # Gateway (main interface)
+    location / {
+        proxy_pass http://mcp_gateway;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Direct server access (if needed)
+    location /api/mcp/ {
+        proxy_pass http://mcp_server/mcp/;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+    }
+}
+```
+
+```yaml traefik.yml
+http:
+  routers:
+    mcp-gateway:
+      rule: "Host(`mcp.company.com`)"
+      tls:
+        certResolver: letsencrypt
+      service: mcp-gateway
+    
+    mcp-server:
+      rule: "Host(`mcp.company.com`) && PathPrefix(`/api/mcp`)"
+      tls:
+        certResolver: letsencrypt  
+      service: mcp-server
+
+  services:
+    mcp-gateway:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:4444"
+    
+    mcp-server:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:3010"
+```
+</CodeGroup>
+
+## MCP Context Forge Integration
+
+### Gateway Configuration
+
+The MCP Context Forge gateway provides enterprise features:
+
+<Steps>
+<Step title="Access Admin Interface">
+Navigate to the gateway admin interface:
+
+```
+URL: http://localhost:4444
+Username: admin  
+Password: changeme
+```
+</Step>
+
+<Step title="Register MCP Server">
+Add the IBM i MCP Server to the gateway:
+
+1. Go to "Gateways/MCP Servers" tab
+2. Click "Add Server"
+3. Enter server details:
+   - **Name**: IBM i MCP Server
+   - **Endpoint**: http://ibmi-mcp-server:3010
+   - **Authentication**: JWT or OAuth as configured
+</Step>
+
+<Step title="Configure Tools">
+The gateway automatically discovers and manages tools from the registered server, providing:
+
+- **Tool Federation**: Combine tools from multiple MCP servers
+- **Rate Limiting**: Control access frequency per client
+- **Authentication**: Centralized auth across all servers
+- **Monitoring**: Usage analytics and performance metrics
+</Step>
+</Steps>
+
+### Gateway Features
+
+<CardGroup cols={2}>
+  <Card title="Server Federation" icon="network-wired">
+    **Unified API Gateway**
+    
+    - Combine multiple MCP servers
+    - Unified tool discovery
+    - Load balancing across servers
+    - Failover and redundancy
+  </Card>
+  
+  <Card title="Enterprise Auth" icon="shield">
+    **Centralized Security**
+    
+    - OAuth 2.0 / JWT integration
+    - Role-based access control
+    - API key management
+    - Audit logging
+  </Card>
+  
+  <Card title="Rate Limiting" icon="gauge">
+    **Traffic Control**
+    
+    - Per-client rate limits
+    - Tool-specific limits
+    - Burst protection
+    - Usage analytics
+  </Card>
+  
+  <Card title="Admin Interface" icon="desktop">
+    **Management Dashboard**
+    
+    - Server management
+    - Tool configuration
+    - User administration
+    - Performance monitoring
+  </Card>
+</CardGroup>
+
+## Troubleshooting Docker Deployment
+
+<AccordionGroup>
+<Accordion title="Container Won't Start">
+**Check container logs**:
+
+```bash
+docker-compose logs ibmi-mcp-server
+
+# Common issues:
+# - Environment variable missing
+# - Port conflicts
+# - Build failures
+# - Volume mount issues
+```
+
+**Solutions**:
+- Verify all required environment variables are set
+- Check for port conflicts: `netstat -tulpn | grep :3010`
+- Rebuild containers: `docker-compose build --no-cache`
+- Check volume permissions and paths
+</Accordion>
+
+<Accordion title="IBM i Connection Issues">
+**Test connectivity from container**:
+
+```bash
+# Execute shell in container
+docker-compose exec ibmi-mcp-server sh
+
+# Test network connectivity
+ping ${DB2i_HOST}
+telnet ${DB2i_HOST} ${DB2i_PORT}
+```
+
+**Solutions**:
+- Verify IBM i host is accessible from container network
+- Check firewall rules between Docker host and IBM i
+- Confirm Mapepire daemon is running on IBM i
+- Validate credentials and user permissions
+</Accordion>
+
+<Accordion title="Service Communication Issues">
+**Check service networking**:
+
+```bash
+# List networks
+docker network ls
+
+# Inspect network
+docker network inspect ibmi-mcp-server_mcp-network
+
+# Test inter-service connectivity
+docker-compose exec gateway ping ibmi-mcp-server
+```
+
+**Solutions**:
+- Ensure all services are on the same Docker network
+- Check service names match configuration
+- Verify port mappings and internal ports
+- Review Docker Compose service dependencies
+</Accordion>
+</AccordionGroup>
+
+## Performance Optimization
+
+### Container Resource Tuning
+
+<Tabs>
+<Tab title="Memory Optimization">
+```yaml
+services:
+  ibmi-mcp-server:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=384  # 384MB heap
+```
+</Tab>
+
+<Tab title="CPU Optimization">
+```yaml
+services:
+  ibmi-mcp-server:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+        reservations:
+          cpus: '0.25'
+    environment:
+      - UV_THREADPOOL_SIZE=8  # Increase thread pool for I/O
+```
+</Tab>
+
+<Tab title="Connection Pool Tuning">
+```bash
+# Environment variables for connection optimization
+DB_POOL_MIN=2
+DB_POOL_MAX=10
+DB_POOL_IDLE_TIMEOUT=300000
+DB_CONNECTION_TIMEOUT=30000
+```
+</Tab>
+</Tabs>
+
+### Volume and Storage Optimization
+
+```yaml
+services:
+  ibmi-mcp-server:
+    volumes:
+      # Read-only configuration mounts
+      - ./prebuiltconfigs:/app/prebuiltconfigs:ro
+      - ./custom-configs:/app/custom-configs:ro
+      
+      # Persistent logs (if needed)
+      - ./logs:/app/logs
+      
+      # Temporary directory for large queries
+      - /tmp/mcp-temp:/tmp:rw
+
+volumes:
+  # Use named volumes for better performance
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp/postgres-data
+```
+
+---
+
+<Info>
+Docker deployment provides a production-ready platform for the IBM i MCP Server with enterprise features through MCP Context Forge. The containerized approach ensures consistent deployments across different environments while providing scalability and management capabilities.
+</Info>

@@ -1,0 +1,745 @@
+---
+title: "Tools Configuration"
+description: "Define individual SQL operations with parameters, validation, and documentation using the tools section of YAML configuration files."
+---
+
+# Tools Configuration
+
+Tools define individual SQL operations that AI agents can execute. Each tool specifies a SQL statement, parameter definitions, validation rules, and documentation to help AI agents understand when and how to use the tool effectively.
+
+## Tool Definition Structure
+
+Every tool in your YAML configuration follows this structure:
+
+```yaml
+tools:
+  tool-name:
+    source: string            # Required: Source connection reference
+    description: string       # Required: Tool description for AI agents
+    statement: string         # Required: SQL statement to execute
+    parameters: array         # Optional: Parameter definitions
+    domain: string            # Optional: Domain categorization
+    category: string          # Optional: Category within domain
+    metadata: object          # Optional: Arbitrary metadata
+    # Tool annotation hints (optional)
+    readOnlyHint: boolean
+    destructiveHint: boolean
+    idempotentHint: boolean
+    openWorldHint: boolean
+    # Security (optional; primarily for execute_sql-style tools)
+    security:
+      readOnly: boolean
+      maxQueryLength: number
+      forbiddenKeywords: string[]
+```
+
+## Required Fields
+
+<ParamField path="source" type="string" required>
+  **Source connection reference**
+  
+  Must match a source name defined in the `sources` section of your YAML configuration.
+  
+  ```yaml
+  tools:
+    system_status:
+      source: ibmi-production  # Must match a defined source
+      # ... other fields
+  ```
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  **Tool description for AI agents**
+  
+  Clear, comprehensive description that helps AI agents understand the tool's purpose, data returned, and appropriate use cases.
+  
+  <Tip>
+  Write descriptions from the AI agent's perspective. Include what data is returned, when to use the tool, and any important constraints or considerations.
+  </Tip>
+  
+  ```yaml
+  description: "Retrieve real-time system performance metrics including CPU utilization, memory usage, and I/O statistics. Use for system health monitoring and performance analysis. Returns current snapshot data."
+  ```
+</ParamField>
+
+<ParamField path="statement" type="string" required>
+  **SQL statement to execute**
+  
+  The SQL query with optional parameter placeholders (`?`). Use YAML's multiline string syntax for complex queries.
+  
+  ```yaml
+  statement: |
+    SELECT SYSTEM_NAME, CURRENT_TIMESTAMP as REPORT_TIME,
+           CPU_UTILIZATION, TOTAL_MEMORY, AVAILABLE_MEMORY,
+           TOTAL_JOBS_IN_SYSTEM, ACTIVE_THREADS
+    FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS=>'YES')) X
+    FETCH FIRST ? ROWS ONLY
+  ```
+</ParamField>
+
+## Optional Configuration Fields
+
+<ParamField path="parameters" type="array">
+  **Parameter definitions**
+  
+  Array of parameter objects that define validation, types, and metadata for SQL placeholders.
+  
+  ```yaml
+  parameters:
+    - name: max_rows
+      type: number
+      required: false
+      default: 100
+      description: "Maximum number of rows to return"
+      min: 1
+      max: 10000
+  ```
+</ParamField>
+
+<!-- Note: Per current schema, generic timeout/max-rows fields are not supported at the tool level. Use SQL LIMITs and database/session configuration instead. -->
+
+## Parameter Configuration
+
+Parameters provide type-safe, validated input to your SQL statements. Each parameter supports comprehensive validation options:
+
+### Parameter Types
+
+<Tabs>
+<Tab title="String Parameters">
+```yaml
+parameters:
+  - name: user_name
+    type: string
+    required: true
+    description: "IBM i user profile name to search for"
+    minLength: 1
+    maxLength: 10
+    pattern: "^[A-Z0-9]{1,10}$"  # IBM i naming convention
+
+  - name: subsystem_name
+    type: string
+    required: false
+    default: "QINTER"
+    description: "Subsystem to filter jobs (QINTER, QBATCH, QSYSWRK)"
+    enum: ["QINTER", "QBATCH", "QSYSWRK", "QCMN"]
+```
+</Tab>
+
+<Tab title="Numeric Parameters">
+```yaml
+parameters:
+  - name: max_rows
+    type: number
+    required: false
+    default: 100
+    description: "Maximum number of rows to return"
+    min: 1
+    max: 10000
+
+  - name: cpu_threshold
+    type: number
+    required: false
+    default: 5.0
+    description: "Minimum CPU usage percentage to include in results"
+    min: 0.0
+    max: 100.0
+```
+</Tab>
+
+<Tab title="Boolean Parameters">
+```yaml
+parameters:
+  - name: include_system_jobs
+    type: boolean
+    required: false
+    default: false
+    description: "Include IBM i system jobs in the results"
+
+  - name: detailed_output
+    type: boolean
+    required: false
+    default: false
+    description: "Return detailed performance breakdown with additional metrics"
+```
+</Tab>
+
+<Tab title="Date Parameters">
+```yaml
+parameters:
+  - name: start_date
+    type: string
+    required: true
+    description: "Start date for date range query in YYYY-MM-DD format"
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+
+  - name: end_date
+    type: string
+    required: true
+    description: "End date for date range query in YYYY-MM-DD format"
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+```
+</Tab>
+</Tabs>
+
+### Parameter Validation Options
+
+<AccordionGroup>
+<Accordion title="Common Validation Fields">
+All parameter types support these validation options:
+
+```yaml
+parameters:
+  - name: parameter_name
+    type: string|number|boolean|integer
+    required: true|false      # Whether parameter is mandatory
+    default: value            # Default value if not provided
+    description: "Clear description for AI agents"
+```
+</Accordion>
+
+<Accordion title="String-Specific Validation">
+Additional validation for string parameters:
+
+```yaml
+parameters:
+  - name: string_param
+    type: string
+    minLength: 1              # Minimum string length
+    maxLength: 50             # Maximum string length
+    pattern: "^[A-Z0-9]+$"    # Regular expression pattern
+    enum: ["VAL1", "VAL2"]    # Allowed values only
+```
+</Accordion>
+
+<Accordion title="Number-Specific Validation">
+Additional validation for numeric parameters:
+
+```yaml
+parameters:
+  - name: numeric_param
+    type: number
+    min: 0                   # Minimum value (inclusive)
+    max: 100                 # Maximum value (inclusive)
+```
+</Accordion>
+</AccordionGroup>
+
+## Parameter Binding Modes
+
+SQL statements support two placeholder styles:
+
+- Named parameters `:name` — replaced positionally and bound safely
+- Positional parameters `?` — bound in order of appearance
+
+You can combine both (hybrid), but prefer one style per statement for clarity.
+
+```yaml
+tools:
+  find_users:
+    source: ibmi-system
+    description: "Find users by name with optional minimum age"
+    parameters:
+      - name: username
+        type: string
+        required: true
+      - name: min_age
+        type: integer
+        required: false
+    statement: |
+      SELECT * FROM USERS
+      WHERE NAME = :username
+      AND ( :min_age IS NULL OR AGE >= :min_age )
+```
+
+## SQL Statement Patterns
+
+### Basic Queries
+
+Simple SELECT statements without parameters:
+
+```yaml
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Current system performance metrics and resource utilization"
+    statement: |
+      SELECT SYSTEM_NAME, CURRENT_TIMESTAMP as REPORT_TIME,
+             CPU_UTILIZATION, TOTAL_MEMORY, AVAILABLE_MEMORY,
+             STORAGE_CAPACITY, AVAILABLE_STORAGE,
+             TOTAL_JOBS_IN_SYSTEM
+      FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS=>'YES')) X
+
+  asp_info:
+    source: ibmi-system
+    description: "Auxiliary Storage Pool information including capacity and usage"
+    statement: |
+      SELECT ASP_NUMBER, ASP_TYPE, ASP_STATE,
+             TOTAL_CAPACITY_AVAILABLE,
+             AVAILABLE_CAPACITY,
+             STORAGE_THRESHOLD_PERCENTAGE
+      FROM QSYS2.ASP_INFO
+      ORDER BY ASP_NUMBER
+```
+
+### Parameterized Queries
+
+SQL statements with parameter placeholders:
+
+```yaml
+tools:
+  user_jobs:
+    source: ibmi-system
+    description: "Active jobs for a specific user profile with CPU usage details"
+    parameters:
+      - name: user_name
+        type: string
+        required: true
+        description: "IBM i user profile name"
+        pattern: "^[A-Z0-9]{1,10}$"
+      - name: min_cpu_percent
+        type: number
+        required: false
+        default: 0
+        description: "Minimum CPU percentage threshold"
+    statement: |
+      SELECT JOB_NAME, SUBSYSTEM, JOB_TYPE, 
+             CPU_USED, ELAPSED_CPU_TIME, FUNCTION
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) 
+      WHERE AUTHORIZATION_NAME = UPPER(?)
+      AND CPU_USED >= ?
+      ORDER BY CPU_USED DESC
+```
+
+### Conditional Logic in SQL
+
+Handle optional parameters with CASE statements:
+
+```yaml
+tools:
+  job_search:
+    source: ibmi-system
+    description: "Search for active jobs with optional filtering by subsystem and CPU usage"
+    parameters:
+      - name: subsystem
+        type: string
+        required: false
+        description: "Optional subsystem filter (leave empty for all subsystems)"
+      - name: min_cpu
+        type: number
+        required: false
+        default: 0
+        description: "Minimum CPU percentage"
+      - name: max_rows
+        type: number
+        required: false
+        default: 100
+        description: "Maximum rows to return"
+    statement: |
+      SELECT JOB_NAME, SUBSYSTEM, CPU_USED, FUNCTION,
+             JOB_ENTERED_SYSTEM_TIME
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+      WHERE CASE 
+        WHEN ? IS NULL OR TRIM(?) = '' THEN 1=1 
+        ELSE SUBSYSTEM = UPPER(?) 
+      END
+      AND CPU_USED >= ?
+      ORDER BY CPU_USED DESC
+      FETCH FIRST ? ROWS ONLY
+```
+
+### Complex Queries with Multiple Parameters
+
+Advanced queries with multiple filtering options:
+
+```yaml
+tools:
+  job_history_analysis:
+    source: ibmi-system
+    description: "Analyze job history with flexible date range and filtering options"
+    parameters:
+      - name: start_date
+        type: string
+        required: true
+        description: "Start date in YYYY-MM-DD format"
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      - name: end_date
+        type: string
+        required: true
+        description: "End date in YYYY-MM-DD format"
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      - name: job_type
+        type: string
+        required: false
+        description: "Job type filter"
+        enum: ["BATCH", "INTERACTIVE", "AUTOSTART", "SUBSYSTEM"]
+      - name: include_ended_jobs
+        type: boolean
+        required: false
+        default: true
+        description: "Include jobs that have ended"
+      - name: max_rows
+        type: number
+        required: false
+        default: 500
+        min: 1
+        max: 5000
+    statement: |
+      SELECT JOB_NAME, JOB_USER, JOB_TYPE, SUBSYSTEM,
+             JOB_ENTERED_SYSTEM_TIME, JOB_END_TIME,
+             CPU_USED, ELAPSED_CPU_TIME
+      FROM TABLE(QSYS2.JOB_INFO(JOB_STATUS_FILTER => 
+        CASE WHEN ? = true THEN 'ALL' ELSE 'ACTIVE' END))
+      WHERE DATE(JOB_ENTERED_SYSTEM_TIME) >= DATE(?)
+      AND DATE(JOB_ENTERED_SYSTEM_TIME) <= DATE(?)
+      AND CASE 
+        WHEN ? IS NULL THEN 1=1 
+        ELSE JOB_TYPE = ? 
+      END
+      ORDER BY JOB_ENTERED_SYSTEM_TIME DESC
+      FETCH FIRST ? ROWS ONLY
+```
+
+## Tool Categories and Examples
+
+### System Monitoring Tools
+
+Tools for system health and performance monitoring:
+
+```yaml
+tools:
+  memory_pools:
+    source: ibmi-system
+    description: "Memory pool allocation and usage statistics for system performance analysis"
+    statement: |
+      SELECT SYSTEM_POOL_NAME, POOL_SIZE, ALLOCATED_SIZE,
+             RESERVED_SIZE, MAXIMUM_ACTIVE_THREADS,
+             CURRENT_THREADS, INELIGIBLE_THREADS
+      FROM QSYS2.MEMORY_POOL_INFO
+      ORDER BY POOL_SIZE DESC
+
+  disk_usage_detailed:
+    source: ibmi-system
+    description: "Detailed disk usage analysis across all storage pools with trend data"
+    parameters:
+      - name: include_inactive
+        type: boolean
+        required: false
+        default: false
+        description: "Include inactive storage pools in results"
+    statement: |
+      SELECT ASP_NUMBER, ASP_TYPE, ASP_STATE,
+             TOTAL_CAPACITY_AVAILABLE / 1024 / 1024 as TOTAL_GB,
+             AVAILABLE_CAPACITY / 1024 / 1024 as AVAILABLE_GB,
+             (TOTAL_CAPACITY_AVAILABLE - AVAILABLE_CAPACITY) / 1024 / 1024 as USED_GB,
+             ROUND(((TOTAL_CAPACITY_AVAILABLE - AVAILABLE_CAPACITY) * 100.0 / 
+                   TOTAL_CAPACITY_AVAILABLE), 2) as USAGE_PERCENT
+      FROM QSYS2.ASP_INFO
+      WHERE CASE WHEN ? = true THEN 1=1 ELSE ASP_STATE = 'ACTIVE' END
+      ORDER BY USAGE_PERCENT DESC
+```
+
+### User Management Tools
+
+Tools for user administration and security:
+
+```yaml
+tools:
+  user_security_status:
+    source: ibmi-system
+    description: "User security status including sign-on attempts and password information"
+    parameters:
+      - name: user_name
+        type: string
+        required: false
+        description: "Specific user profile (leave empty for all users)"
+    statement: |
+      SELECT USER_NAME, STATUS, USER_CLASS,
+             SIGN_ON_ATTEMPTS_NOT_VALID,
+             PASSWORD_EXPIRATION_INTERVAL,
+             LAST_USED_TIMESTAMP,
+             LAST_PASSWORD_CHANGE
+      FROM QSYS2.USER_INFO
+      WHERE CASE 
+        WHEN ? IS NULL OR TRIM(?) = '' THEN 1=1 
+        ELSE USER_NAME = UPPER(?) 
+      END
+      AND STATUS = '*ENABLED'
+      ORDER BY LAST_USED_TIMESTAMP DESC
+
+  user_authorities:
+    source: ibmi-system
+    description: "Special authorities and group memberships for user profiles"
+    parameters:
+      - name: user_name
+        type: string
+        required: true
+        description: "User profile name to check authorities"
+        pattern: "^[A-Z0-9]{1,10}$"
+    statement: |
+      SELECT AUTHORIZATION_NAME, OBJECT_NAME as AUTHORITY_TYPE,
+             OBJECT_AUTHORITY, DATA_AUTHORITY, AUTHORITY_SOURCE
+      FROM QSYS2.OBJECT_PRIVILEGES
+      WHERE AUTHORIZATION_NAME = UPPER(?)
+      AND OBJECT_SCHEMA = 'QSYS'
+      AND OBJECT_TYPE IN ('*USER', '*GRPPRF')
+      ORDER BY OBJECT_NAME
+```
+
+### Database Administration Tools
+
+Tools for database management and analysis:
+
+```yaml
+tools:
+  table_sizes:
+    source: ibmi-system
+    description: "Table sizes and row counts for database space analysis"
+    parameters:
+      - name: schema_name
+        type: string
+        required: false
+        description: "Schema/library name filter"
+      - name: min_size_mb
+        type: number
+        required: false
+        default: 1
+        description: "Minimum table size in MB"
+    statement: |
+      SELECT TABLE_SCHEMA, TABLE_NAME, 
+             NUMBER_ROWS, 
+             DATA_SIZE / 1024 / 1024 as SIZE_MB,
+             INDEX_SIZE / 1024 / 1024 as INDEX_SIZE_MB,
+             LAST_USED_TIMESTAMP
+      FROM QSYS2.SYSTABLESTAT
+      WHERE CASE 
+        WHEN ? IS NULL OR TRIM(?) = '' THEN 1=1 
+        ELSE TABLE_SCHEMA = UPPER(?) 
+      END
+      AND DATA_SIZE >= (? * 1024 * 1024)
+      ORDER BY DATA_SIZE DESC
+
+  schema_objects:
+    source: ibmi-system
+    description: "Object inventory for a specific schema including counts by type"
+    parameters:
+      - name: schema_name
+        type: string
+        required: true
+        description: "Schema/library name to analyze"
+        pattern: "^[A-Z0-9]{1,10}$"
+    statement: |
+      SELECT OBJTYPE as OBJECT_TYPE, COUNT(*) as OBJECT_COUNT,
+             SUM(OBJSIZE) / 1024 / 1024 as TOTAL_SIZE_MB
+      FROM TABLE(QSYS2.OBJECT_STATISTICS(?, '*ALL'))
+      GROUP BY OBJTYPE
+      ORDER BY OBJECT_COUNT DESC
+```
+
+## Tool Documentation Best Practices
+
+### Writing Effective Descriptions
+
+<CardGroup cols={2}>
+  <Card title="AI Agent Perspective" icon="robot">
+    **Focus on Agent Needs**
+    
+    Write descriptions that help AI agents understand:
+    - When to use the tool
+    - What data is returned
+    - How to interpret results
+    - Any usage constraints
+  </Card>
+  
+  <Card title="Clear and Specific" icon="target">
+    **Provide Context**
+    
+    Include information about:
+    - Data freshness (real-time vs cached)
+    - Performance characteristics
+    - Typical use cases
+    - Related tools
+  </Card>
+</CardGroup>
+
+### Examples of Good vs Poor Descriptions
+
+<Tabs>
+<Tab title="❌ Poor Descriptions">
+```yaml
+# Too vague
+description: "Gets system info"
+
+# Too technical without context
+description: "Executes QSYS2.SYSTEM_STATUS table function"
+
+# Missing important details
+description: "Shows active jobs"
+```
+</Tab>
+
+<Tab title="✅ Good Descriptions">
+```yaml
+# Clear, comprehensive, agent-focused
+description: "Retrieve real-time system performance metrics including CPU utilization, memory usage, and I/O statistics. Use for system health monitoring and performance troubleshooting. Returns current snapshot data updated every few seconds."
+
+# Explains parameters and usage
+description: "Find active jobs for a specific user profile with CPU usage details. Useful for performance analysis and user activity monitoring. Results are sorted by CPU usage to identify resource-intensive jobs."
+
+# Provides context and constraints  
+description: "Analyze disk usage across all Auxiliary Storage Pools (ASPs) with percentage calculations. Essential for capacity planning and storage management. Data represents current allocation and may not reflect temporary spikes."
+```
+</Tab>
+</Tabs>
+
+## Tool Performance Optimization
+
+### Query Optimization Tips
+
+<Steps>
+<Step title="Use Appropriate Limits">
+Always include reasonable FETCH FIRST clauses to prevent runaway queries:
+
+```yaml
+statement: |
+  SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+  ORDER BY CPU_USED DESC
+  FETCH FIRST ? ROWS ONLY  -- Always parameterize limits
+
+parameters:
+  - name: max_rows
+    type: number
+    default: 100
+    max: 5000  # Reasonable upper bound
+```
+</Step>
+
+<Step title="Optimize WHERE Clauses">
+Structure WHERE clauses for optimal performance:
+
+```yaml
+statement: |
+  SELECT JOB_NAME, CPU_USED, FUNCTION
+  FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+  WHERE SUBSYSTEM = ?  -- Most selective condition first
+  AND CPU_USED >= ?    -- Secondary filter
+  ORDER BY CPU_USED DESC
+  FETCH FIRST ? ROWS ONLY
+```
+</Step>
+
+<Step title="Use Appropriate Indexes">
+Structure queries to take advantage of existing indexes:
+
+```sql
+-- Good: Uses AUTHORIZATION_NAME which is typically indexed
+WHERE AUTHORIZATION_NAME = ?
+
+-- Less optimal: Function calls prevent index usage
+WHERE UPPER(USER_NAME) = UPPER(?)
+```
+</Step>
+</Steps>
+
+### Resource Management
+
+<AccordionGroup>
+<Accordion title="Memory-Efficient Queries">
+Design queries to minimize memory usage:
+
+```yaml
+# Instead of SELECT *
+statement: |
+  SELECT JOB_NAME, SUBSYSTEM, CPU_USED  -- Only needed columns
+  FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+  FETCH FIRST ? ROWS ONLY
+
+# Use appropriate data types
+statement: |
+  SELECT ROUND(CPU_USED, 2) as CPU_PERCENT  -- Round unnecessary precision
+  FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
+```
+</Accordion>
+
+<Accordion title="Connection Pool Efficiency">
+Structure tools to minimize connection overhead:
+
+```yaml
+# Good: Single query with JOINs
+statement: |
+  SELECT u.USER_NAME, u.STATUS, p.SPECIAL_AUTHORITIES
+  FROM QSYS2.USER_INFO u
+  LEFT JOIN QSYS2.USER_SPECIAL_AUTHORITIES p ON u.USER_NAME = p.AUTHORIZATION_NAME
+
+# Less efficient: Multiple separate queries would require multiple tools
+```
+</Accordion>
+</AccordionGroup>
+
+## Error Handling and Validation
+
+Tools automatically benefit from the server's built-in error handling:
+
+### Automatic Validations
+
+<CardGroup cols={2}>
+  <Card title="Parameter Validation" icon="check-circle">
+    **Schema-Based Validation**
+    
+    - Type checking (string, number, boolean)
+    - Range validation (min/max values)
+    - Pattern matching (regex)
+    - Required field enforcement
+  </Card>
+  
+  <Card title="SQL Safety" icon="shield">
+    **Security Restrictions**
+    
+    - Dangerous keyword blocking
+    - Query timeout enforcement
+    - Result set size limits
+    - Input sanitization
+  </Card>
+</CardGroup>
+
+### Custom Validation in SQL
+
+Add business logic validation within your SQL:
+
+```yaml
+tools:
+  date_range_report:
+    source: ibmi-system
+    description: "Generate reports for specified date range with validation"
+    parameters:
+      - name: start_date
+        type: string
+        required: true
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      - name: end_date
+        type: string
+        required: true
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    statement: |
+      -- Validate date range in SQL
+      WITH date_validation AS (
+        SELECT 
+          CASE 
+            WHEN DATE(?) > DATE(?) THEN 
+              RAISE_ERROR('90001', 'Start date must be before end date')
+            WHEN DAYS(DATE(?)) - DAYS(DATE(?)) > 365 THEN
+              RAISE_ERROR('90002', 'Date range cannot exceed 365 days')
+            ELSE 1
+          END as validation_result
+      )
+      SELECT j.JOB_NAME, j.JOB_USER, j.JOB_ENTERED_SYSTEM_TIME
+      FROM date_validation dv, TABLE(QSYS2.JOB_INFO()) j
+      WHERE DATE(j.JOB_ENTERED_SYSTEM_TIME) >= DATE(?)
+      AND DATE(j.JOB_ENTERED_SYSTEM_TIME) <= DATE(?)
+      ORDER BY j.JOB_ENTERED_SYSTEM_TIME DESC
+```
+
+---
+
+<Info>
+Well-designed tools are the core of an effective IBM i MCP Server deployment. Focus on clear documentation, appropriate parameterization, and performance optimization to create tools that AI agents can use effectively and safely.
+</Info>

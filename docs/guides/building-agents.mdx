@@ -1,0 +1,766 @@
+---
+title: "Building Agents with IBM i MCP Server"
+description: "Comprehensive guide to creating intelligent agents using AgentOS and FilteredMCPTools with real examples from the IBM i MCP Server codebase."
+---
+
+# Building Agents with IBM i MCP Server
+
+The IBM i MCP Server includes a sophisticated agent framework built on **AgentOS (agno)** with **FilteredMCPTools** for creating specialized agents that focus on specific IBM i administration tasks. This guide walks through building agents using the actual patterns and tools from the codebase.
+
+<Info>
+AgentOS provides a multi-agent operating system where each agent can be specialized for different toolsets (performance, sysadmin, custom domains) and accessed through a unified web interface at http://localhost:7777.
+</Info>
+
+## Real Agent Architecture
+
+The IBM i MCP Server uses a proven architecture based on **AgentOS** and **FilteredMCPTools**:
+
+<CardGroup cols={2}>
+  <Card title="Specialized Agents" icon="cogs">
+    **Domain-Focused Expertise**
+    
+    - Performance monitoring agents (system metrics, job analysis)
+    - Sysadmin agents (discovery, browse, search)
+    - Custom domain agents (your business logic)
+    - Multi-agent orchestration
+  </Card>
+  
+  <Card title="FilteredMCPTools Integration" icon="filter">
+    **Toolset-Based Filtering**
+    
+    - Annotation-based tool filtering
+    - MCP standard compliance (readOnlyHint, etc.)
+    - Toolset organization (performance, sysadmin_*)
+    - Custom filtering with callable functions
+  </Card>
+</CardGroup>
+
+## Step 1: Understanding the Framework
+
+### AgentOS Architecture
+
+The codebase demonstrates a multi-agent system where each agent specializes in specific IBM i domains:
+
+<Tabs>
+<Tab title="Multi-Agent System">
+**From agents/ibmi_agentos.py**
+
+```python
+from agno.os import AgentOS
+from ibmi_agents import (
+    create_performance_agent,
+    create_sysadmin_discovery_agent,
+    create_sysadmin_browse_agent,
+    create_sysadmin_search_agent
+)
+
+# Create specialized agents
+performance_agent = create_performance_agent(debug_filtering=True)
+discovery_agent = create_sysadmin_discovery_agent(debug_filtering=True)
+browse_agent = create_sysadmin_browse_agent(debug_filtering=True)
+search_agent = create_sysadmin_search_agent(debug_filtering=True)
+
+# Create AgentOS with all specialized agents
+agent_os = AgentOS(
+    os_id="ibmi-multi-agent-os",
+    description="IBM i Multi-Agent System with Specialized Toolsets",
+    agents=[
+        performance_agent,
+        discovery_agent,
+        browse_agent,
+        search_agent
+    ]
+)
+
+# Serve the multi-agent system
+agent_os.serve(app="multi_agent_os:app", reload=True)
+```
+</Tab>
+
+<Tab title="FilteredMCPTools">
+**From agents/src/ibmi_agents/tools/filtered_mcp_tools.py**
+
+```python
+from tools.filtered_mcp_tools import FilteredMCPTools
+
+# Performance tools only
+performance_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp",
+    transport="streamable-http",
+    toolsets=["performance"]
+)
+
+# System administration discovery tools
+discovery_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp", 
+    transport="streamable-http",
+    toolsets=["sysadmin_discovery"]
+)
+
+# Multiple toolsets for comprehensive agents
+multi_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp",
+    transport="streamable-http",
+    toolsets=["performance", "sysadmin_discovery", "sysadmin_search"]
+)
+```
+</Tab>
+
+<Tab title="Agent Specialization">
+**Domain-Specific Instructions**
+
+```python
+# Performance monitoring agent
+performance_instructions = [
+    "You are a specialized IBM i performance monitoring assistant.",
+    "You have access to performance-related MCP tools only.",
+    "Focus on helping users monitor system performance, memory usage, and system activity.",
+    "Always explain what performance metrics you're checking and why.",
+    "Provide actionable insights based on the performance data you gather."
+]
+
+# System administration discovery agent  
+discovery_instructions = [
+    "You are an IBM i system administration discovery specialist.",
+    "You help users discover and understand IBM i services and system components.",
+    "Focus on high-level summaries, counts, and categorization of system services.",
+    "Guide users through system exploration and provide context for what they find."
+]
+```
+</Tab>
+</Tabs>
+
+### FilteredMCPTools Capabilities
+
+The FilteredMCPTools system provides sophisticated filtering based on tool annotations:
+
+<CodeGroup>
+```python Toolset Filtering
+# Filter by specific toolsets (legacy method)
+performance_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp",
+    transport="streamable-http",
+    toolsets=["performance"]
+)
+
+# Multiple toolsets
+admin_tools = FilteredMCPTools(
+    toolsets=["sysadmin_discovery", "sysadmin_browse", "sysadmin_search"]
+)
+```
+
+```python Annotation Filtering  
+# Filter by MCP standard annotations
+readonly_tools = FilteredMCPTools(
+    url="http://127.0.0.1:3010/mcp",
+    transport="streamable-http",
+    annotation_filters={"readOnlyHint": True}
+)
+
+# Safe tools (read-only, non-destructive, closed-world)
+safe_tools = FilteredMCPTools(
+    annotation_filters={
+        "readOnlyHint": True,
+        "destructiveHint": False, 
+        "openWorldHint": False
+    }
+)
+```
+
+```python Custom Filtering
+# Custom callable filters
+system_perf_tools = FilteredMCPTools(
+    annotation_filters={
+        "toolsets": ["performance"],
+        "title": lambda title: title and "system" in title.lower()
+    }
+)
+
+# Legacy custom filter function
+def performance_filter(tool):
+    """Filter for performance-related tools only"""
+    return hasattr(tool, 'annotations') and \
+           hasattr(tool.annotations, 'toolsets') and \
+           'performance' in tool.annotations.toolsets
+
+custom_tools = FilteredMCPTools(custom_filter=performance_filter)
+```
+</CodeGroup>
+
+## Step 2: Building Your First Agent
+
+Let's create a job monitoring agent following the real patterns from the codebase.
+
+### 1. Create the Agent Function
+
+Following the factory pattern used in the codebase:
+
+```python
+# agents/job_monitoring_agent.py
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.db.sqlite import SqliteDb
+from dotenv import load_dotenv
+
+from tools.filtered_mcp_tools import FilteredMCPTools
+
+load_dotenv()
+
+def create_job_monitoring_agent(debug_filtering=False):
+    """Create a specialized IBM i job monitoring agent."""
+    
+    # Database configuration for agent memory
+    db = SqliteDb(
+        db_file="tmp/job_monitoring_agent.db",
+        memory_table="job_agent_memory",
+        session_table="job_agent_sessions",
+        metrics_table="job_agent_metrics",
+        eval_table="job_agent_evals",
+        knowledge_table="job_agent_knowledge"
+    )
+    
+    # FilteredMCPTools for performance monitoring
+    mcp_tools = FilteredMCPTools(
+        url="http://127.0.0.1:3010/mcp",
+        transport="streamable-http",
+        toolsets=["performance"],  # Focus on performance tools
+        debug_filtering=debug_filtering
+    )
+    
+    # Specialized instructions for job monitoring
+    instructions = [
+        "You are a specialized IBM i job monitoring and analysis assistant.",
+        "You focus on active job analysis, CPU consumption, and job queue management.",
+        "When analyzing jobs, always explain what the metrics mean for system performance.",
+        "Provide specific recommendations for job optimization and resource management.",
+        "Use the active_job_info tool to identify top CPU consumers and analyze job patterns.",
+        "Help users understand subsystem performance and job distribution."
+    ]
+    
+    # Create the agent
+    agent = Agent(
+        name="IBM i Job Monitor",
+        model=OpenAIChat(id="gpt-4o"),
+        instructions=instructions,
+        db=db,
+        tools=[mcp_tools],
+        markdown=True,
+        enable_agentic_memory=True,
+        enable_user_memories=True,
+        search_knowledge=True,
+        add_history_to_context=True,
+        read_chat_history=True,
+        debug_mode=debug_filtering
+    )
+    
+    return agent
+
+# Test the agent standalone
+if __name__ == "__main__":
+    from agno.os import AgentOS
+    
+    job_agent = create_job_monitoring_agent(debug_filtering=True)
+    
+    # Single-agent system for testing
+    agent_os = AgentOS(
+        os_id="job-monitoring-os",
+        description="IBM i Job Monitoring Agent",
+        agents=[job_agent]
+    )
+    
+    print("Starting Job Monitoring Agent at http://localhost:7777")
+    agent_os.serve(app="job_monitoring_agent:app", reload=True)
+```
+
+### 2. Test Your Agent
+
+```bash
+# Set environment variables
+export OPENAI_API_KEY="your-openai-key"
+export DB2i_HOST="your-ibmi-system"
+export DB2i_USER="your-username"
+export DB2i_PASS="your-password"
+
+# Start the MCP server first
+npm run start:http
+
+# In another terminal, start your agent
+cd agents
+python job_monitoring_agent.py
+```
+
+Visit http://localhost:7777 to interact with your specialized job monitoring agent.
+
+### 3. Integrate with Multi-Agent System
+
+Add your agent to the main multi-agent system:
+
+```python
+# agents/ibmi_agentos_extended.py
+from agno.os import AgentOS
+from dotenv import load_dotenv
+
+from job_monitoring_agent import create_job_monitoring_agent
+from ibmi_agents import (
+    create_performance_agent,
+    create_sysadmin_discovery_agent,
+    create_sysadmin_browse_agent,
+    create_sysadmin_search_agent
+)
+
+load_dotenv()
+
+# Create all specialized agents
+performance_agent = create_performance_agent(debug_filtering=True)
+discovery_agent = create_sysadmin_discovery_agent(debug_filtering=True)
+browse_agent = create_sysadmin_browse_agent(debug_filtering=True)
+search_agent = create_sysadmin_search_agent(debug_filtering=True)
+
+# Add your custom agent
+job_monitor_agent = create_job_monitoring_agent(debug_filtering=True)
+
+# Extended multi-agent system
+agent_os = AgentOS(
+    os_id="ibmi-extended-multi-agent-os",
+    description="Extended IBM i Multi-Agent System with Job Monitoring",
+    agents=[
+        performance_agent,
+        job_monitor_agent,  # Your custom agent
+        discovery_agent,
+        browse_agent,
+        search_agent
+    ]
+)
+
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    print("=== Extended IBM i Multi-Agent Operating System ===")
+    print(f"Starting AgentOS with {len(agent_os.agents)} specialized agents:")
+    
+    for agent in agent_os.agents:
+        print(f"  - {agent.name}")
+    
+    agent_os.serve(app="ibmi_agentos_extended:app", reload=True)
+```
+
+## Step 3: Advanced Agent Patterns
+
+### 1. Custom Toolset Agent
+
+Create an agent for your own custom toolsets:
+
+```python
+def create_security_audit_agent(debug_filtering=False):
+    """Create an agent for security auditing tools."""
+    
+    # Custom toolset filtering
+    mcp_tools = FilteredMCPTools(
+        url="http://127.0.0.1:3010/mcp", 
+        transport="streamable-http",
+        toolsets=["security_audit"],  # Your custom toolset
+        annotation_filters={
+            "readOnlyHint": True,  # Only read-only security tools
+            "domain": "security"   # Custom annotation
+        },
+        debug_filtering=debug_filtering
+    )
+    
+    instructions = [
+        "You are an IBM i security audit specialist.",
+        "You analyze user authorities, object permissions, and security configurations.",
+        "Focus on identifying security risks and compliance issues.",
+        "Always explain the security implications of your findings.",
+        "Provide specific recommendations for security hardening."
+    ]
+    
+    return Agent(
+        name="IBM i Security Auditor",
+        model=OpenAIChat(id="gpt-4o"),
+        instructions=instructions,
+        tools=[mcp_tools],
+        # ... other configuration
+    )
+```
+
+### 2. Multi-Toolset Comprehensive Agent
+
+Create agents that work across multiple domains:
+
+```python
+def create_comprehensive_admin_agent(debug_filtering=False):
+    """Create a comprehensive IBM i administration agent."""
+    
+    # Multiple toolsets for broad capabilities
+    mcp_tools = FilteredMCPTools(
+        url="http://127.0.0.1:3010/mcp",
+        transport="streamable-http", 
+        toolsets=[
+            "performance",
+            "sysadmin_discovery", 
+            "sysadmin_browse",
+            "sysadmin_search"
+        ],
+        debug_filtering=debug_filtering
+    )
+    
+    instructions = [
+        "You are a comprehensive IBM i system administrator assistant.",
+        "You have access to performance monitoring and system administration tools.",
+        "Help users with system analysis, performance optimization, and administrative tasks.",
+        "When analyzing issues, use multiple tools to provide complete insights.",
+        "Always correlate performance data with system configuration information."
+    ]
+    
+    return Agent(
+        name="IBM i System Administrator",
+        model=OpenAIChat(id="gpt-4o"),
+        instructions=instructions,
+        tools=[mcp_tools],
+        # Enhanced capabilities for comprehensive analysis
+        enable_agentic_memory=True,
+        enable_user_memories=True,
+        search_knowledge=True,
+        # ... other configuration
+    )
+```
+
+### 3. Filtered Tools with Custom Logic
+
+Use advanced FilteredMCPTools features:
+
+```python
+def create_performance_specialist_agent(debug_filtering=False):
+    """Create an agent focused on specific performance aspects."""
+    
+    # Custom filtering with callable
+    def performance_tools_filter(tool):
+        """Custom filter for performance-related tools"""
+        if not hasattr(tool, 'annotations'):
+            return False
+            
+        # Check toolsets
+        if hasattr(tool.annotations, 'toolsets'):
+            if 'performance' not in tool.annotations.toolsets:
+                return False
+        
+        # Additional custom logic
+        if hasattr(tool.annotations, 'title'):
+            title = tool.annotations.title.lower() if tool.annotations.title else ""
+            # Focus on system-level performance tools
+            return any(keyword in title for keyword in ['system', 'cpu', 'memory', 'job'])
+            
+        return True
+    
+    mcp_tools = FilteredMCPTools(
+        url="http://127.0.0.1:3010/mcp",
+        transport="streamable-http",
+        custom_filter=performance_tools_filter,
+        debug_filtering=debug_filtering
+    )
+    
+    instructions = [
+        "You are an IBM i performance optimization specialist.",
+        "You focus specifically on system-level performance: CPU, memory, and job analysis.",
+        "Analyze performance trends and identify optimization opportunities.",
+        "Provide detailed explanations of performance metrics and their implications."
+    ]
+    
+    return Agent(
+        name="IBM i Performance Specialist",
+        model=OpenAIChat(id="gpt-4o"),
+        instructions=instructions,
+        tools=[mcp_tools],
+        # ... configuration
+    )
+```
+
+## Step 4: Agent Configuration Patterns
+
+### 1. Database and Memory Configuration
+
+Following the codebase patterns for agent persistence:
+
+```python
+# Consistent database configuration across agents
+def create_agent_db(agent_name):
+    """Create standardized database configuration for agents."""
+    return SqliteDb(
+        db_file=f"tmp/{agent_name.lower().replace(' ', '_')}_agent.db",
+        memory_table=f"{agent_name.lower().replace(' ', '_')}_memory",
+        session_table=f"{agent_name.lower().replace(' ', '_')}_sessions", 
+        metrics_table=f"{agent_name.lower().replace(' ', '_')}_metrics",
+        eval_table=f"{agent_name.lower().replace(' ', '_')}_evals",
+        knowledge_table=f"{agent_name.lower().replace(' ', '_')}_knowledge"
+    )
+
+# Usage in agent factory functions
+def create_custom_agent(debug_filtering=False):
+    db = create_agent_db("Custom Agent")
+    # ... rest of agent configuration
+```
+
+### 2. Environment Configuration
+
+```python
+# agents/config.py
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# MCP Server configuration
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:3010/mcp")
+MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "streamable-http")
+
+# AgentOS configuration  
+AGENT_OS_PORT = int(os.getenv("AGENT_OS_PORT", "7777"))
+AGENT_OS_HOST = os.getenv("AGENT_OS_HOST", "localhost")
+
+# OpenAI configuration
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+
+# Debug settings
+DEBUG_FILTERING = os.getenv("DEBUG_FILTERING", "false").lower() == "true"
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+
+def get_standard_agent_config():
+    """Get standard configuration for all agents."""
+    return {
+        "mcp_url": MCP_SERVER_URL,
+        "mcp_transport": MCP_TRANSPORT,
+        "debug_filtering": DEBUG_FILTERING,
+        "debug_mode": DEBUG_MODE,
+        "model_id": OPENAI_MODEL
+    }
+```
+
+### 3. Agent Factory Pattern
+
+Standardize agent creation following the codebase pattern:
+
+```python
+# agents/factory.py
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from tools.filtered_mcp_tools import FilteredMCPTools
+from .config import get_standard_agent_config, create_agent_db
+
+def create_specialized_agent(
+    name: str,
+    toolsets: list,
+    instructions: list,
+    annotation_filters=None,
+    custom_filter=None,
+    **kwargs
+):
+    """
+    Factory function for creating specialized agents.
+    
+    Args:
+        name: Agent name
+        toolsets: List of toolsets to include
+        instructions: Agent instructions
+        annotation_filters: Optional annotation filters
+        custom_filter: Optional custom filter function
+        **kwargs: Additional agent configuration
+    """
+    config = get_standard_agent_config()
+    
+    # Create filtered tools
+    tool_kwargs = {
+        "url": config["mcp_url"],
+        "transport": config["mcp_transport"],
+        "debug_filtering": config["debug_filtering"]
+    }
+    
+    if toolsets:
+        tool_kwargs["toolsets"] = toolsets
+    if annotation_filters:
+        tool_kwargs["annotation_filters"] = annotation_filters
+    if custom_filter:
+        tool_kwargs["custom_filter"] = custom_filter
+        
+    mcp_tools = FilteredMCPTools(**tool_kwargs)
+    
+    # Create agent
+    agent_config = {
+        "name": name,
+        "model": OpenAIChat(id=config["model_id"]),
+        "instructions": instructions,
+        "db": create_agent_db(name),
+        "tools": [mcp_tools],
+        "markdown": True,
+        "enable_agentic_memory": True,
+        "enable_user_memories": True,
+        "search_knowledge": True,
+        "add_history_to_context": True,
+        "read_chat_history": True,
+        "debug_mode": config["debug_mode"]
+    }
+    
+    # Override with any provided kwargs
+    agent_config.update(kwargs)
+    
+    return Agent(**agent_config)
+
+# Usage examples
+def create_job_monitor():
+    return create_specialized_agent(
+        name="Job Monitor",
+        toolsets=["performance"],
+        instructions=[
+            "You are a job monitoring specialist.",
+            "Focus on job analysis and CPU consumption.",
+        ]
+    )
+
+def create_security_auditor():
+    return create_specialized_agent(
+        name="Security Auditor",
+        toolsets=["security_audit"],
+        annotation_filters={"readOnlyHint": True},
+        instructions=[
+            "You are a security auditing specialist.",
+            "Analyze security configurations and permissions.",
+        ]
+    )
+```
+
+## Step 5: Deployment and Production
+
+### 1. Production Agent Configuration
+
+```python
+# agents/production.py
+import os
+from agno.os import AgentOS
+from .factory import create_specialized_agent
+
+def create_production_agents():
+    """Create production-ready agent configuration."""
+    
+    agents = []
+    
+    # Core system monitoring agents
+    if os.getenv("ENABLE_PERFORMANCE_AGENT", "true") == "true":
+        agents.append(create_specialized_agent(
+            name="Performance Monitor",
+            toolsets=["performance"],
+            instructions=[
+                "You are a production IBM i performance monitoring specialist.",
+                "Monitor system health and identify performance issues.",
+                "Provide immediate insights for system optimization."
+            ]
+        ))
+    
+    if os.getenv("ENABLE_SYSADMIN_AGENT", "true") == "true":
+        agents.append(create_specialized_agent(
+            name="System Administrator", 
+            toolsets=["sysadmin_discovery", "sysadmin_browse"],
+            instructions=[
+                "You are a production IBM i system administrator.",
+                "Help with system discovery and administrative tasks.",
+                "Focus on operational efficiency and system maintenance."
+            ]
+        ))
+    
+    # Custom business agents
+    if os.getenv("ENABLE_CUSTOM_AGENTS", "false") == "true":
+        # Add your custom agents here
+        pass
+    
+    return agents
+
+def create_production_agent_os():
+    """Create production AgentOS configuration."""
+    agents = create_production_agents()
+    
+    return AgentOS(
+        os_id="ibmi-production-os",
+        description="Production IBM i Multi-Agent System",
+        agents=agents
+    )
+```
+
+### 2. Docker Deployment
+
+```dockerfile
+# Dockerfile.agents
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY agents/requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copy agent code
+COPY agents/ ./agents/
+COPY agents/src/ ./agents/src/
+
+# Environment configuration
+ENV PYTHONPATH="/app/agents/src:$PYTHONPATH"
+ENV MCP_SERVER_URL="http://mcp-server:3010/mcp"
+ENV AGENT_OS_HOST="0.0.0.0"
+ENV AGENT_OS_PORT="7777"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:7777/health || exit 1
+
+EXPOSE 7777
+
+CMD ["python", "-m", "agents.production"]
+```
+
+### 3. Monitoring and Logging
+
+```python
+# agents/monitoring.py
+import logging
+import time
+from agno.utils.log import logger
+
+class AgentMonitoring:
+    """Monitoring utilities for agent systems."""
+    
+    @staticmethod
+    def setup_logging():
+        """Configure production logging."""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler('/var/log/agents/agents.log'),
+                logging.StreamHandler()
+            ]
+        )
+    
+    @staticmethod
+    def log_agent_metrics(agent_os):
+        """Log agent system metrics."""
+        logger.info(f"AgentOS Status: {len(agent_os.agents)} agents running")
+        
+        for agent in agent_os.agents:
+            logger.info(f"Agent '{agent.name}': Active sessions, memory usage")
+    
+    @staticmethod
+    def health_check(agent_os):
+        """Perform health check on agent system."""
+        try:
+            # Check agent responsiveness
+            for agent in agent_os.agents:
+                # Perform basic health check
+                pass
+            return {"status": "healthy", "timestamp": time.time()}
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return {"status": "unhealthy", "error": str(e), "timestamp": time.time()}
+```
+
+---
+
+<Info>
+The IBM i MCP Server's agent framework provides a production-ready foundation for building specialized AI agents. Start with the provided patterns and extend them for your specific use cases while maintaining the same architectural principles.
+</Info>

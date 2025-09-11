@@ -1,0 +1,523 @@
+---
+title: "Configuration"
+description: "Complete configuration reference for the IBM i MCP Server including environment variables, transport options, and advanced settings."
+---
+
+# Configuration Reference
+
+The IBM i MCP Server is highly configurable through environment variables, allowing you to customize transport modes, authentication, observability, and IBM i connectivity for your specific deployment needs.
+
+## Configuration Methods
+
+<Tabs>
+<Tab title="Environment File (.env)">
+The recommended method for local development and testing:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit with your settings
+vim .env  # or your preferred editor
+```
+</Tab>
+
+<Tab title="Environment Variables">
+For production deployments and containerized environments:
+
+```bash
+export DB2i_HOST=10.1.1.100
+export DB2i_USER=MYUSER
+export MCP_TRANSPORT_TYPE=http
+# ... other variables
+```
+</Tab>
+
+<Tab title="CLI Arguments">
+Override specific settings at runtime:
+
+```bash
+npm run start:http -- --transport http --tools /path/to/tools
+```
+</Tab>
+</Tabs>
+
+## Core Configuration
+
+### IBM i Database Connection
+
+<ParamField path="DB2i_HOST" type="string" required>
+  **IBM i hostname or IP address**
+  
+  The network address of your IBM i system where the Mapepire daemon or gateway is running.
+  
+  ```bash
+  DB2i_HOST=my-ibmi-system.company.com
+  # or
+  DB2i_HOST=10.1.1.100
+  ```
+</ParamField>
+
+<ParamField path="DB2i_USER" type="string" required>
+  **IBM i user profile**
+  
+  A valid IBM i user profile with appropriate database permissions. The user should have access to the databases and objects your tools will query.
+  
+  ```bash
+  DB2i_USER=QUSER
+  ```
+</ParamField>
+
+<ParamField path="DB2i_PASS" type="string" required>
+  **IBM i password**
+  
+  The password for the specified IBM i user profile.
+  
+  <Warning>
+  Never commit passwords to version control. Use environment variables or secure secret management.
+  </Warning>
+  
+  ```bash
+  DB2i_PASS=mySecurePassword123
+  ```
+</ParamField>
+
+<ParamField path="DB2i_PORT" type="number" default="8076">
+  **Mapepire daemon/gateway port**
+  
+  The port where the Mapepire daemon or gateway is listening on your IBM i system.
+  
+  ```bash
+  DB2i_PORT=8076  # Default Mapepire port
+  ```
+</ParamField>
+
+<ParamField path="DB2i_IGNORE_UNAUTHORIZED" type="boolean" default="true">
+  **SSL certificate validation**
+  
+  When `true`, skips SSL certificate validation. Useful for self-signed certificates or development environments.
+  
+  ```bash
+  DB2i_IGNORE_UNAUTHORIZED=true   # Skip SSL validation
+  DB2i_IGNORE_UNAUTHORIZED=false  # Enforce SSL validation
+  ```
+</ParamField>
+
+## Transport Configuration
+
+### Transport Mode Selection
+
+<ParamField path="MCP_TRANSPORT_TYPE" type="string" default="stdio">
+  **Server transport protocol**
+  
+  Determines how the MCP server communicates with clients.
+  
+  <Tabs>
+  <Tab title="stdio">
+  Direct process communication, ideal for development and CLI agents:
+  ```bash
+  MCP_TRANSPORT_TYPE=stdio
+  ```
+  </Tab>
+  
+<Tab title="http">
+  Streamable HTTP transport implementing MCP over JSON‑RPC (with optional authentication), suitable for production:
+  ```bash
+  MCP_TRANSPORT_TYPE=http
+  ```
+  </Tab>
+  </Tabs>
+</ParamField>
+
+### HTTP Transport Settings
+
+<ParamField path="MCP_HTTP_PORT" type="number" default="3010">
+  **HTTP server port**
+  
+  Port for the HTTP transport server.
+  
+  ```bash
+  MCP_HTTP_PORT=3010
+  ```
+</ParamField>
+
+<ParamField path="MCP_HTTP_HOST" type="string" default="127.0.0.1">
+  **HTTP server bind address**
+  
+  Network interface to bind the HTTP server.
+  
+  ```bash
+  MCP_HTTP_HOST=127.0.0.1  # Localhost only
+  MCP_HTTP_HOST=0.0.0.0    # All interfaces
+  ```
+</ParamField>
+
+<ParamField path="MCP_HTTP_ENDPOINT_PATH" type="string" default="/mcp">
+  **HTTP MCP endpoint path**
+  
+  Path at which the server accepts MCP JSON‑RPC requests.
+  
+  ```bash
+  MCP_HTTP_ENDPOINT_PATH=/mcp
+  ```
+</ParamField>
+
+<ParamField path="MCP_SESSION_MODE" type="string" default="auto">
+  **HTTP session management**
+  
+  Controls how HTTP sessions are handled:
+  
+  - `stateless`: No session persistence, each request is independent
+  - `stateful`: Maintain session state between requests
+  - `auto`: Automatically choose based on client capabilities
+  
+  ```bash
+  MCP_SESSION_MODE=auto
+  ```
+</ParamField>
+
+<ParamField path="MCP_ALLOWED_ORIGINS" type="string">
+  **CORS allowed origins**
+  
+  Comma-separated list of allowed origins for CORS requests.
+  
+  ```bash
+  MCP_ALLOWED_ORIGINS=https://my-frontend.com,https://admin.company.com
+  ```
+</ParamField>
+
+## Authentication Configuration
+
+<Note>
+Authentication is only available when using HTTP transport mode. STDIO transport relies on process-level security.
+</Note>
+
+### Authentication Mode
+
+<ParamField path="MCP_AUTH_MODE" type="string" default="none">
+  **Authentication mechanism**
+  
+  <Tabs>
+  <Tab title="none">
+  No authentication required (development only):
+  ```bash
+  MCP_AUTH_MODE=none
+  ```
+  </Tab>
+  
+  <Tab title="jwt">
+  JSON Web Token authentication:
+  ```bash
+  MCP_AUTH_MODE=jwt
+  MCP_AUTH_SECRET_KEY=your-secret-key-min-32-chars-long
+  ```
+  </Tab>
+  
+  <Tab title="oauth">
+  OAuth 2.0 / OpenID Connect:
+  ```bash
+  MCP_AUTH_MODE=oauth
+  OAUTH_ISSUER_URL=https://auth.company.com
+  OAUTH_AUDIENCE=ibmi-mcp-server
+  ```
+  </Tab>
+  </Tabs>
+</ParamField>
+
+### JWT Configuration
+
+<ParamField path="MCP_AUTH_SECRET_KEY" type="string" required="when MCP_AUTH_MODE=jwt">
+  **JWT secret key**
+  
+  Secret key for signing and verifying JWT tokens. Must be at least 32 characters.
+  
+  <Warning>
+  Use a cryptographically secure random key in production. Never use predictable values.
+  </Warning>
+  
+  ```bash
+  MCP_AUTH_SECRET_KEY=your-very-long-and-secure-secret-key-here-min-32-chars
+  ```
+</ParamField>
+
+### OAuth Configuration
+
+<ParamField path="OAUTH_ISSUER_URL" type="string" required="when MCP_AUTH_MODE=oauth">
+  **OAuth issuer URL**
+  
+  The authorization server's issuer URL for token validation.
+  
+  ```bash
+  OAUTH_ISSUER_URL=https://auth.company.com/oauth2
+  ```
+</ParamField>
+
+<ParamField path="OAUTH_AUDIENCE" type="string" required="when MCP_AUTH_MODE=oauth">
+  **OAuth audience**
+  
+  The audience identifier that tokens must contain to access this MCP server.
+  
+  ```bash
+  OAUTH_AUDIENCE=ibmi-mcp-server
+  ```
+</ParamField>
+
+## SQL Tools Configuration
+
+### YAML Tools Path
+
+<ParamField path="TOOLS_YAML_PATH" type="string">
+  **SQL tool definitions location**
+  
+  Path to YAML files containing SQL tool definitions. Can be a single file, directory, or glob pattern.
+  
+  ```bash
+  TOOLS_YAML_PATH=prebuiltconfigs           # Directory
+  TOOLS_YAML_PATH=/path/to/tools.yaml      # Single file
+  TOOLS_YAML_PATH=/configs/**/*.yaml       # Glob pattern
+  ```
+</ParamField>
+
+### YAML Processing Options
+
+<ParamField path="YAML_MERGE_ARRAYS" type="boolean" default="false">
+  **Array merging behavior**
+  
+  When merging multiple YAML files, merge arrays instead of replacing them.
+  
+  ```bash
+  YAML_MERGE_ARRAYS=true   # Merge arrays from multiple files
+  YAML_MERGE_ARRAYS=false  # Later files replace earlier arrays
+  ```
+</ParamField>
+
+<ParamField path="YAML_ALLOW_DUPLICATE_TOOLS" type="boolean" default="false">
+  **Duplicate tool handling**
+  
+  Allow multiple YAML files to define tools with the same name.
+  
+  ```bash
+  YAML_ALLOW_DUPLICATE_TOOLS=false  # Error on duplicates
+  YAML_ALLOW_DUPLICATE_TOOLS=true   # Allow overwrites
+  ```
+</ParamField>
+
+<ParamField path="YAML_ALLOW_DUPLICATE_SOURCES" type="boolean" default="false">
+  **Duplicate source handling**
+  
+  Allow multiple YAML files to define sources with the same name.
+  
+  ```bash
+  YAML_ALLOW_DUPLICATE_SOURCES=false  # Error on duplicates
+  YAML_ALLOW_DUPLICATE_SOURCES=true   # Allow overwrites
+  ```
+</ParamField>
+
+<ParamField path="YAML_VALIDATE_MERGED" type="boolean" default="true">
+  **Configuration validation**
+  
+  Validate the final merged YAML configuration before use.
+  
+  ```bash
+  YAML_VALIDATE_MERGED=true   # Validate merged config
+  YAML_VALIDATE_MERGED=false  # Skip validation (not recommended)
+  ```
+</ParamField>
+
+## Observability Configuration
+
+### Logging
+
+<ParamField path="MCP_LOG_LEVEL" type="string" default="info">
+  **Logging verbosity**
+  
+  Controls the detail level of log output:
+  
+  - `error`: Only errors
+  - `warn`: Warnings and errors
+  - `info`: General information, warnings, and errors
+  - `debug`: Detailed debugging information
+  - `trace`: Very detailed tracing (performance impact)
+  
+  ```bash
+  MCP_LOG_LEVEL=info   # Production
+  MCP_LOG_LEVEL=debug  # Development
+  ```
+</ParamField>
+
+### OpenTelemetry Integration
+
+<ParamField path="OTEL_ENABLED" type="boolean" default="false">
+  **OpenTelemetry instrumentation**
+  
+  Enable distributed tracing and metrics collection.
+  
+  ```bash
+  OTEL_ENABLED=true   # Enable OpenTelemetry
+  OTEL_ENABLED=false  # Disable (logs to file only)
+  ```
+</ParamField>
+
+<ParamField path="OTEL_EXPORTER_OTLP_TRACES_ENDPOINT" type="string">
+  **Traces export endpoint**
+  
+  OTLP endpoint for exporting distributed traces.
+  
+  ```bash
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+  ```
+</ParamField>
+
+<ParamField path="OTEL_EXPORTER_OTLP_METRICS_ENDPOINT" type="string">
+  **Metrics export endpoint**
+  
+  OTLP endpoint for exporting performance metrics.
+  
+  ```bash
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://localhost:4318/v1/metrics
+  ```
+</ParamField>
+
+## External Services
+
+### OpenRouter API
+
+<ParamField path="OPENROUTER_API_KEY" type="string">
+  **OpenRouter API key**
+  
+  API key for OpenRouter.ai service, used by AI-assisted SQL generation tools.
+  
+  ```bash
+  OPENROUTER_API_KEY=sk-or-v1-your-api-key-here
+  ```
+</ParamField>
+
+## Configuration Examples
+
+### Development Environment
+
+```bash title=".env"
+# IBM i Connection
+DB2i_HOST=dev-ibmi.company.com
+DB2i_USER=DEVUSER
+DB2i_PASS=devPassword123
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=true
+
+# Server Settings
+MCP_TRANSPORT_TYPE=stdio
+MCP_LOG_LEVEL=debug
+TOOLS_YAML_PATH=prebuiltconfigs
+
+# Optional: AI assistance
+OPENROUTER_API_KEY=sk-or-v1-your-dev-key
+```
+
+### Production Environment
+
+```bash title=".env"
+# IBM i Connection
+DB2i_HOST=prod-ibmi.company.com
+DB2i_USER=SVCACCOUNT
+DB2i_PASS=${PROD_IBMI_PASSWORD}  # From secret manager
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=false
+
+# Server Settings
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_PORT=3010
+MCP_HTTP_HOST=0.0.0.0
+MCP_SESSION_MODE=stateful
+MCP_ALLOWED_ORIGINS=https://app.company.com
+MCP_LOG_LEVEL=info
+
+# Authentication
+MCP_AUTH_MODE=oauth
+OAUTH_ISSUER_URL=https://auth.company.com
+OAUTH_AUDIENCE=ibmi-mcp-server
+
+# Tools Configuration
+TOOLS_YAML_PATH=/configs/production
+YAML_VALIDATE_MERGED=true
+
+# Observability
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://traces.company.com/v1/traces
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://metrics.company.com/v1/metrics
+```
+
+### Docker Environment
+
+```yaml title="docker-compose.yml"
+services:
+  ibmi-mcp-server:
+    image: ibmi-mcp-server:latest
+    environment:
+      DB2i_HOST: ${IBM_HOST}
+      DB2i_USER: ${IBM_USER}
+      DB2i_PASS: ${IBM_PASS}
+      MCP_TRANSPORT_TYPE: http
+      MCP_HTTP_PORT: 3010
+      MCP_AUTH_MODE: jwt
+      MCP_AUTH_SECRET_KEY: ${JWT_SECRET}
+      TOOLS_YAML_PATH: /app/configs
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./configs:/app/configs:ro
+```
+
+## Configuration Validation
+
+The server validates configuration on startup and will report errors for:
+
+<AccordionGroup>
+<Accordion title="Missing Required Values">
+```
+[ERROR] Missing required configuration: DB2i_HOST
+[ERROR] JWT mode requires MCP_AUTH_SECRET_KEY
+```
+</Accordion>
+
+<Accordion title="Invalid Values">
+```
+[ERROR] MCP_HTTP_PORT must be between 1 and 65535
+[ERROR] MCP_AUTH_SECRET_KEY must be at least 32 characters
+```
+</Accordion>
+
+<Accordion title="Conflicting Settings">
+```
+[WARN] Authentication disabled in STDIO mode
+[WARN] CORS settings ignored in STDIO mode
+```
+</Accordion>
+</AccordionGroup>
+
+## Configuration Precedence
+
+Settings are applied in this order (later values override earlier ones):
+
+<Steps>
+<Step title="Default Values">
+  Built-in defaults defined in the code
+</Step>
+
+<Step title="Environment File">
+  Values from `.env` file in project root
+</Step>
+
+<Step title="Environment Variables">
+  System environment variables
+</Step>
+
+<Step title="CLI Arguments">
+  Command-line arguments (highest priority)
+</Step>
+</Steps>
+
+---
+
+<Tip>
+Use `npm run validate` to check your configuration without starting the server. This helps catch issues early in your deployment pipeline.
+</Tip>

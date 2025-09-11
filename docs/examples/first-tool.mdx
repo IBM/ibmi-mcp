@@ -1,0 +1,132 @@
+---
+title: "Build Your First Custom Tool"
+description: "Create a simple SQL tool (system_status) with YAML and test it in MCP Inspector."
+---
+
+# Build Your First Custom Tool
+
+This tutorial builds the simplest possible YAML tool using IBM i’s QSYS2.SYSTEM_STATUS. You will write one YAML file, load it, and test it in MCP Inspector.
+
+## Prerequisites
+
+- IBM i MCP Server installed and running
+- IBM i connection configured via `.env` (`DB2i_HOST`, `DB2i_USER`, `DB2i_PASS`, `DB2i_PORT`, `DB2i_IGNORE_UNAUTHORIZED`)
+- MCP Inspector available (`npm run inspector`)
+
+## 1) Write the YAML file
+
+Create a minimal YAML configuration that defines a source and one tool.
+
+<CodeGroup>
+```bash Create File
+mkdir -p custom-tools
+cat > custom-tools/system-status.yaml << 'YAML'
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: ${DB2i_PORT:-8076}
+    ignore-unauthorized: ${DB2i_IGNORE_UNAUTHORIZED:-true}
+
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Overall system performance with CPU, memory, and I/O metrics"
+    parameters: []
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(
+        RESET_STATISTICS=>'YES',
+        DETAILED_INFO=>'ALL'
+      )) X
+YAML
+```
+
+```yaml custom-tools/system-status.yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: ${DB2i_PORT:-8076}
+    ignore-unauthorized: ${DB2i_IGNORE_UNAUTHORIZED:-true}
+
+tools:
+  system_status:
+    source: ibmi-system
+    description: "Overall system performance with CPU, memory, and I/O metrics"
+    parameters: []
+    statement: |
+      SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(
+        RESET_STATISTICS=>'YES',
+        DETAILED_INFO=>'ALL'
+      )) X
+```
+</CodeGroup>
+
+## 2) Point the server at your YAML
+
+Update your environment so the server loads your file:
+
+```bash
+# Either replace the path
+TOOLS_YAML_PATH=custom-tools
+
+# Or include alongside the prebuilt configs
+TOOLS_YAML_PATH=prebuiltconfigs,custom-tools
+```
+
+Rebuild and start the server:
+
+```bash
+npm run build
+npm run start:http   # or: npm run start:stdio
+```
+
+## 3) Validate the YAML (optional but recommended)
+
+Use the validator to catch schema errors early:
+
+```bash
+npm run validate -- --tools custom-tools/system-status.yaml
+```
+
+You should see a success message and counts for 1 source and 1 tool.
+
+## 4) Test in MCP Inspector
+
+1. Ensure `mcp.json` includes your server and (if needed) passes `TOOLS_YAML_PATH`
+2. Start the Inspector:
+   ```bash
+   npm run inspector
+   ```
+3. In the UI, select your server
+4. Find `system_status` in the tools list
+5. Run the tool with empty arguments `{}`
+6. Confirm results show CPU/memory/I/O metrics from your IBM i
+
+Optional (HTTP JSON‑RPC test):
+
+```bash
+curl -sS -X POST http://127.0.0.1:3010/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "system_status", "arguments": {} }
+  }'
+```
+
+## Next Steps
+
+- Add a row‑limit parameter using Db2 for i syntax (e.g., `FETCH FIRST ? ROWS ONLY`)
+- Create a toolset and group related tools
+- Explore more examples in `prebuiltconfigs/performance.yaml`
+
+## Troubleshooting
+
+- Tool not listed: Verify `TOOLS_YAML_PATH`, file path, and run `npm run validate -- --tools custom-tools/system-status.yaml`
+- Connection errors: Check `.env` and Mapepire availability on the configured port
+- HTTP issues: Try stdio transport (`npm run start:stdio`) to isolate network concerns
+
