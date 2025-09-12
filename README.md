@@ -259,11 +259,19 @@ The toolsets section of your `tools.yaml` allows you to define groups of tools t
 
 ```yaml
 toolsets:
-  ibmi-system-tools:
+  performance:
     tools:
       - system_status
-      - job_status
-      - disk_usage
+      - system_activity
+      - remote_connections
+      - memory_pools
+      - temp_storage_buckets
+      - unnamed_temp_storage
+      - http_server
+      - system_values
+      - collection_services
+      - collection_categories
+      - active_job_info
 ```
 
 More documentation on SQL tools coming soon!

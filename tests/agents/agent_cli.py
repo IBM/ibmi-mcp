@@ -21,9 +21,11 @@ load_dotenv()
 # Import utilities
 from utils import get_model
 
+url = "http://127.0.0.1:3010/mcp"
+
 
 async def create_agent(
-    model_id: str = "openai:gpt-4o", debug: bool = False, tools_path: str = None
+    model_id: str = "openai:gpt-4o", debug: bool = True, tools_path: str = None
 ) -> Agent:
     """
     Create IBM i PTF specialist agent.
@@ -56,7 +58,7 @@ async def create_agent(
         "DB2i_PORT": os.getenv("DB2i_PORT", "8076"),
     }
 
-    mcp_tools = MCPTools(command="npx ibmi-mcp-server", transport="stdio", env=mcp_env)
+    mcp_tools = MCPTools(url=url, transport="streamable-http")
 
     await mcp_tools.connect()
 
@@ -84,7 +86,7 @@ async def create_agent(
         add_history_to_messages=True,
         add_datetime_to_instructions=True,
         num_history_runs=3,
-        num_history_responses=3,
+        num_history_responses=3
     )
     
     

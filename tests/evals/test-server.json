@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "title": "Add 1 plus 2 equals 3",
+      "prompt": "Add 1 plus 2",
+      "expectedTools": ["add"],
+      "model": { "id": "gpt-oss:20b", "provider": "ollama" },
+      "selectedServers": ["server-everything"]
+    },
+    {
+      "title": "echo hello world",
+      "prompt": "echo hello world",
+      "expectedTools": ["echo"],
+      "model": { "id": "gpt-oss:20b", "provider": "ollama" },
+      "selectedServers": ["server-everything"]
+    },
+    {
+      "title": "system status",
+      "prompt": "what is my system status?",
+      "expectedTools": ["system_status"],
+      "model": { "id": "llama3.1:8b", "provider": "ollama" },
+      "selectedServers": ["ibmi-mcp-server"]
+    }
+  ]
+}

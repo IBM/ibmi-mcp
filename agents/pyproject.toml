@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ibmi-agents"
+version = "0.1.0"
+description = "IBM i specialized agents with MCP tools and comprehensive evaluation framework"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "IBM i MCP Team"}
+]
+license = {text = "MIT"}
+keywords = ["ibm-i", "agents", "mcp", "system-administration", "agno"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "agno==2.0.3",
+    "anthropic>=0.67.0",
+    "fastapi[standard]>=0.116.1",
+    "fastmcp>=2.12.2",
+    "mcp>=1.13.1",
+    "openai>=1.107.1",
+    "sqlalchemy>=2.0.43",
+    "toolbox-core>=0.5.0",
+    "uvicorn>=0.35.0",
+    "psutil>=5.9.0",
+    "python-dotenv>=1.0.0",
+]
