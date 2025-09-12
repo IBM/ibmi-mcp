@@ -11,7 +11,6 @@ import {
   logOperationStart,
   logOperationSuccess,
 } from "@/utils/internal/logging-helpers.js";
-import { registerEchoResource } from "./echoResource/index.js";
 import { registerToolsetsResource } from "@/ibmi-mcp-server/resources/toolsetsResource/index.js";
 
 /** Registers all available resources with the MCP server. */
@@ -23,10 +22,7 @@ export const registerAllResources = async (
   });
   logOperationStart(context, "Starting registration of all resources...");
 
-  await Promise.all([
-    registerEchoResource(server),
-    registerToolsetsResource(server),
-  ]);
+  await Promise.all([registerToolsetsResource(server)]);
 
   logOperationSuccess(
     context,

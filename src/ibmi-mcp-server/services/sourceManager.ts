@@ -6,7 +6,7 @@
  */
 
 import { BindingValue, QueryResult } from "@ibm/mapepire-js";
-import { YamlSource } from "../utils/yaml/types.js";
+import { YamlSource, YamlToolSecurityConfig } from "../utils/yaml/types.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
   requestContextService,
@@ -120,8 +120,15 @@ export class SourceManager extends BaseConnectionPool<string> {
     query: string,
     params?: BindingValue[],
     context?: RequestContext,
+    securityConfig?: YamlToolSecurityConfig,
   ): Promise<QueryResult<T>> {
-    return super.executeQuery<T>(sourceName, query, params, context);
+    return super.executeQuery<T>(
+      sourceName,
+      query,
+      params,
+      context,
+      securityConfig,
+    );
   }
 
   /**

@@ -123,16 +123,7 @@ uv run agentos.py
 
 This serves AgentOS on `http://localhost:7777` with full tool access.
 
-#### Option B: Filtered Agent (Performance Tools Only)
-Uses only performance-related tools for focused system monitoring:
-
-```bash
-uv run agentos_with_filtered_tools.py
-```
-
-This starts an agent with access to only the `performance` toolset.
-
-#### Option C: Multi-Agent OS (Specialized Agents)
+#### Option B: Multi-Agent OS (Specialized Agents)
 Runs multiple specialized agents for different tasks:
 
 ```bash
@@ -221,57 +212,6 @@ uv run eval_runner.py
 
 This runs automated tests to ensure agents are working correctly and making appropriate tool calls.
 
-## Troubleshooting
-
-### Common Issues and Solutions
-
-#### "MCP server not reachable"
-- **Solution**: Ensure the MCP server is running with `npm run start:http` in the main project directory
-- **Check**: Verify the server is accessible at `http://127.0.0.1:3010/mcp`
-
-#### "OpenAI API key not found"
-- **Solution**: Make sure you've set `OPENAI_API_KEY` in `agents/.env`
-- **Check**: Verify the `.env` file exists in the `agents/` directory
-
-#### "IBM i connection failed"
-- **Solution**: Check your IBM i connection details in the main `.env` file
-- **Check**: Ensure `DB2i_HOST`, `DB2i_USER`, and `DB2i_PASS` are correct
-- **Verify**: Test connectivity to your IBM i system on the specified port
-
-#### "uv command not found"
-- **Solution**: Install uv using the instructions in Step 1
-- **Alternative**: Use `pip install uv` if the installer script doesn't work
-
-#### Agent UI shows "No tools available"
-- **Solution**: 
-  1. Verify the MCP server is running (`npm run start:http`)
-  2. Check that AgentOS is running on `http://localhost:7777`
-  3. Restart both services if needed
-
-### Getting Help
-
-- **Check the logs**: Both the MCP server and agents provide detailed logging
-- **Verify prerequisites**: Ensure all required software is installed and up to date
-- **Test connections**: Use simple queries first to verify everything is working
-- **GitHub Issues**: Report problems at [https://github.com/ajshedivy/ibmi-mcp-server/issues](https://github.com/ajshedivy/ibmi-mcp-server/issues)
-
-## Project Structure
-
-```
-agents/
-├── README.md                           # This file
-├── pyproject.toml                      # Python dependencies
-├── .env.example                        # Environment template
-├── agentos.py                          # Standard agent (all tools)
-├── agentos_with_filtered_tools.py      # Filtered agent (performance only)
-├── ibmi_agentos.py                     # Multi-agent setup
-├── eval_runner.py                      # Evaluation framework
-└── agent-ui/                           # Web interface
-    ├── components.json
-    ├── package.json
-    └── src/...
-```
-
 ## Technical Details
 
 ### Architecture Overview
@@ -287,7 +227,6 @@ agents/
 - **AgentOS URL**: `http://localhost:7777`
 - **Agent UI URL**: `http://localhost:3000`
 - **Transport**: `streamable-http`
-- **Default Toolset**: `performance` (for filtered agent)
 
 ### Customization
 

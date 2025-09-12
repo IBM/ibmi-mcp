@@ -30,6 +30,7 @@ import { AutoTransportManager } from "../core/autoTransportManager.js";
 import { StatelessTransportManager } from "../core/statelessTransportManager.js";
 import { TransportManager, TransportResponse } from "../core/transportTypes.js";
 import { StatefulTransportManager } from "./../core/statefulTransportManager.js";
+import { setServerReplacementCallback } from "@/ibmi-mcp-server/index.js";
 import { httpErrorHandler } from "./httpErrorHandler.js";
 import { HonoNodeBindings } from "./httpTypes.js";
 import { mcpTransportMiddleware } from "./mcpTransportMiddleware.js";
@@ -509,6 +510,94 @@ export async function startHttpTransport(
     config.mcpSessionMode,
     transportContext,
   );
+
+  // Eager loading: Create and register tools during startup for HTTP mode
+  // This pre-warms the system and ensures tools are available immediately
+  const eagerLoadContext = {
+    ...transportContext,
+    operation: "EagerToolLoading",
+  };
+
+  logger.info(
+    eagerLoadContext,
+    "Pre-loading and caching YAML tools during HTTP server startup",
+  );
+
+  try {
+    // Create a temporary server instance to trigger eager loading
+    const preloadServer = await createServerInstanceFn();
+    logger.info(
+      eagerLoadContext,
+      `YAML tools pre-loaded successfully during startup`,
+    );
+
+    // Clean up the temporary server
+    await preloadServer.close();
+  } catch (error) {
+    logger.error(
+      eagerLoadContext,
+      `Failed to pre-load YAML tools during startup: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    // Continue with startup even if pre-loading fails
+  }
+
+  // Register server replacement callback for YAML auto-reload if the transport manager supports it
+  if (transportManager && "replaceAllServerInstances" in transportManager) {
+    const callbackContext = {
+      ...transportContext,
+      operation: "RegisterServerReplacementCallback",
+    };
+
+    logger.debug(
+      callbackContext,
+      "Registering server replacement callback for HTTP transport manager",
+    );
+
+    setServerReplacementCallback(async (_newServer) => {
+      const replacementContext = {
+        ...callbackContext,
+        operation: "ReplaceServerInstancesViaCallback",
+      };
+
+      logger.info(
+        replacementContext,
+        "YAML auto-reload triggered, replacing server instances in HTTP transport manager",
+      );
+
+      try {
+        // The transport manager will handle replacing its managed server instances
+        // We don't directly use the newServer parameter since the transport manager
+        // creates its own server instances via createServerInstanceFn
+        if (
+          "replaceAllServerInstances" in transportManager &&
+          typeof transportManager.replaceAllServerInstances === "function"
+        ) {
+          await transportManager.replaceAllServerInstances();
+        }
+
+        logger.info(
+          replacementContext,
+          "HTTP transport manager server instances replaced successfully",
+        );
+      } catch (error) {
+        logger.error(
+          replacementContext,
+          `Failed to replace server instances in HTTP transport manager: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    });
+
+    logger.info(
+      callbackContext,
+      `Server replacement callback registered for ${config.mcpSessionMode} transport mode`,
+    );
+  } else {
+    logger.debug(
+      transportContext,
+      `Transport manager (${config.mcpSessionMode}) does not support server replacement - auto-reload will only work for new connections`,
+    );
+  }
+
   const app = createHttpApp(
     transportManager,
     createServerInstanceFn,

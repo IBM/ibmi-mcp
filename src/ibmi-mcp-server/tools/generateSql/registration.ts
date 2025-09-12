@@ -9,6 +9,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { JsonRpcErrorCode } from "../../../types-global/errors.js";
 import { ErrorHandler, requestContextService } from "../../../utils/index.js";
+import { ToolsetManager } from "../../utils/yaml/toolsetManager.js";
 import {
   logOperationStart,
   logOperationSuccess,
@@ -25,12 +26,12 @@ import {
 } from "./logic.js";
 
 // The unique name for the tool, used for registration and identification.
-const TOOL_NAME = "generate_sql";
+export const TOOL_NAME = "describe_sql_object";
 
 // A concise description for the LLM. More detailed guidance should be in the
 // parameter descriptions within the Zod schema in `logic.ts`.
 const TOOL_DESCRIPTION =
-  "Generates SQL DDL statements for IBM i database objects using QSYS2.GENERATE_SQL.";
+  "Describes IBM i database objects by generating their SQL DDL statements. Useful for understanding object structure and recreating objects.";
 
 const responseFormatter: ResponseFormatter<GenerateSqlOutput> = (
   result: GenerateSqlOutput,
@@ -63,6 +64,10 @@ export const registerGenerateSqlTool = async (
 
   await ErrorHandler.tryCatch(
     async () => {
+      // Get toolset metadata for global tool
+      const toolsetManager = ToolsetManager.getInstance();
+      const toolsetMetadata = toolsetManager.generateToolMetadata(TOOL_NAME);
+
       server.registerTool(
         TOOL_NAME,
         {
@@ -73,6 +78,7 @@ export const registerGenerateSqlTool = async (
           annotations: {
             readOnlyHint: false, // This tool generates DDL which could be used for schema changes
             openWorldHint: false, // This tool interacts with the IBM i database system
+            ...toolsetMetadata, // Add toolset metadata for filtering
           },
         },
         createToolHandler(TOOL_NAME, generateSqlLogic, responseFormatter),

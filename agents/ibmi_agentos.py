@@ -57,4 +57,4 @@ if __name__ == "__main__":
     print()
     
     # Default port is 7777; change with port=...
-    agent_os.serve(app="multi_agent_os:app", reload=True)
+    agent_os.serve(app="ibmi_agentos:app", reload=True)

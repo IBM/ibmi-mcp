@@ -12,6 +12,8 @@ type mcpTransportType = "stdio" | "http";
 export interface CliArguments {
   tools?: string;
   transport?: mcpTransportType;
+  toolsets?: string[];
+  listToolsets?: boolean;
   help?: boolean;
   errors?: string[];
   warnings?: string[];
@@ -62,6 +64,23 @@ export function parseCliArguments(): CliArguments {
       } else {
         parsed.errors?.push("--transport flag requires a type argument");
       }
+    } else if (arg === "--toolsets" || arg === "-ts") {
+      if (i + 1 < args.length) {
+        const toolsetsValue = args[i + 1];
+        // Split by comma and trim whitespace
+        parsed.toolsets =
+          toolsetsValue
+            ?.split(",")
+            .map((t) => t.trim())
+            .filter((t) => t.length > 0) || [];
+        i++; // Skip the next argument as it's the toolsets value
+      } else {
+        parsed.errors?.push(
+          "--toolsets flag requires a comma-separated list argument",
+        );
+      }
+    } else if (arg === "--list-toolsets") {
+      parsed.listToolsets = true;
     } else if (arg?.startsWith("--")) {
       parsed.warnings?.push(`Unknown argument detected: ${arg}`);
       i++;
@@ -124,6 +143,8 @@ Options:
                       - Files: performance.yaml, config.yml
                       - Directories: prebuiltconfigs/, tools/
                       - Globs: "**/*.yaml" (quote for shell safety)
+  --toolsets, -ts <list>   Comma-separated list of toolsets (e.g., "performance,system")
+  --list-toolsets   List all available toolsets and exit
   --transport, -t <type>   Transport type: "stdio" or "http"
 
   -h, --help        Show this help message
@@ -131,6 +152,8 @@ Options:
 Examples:
   npx ibmi-mcp-server --tools prebuiltconfigs
   npx ibmi-mcp-server --tools prebuiltconfigs/performance.yaml
+  npx ibmi-mcp-server --toolsets performance,system
+  npx ibmi-mcp-server --list-toolsets --tools prebuiltconfigs
   npx ibmi-mcp-server --tools ../custom-tools/
   npx ibmi-mcp-server --tools "configs/**/*.yaml"
 

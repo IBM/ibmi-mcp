@@ -99,7 +99,14 @@ export class YamlConfigBuilder {
   > = new Map();
   private static fileToKeys: Map<string, Set<string>> = new Map();
   private static watchers: Map<string, FSWatcher> = new Map();
-  // --- End static cache and watchers ---
+
+  // --- Callback system for file change notifications ---
+  private static changeCallbacks: Map<
+    string,
+    (filePath: string, eventType: string, context?: RequestContext) => void
+  > = new Map();
+  private static nextCallbackId = 1;
+  // --- End static cache, watchers, and callbacks ---
 
   /**
    * Create a new configuration builder
@@ -227,12 +234,15 @@ export class YamlConfigBuilder {
         const configs = await this.loadAllConfigurations(filePaths);
         const mergedConfig = await this.mergeConfigurations(configs);
 
+        // Use merged configuration directly (TypeScript tool mappings now handled via GLOBAL_TOOLS)
+        const enhancedConfig = mergedConfig;
+
         const stats = {
           sourcesLoaded: filePaths.length,
           sourcesMerged: configs.length,
-          toolsTotal: Object.keys(mergedConfig.tools || {}).length,
-          toolsetsTotal: Object.keys(mergedConfig.toolsets || {}).length,
-          sourcesTotal: Object.keys(mergedConfig.sources || {}).length,
+          toolsTotal: Object.keys(enhancedConfig.tools || {}).length,
+          toolsetsTotal: Object.keys(enhancedConfig.toolsets || {}).length,
+          sourcesTotal: Object.keys(enhancedConfig.sources || {}).length,
         };
 
         logger.info(
@@ -243,7 +253,7 @@ export class YamlConfigBuilder {
         // Update cache and establish watchers for invalidation-on-save
         YamlConfigBuilder.cache.set(cacheKey, {
           success: true,
-          config: mergedConfig,
+          config: enhancedConfig,
           stats,
           filePaths,
           valid: true,
@@ -251,7 +261,7 @@ export class YamlConfigBuilder {
         });
         this.ensureWatchers(filePaths, cacheKey);
 
-        return { success: true, config: mergedConfig, stats };
+        return { success: true, config: enhancedConfig, stats };
       },
       {
         operation: "BuildYamlConfig",
@@ -290,6 +300,8 @@ export class YamlConfigBuilder {
           const watcher = watch(fp, { persistent: false }, (eventType) => {
             const affectedKeys = YamlConfigBuilder.fileToKeys.get(fp);
             if (!affectedKeys) return;
+
+            // Invalidate cache entries
             for (const key of affectedKeys) {
               const entry = YamlConfigBuilder.cache.get(key);
               if (entry) {
@@ -297,10 +309,35 @@ export class YamlConfigBuilder {
                 entry.lastBuilt = 0;
               }
             }
+
             logger.info(
               this.context || {},
               `YAML changed (${eventType}) at ${fp}. Invalidated ${affectedKeys.size} cache entr${affectedKeys.size === 1 ? "y" : "ies"}.`,
             );
+
+            // Call registered callbacks if auto-reload is enabled
+            if (
+              config.yamlAutoReload &&
+              YamlConfigBuilder.changeCallbacks.size > 0
+            ) {
+              const context =
+                this.context ||
+                requestContextService.createRequestContext({
+                  operation: "YamlFileChanged",
+                  filePath: fp,
+                });
+
+              for (const callback of YamlConfigBuilder.changeCallbacks.values()) {
+                try {
+                  callback(fp, eventType, context);
+                } catch (error) {
+                  logger.error(
+                    context,
+                    `Error in YAML change callback: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                }
+              }
+            }
           });
           YamlConfigBuilder.watchers.set(fp, watcher);
         } catch (err) {
@@ -324,10 +361,35 @@ export class YamlConfigBuilder {
                 entry.lastBuilt = 0;
               }
             }
+
             logger.info(
               this.context || {},
               `Directory changed (${dir}). Invalidated YAML cache entries referencing this directory.`,
             );
+
+            // Call registered callbacks if auto-reload is enabled
+            if (
+              config.yamlAutoReload &&
+              YamlConfigBuilder.changeCallbacks.size > 0
+            ) {
+              const context =
+                this.context ||
+                requestContextService.createRequestContext({
+                  operation: "YamlDirectoryChanged",
+                  directoryPath: dir,
+                });
+
+              for (const callback of YamlConfigBuilder.changeCallbacks.values()) {
+                try {
+                  callback(dir, "change", context);
+                } catch (error) {
+                  logger.error(
+                    context,
+                    `Error in YAML directory change callback: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                }
+              }
+            }
           });
           YamlConfigBuilder.watchers.set(dirKey, watcher);
         } catch (err) {
@@ -354,6 +416,41 @@ export class YamlConfigBuilder {
     YamlConfigBuilder.watchers.clear();
     YamlConfigBuilder.fileToKeys.clear();
     YamlConfigBuilder.cache.clear();
+    YamlConfigBuilder.changeCallbacks.clear();
+  }
+
+  /**
+   * Register a callback to be called when YAML configuration files change
+   * @param callback - Function to call when files change
+   * @returns Callback ID for unregistering
+   */
+  static registerChangeCallback(
+    callback: (
+      filePath: string,
+      eventType: string,
+      context?: RequestContext,
+    ) => void,
+  ): string {
+    const id = `callback_${YamlConfigBuilder.nextCallbackId++}`;
+    YamlConfigBuilder.changeCallbacks.set(id, callback);
+    return id;
+  }
+
+  /**
+   * Unregister a change callback
+   * @param callbackId - ID returned from registerChangeCallback
+   * @returns True if callback was found and removed
+   */
+  static unregisterChangeCallback(callbackId: string): boolean {
+    return YamlConfigBuilder.changeCallbacks.delete(callbackId);
+  }
+
+  /**
+   * Get the number of registered change callbacks
+   * @returns Number of registered callbacks
+   */
+  static getCallbackCount(): number {
+    return YamlConfigBuilder.changeCallbacks.size;
   }
 
   /**

@@ -12,6 +12,15 @@ import {
   RequestContext,
 } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { TOOL_NAME } from "../../tools/generateSql/registration.js";
+
+/**
+ * Global tools that are automatically added to all toolsets
+ * These tools are typically TypeScript-based tools that provide universal functionality
+ */
+export const GLOBAL_TOOLS = [
+  TOOL_NAME, // SQL DDL generation tool - available to all toolsets
+] as const;
 
 /**
  * Toolset information for MCP tool metadata
@@ -61,7 +70,7 @@ export class ToolsetManager {
 
   /**
    * Initialize the toolset manager with YAML configuration
-   * @param config - YAML configuration with toolsets
+   * @param config - YAML configuration with toolsets (can be enhanced with TypeScript tools)
    * @param context - Request context for logging
    */
   async initialize(
@@ -92,18 +101,29 @@ export class ToolsetManager {
         this.toolToToolsets.clear();
         this.toolsetToTools.clear();
 
+        // Log global tools that will be added to all toolsets
+        logger.debug(
+          {
+            ...operationContext,
+            globalTools: GLOBAL_TOOLS,
+          },
+          "Global tools will be automatically added to all toolsets",
+        );
+
         // Process toolsets if they exist
         if (config.toolsets) {
           this.toolsetConfig = { ...config.toolsets };
 
-          // Build toolset-to-tool mappings
+          // Build toolset-to-tool mappings with global tools
           for (const [toolsetName, toolset] of Object.entries(
             config.toolsets,
           )) {
-            this.toolsetToTools.set(toolsetName, [...toolset.tools]);
+            // Combine toolset-specific tools with global tools
+            const allToolsForToolset = [...toolset.tools, ...GLOBAL_TOOLS];
+            this.toolsetToTools.set(toolsetName, allToolsForToolset);
 
-            // Build tool-to-toolset mappings
-            for (const toolName of toolset.tools) {
+            // Build tool-to-toolset mappings for both regular and global tools
+            for (const toolName of allToolsForToolset) {
               if (!this.toolToToolsets.has(toolName)) {
                 this.toolToToolsets.set(toolName, []);
               }
@@ -115,6 +135,7 @@ export class ToolsetManager {
         // Validate that all tools referenced in toolsets exist
         const allToolNames = [
           ...Object.keys(config.tools || {}), // Regular YAML tools
+          ...GLOBAL_TOOLS, // Global tools (TypeScript-based)
         ];
         for (const [toolsetName, toolset] of Object.entries(
           this.toolsetConfig,
@@ -153,7 +174,16 @@ export class ToolsetManager {
    * @returns Toolset information for the tool
    */
   getToolsetInfo(toolName: string): ToolsetInfo {
-    const toolsets = this.toolToToolsets.get(toolName) || [];
+    let toolsets = this.toolToToolsets.get(toolName) || [];
+
+    // If this is a global tool but not in the mapping, add it to all toolsets
+    if (
+      (GLOBAL_TOOLS as readonly string[]).includes(toolName) &&
+      toolsets.length === 0
+    ) {
+      toolsets = Object.keys(this.toolsetConfig);
+    }
+
     const toolsetMetadata: Record<string, YamlToolset> = {};
 
     // Build toolset metadata for the tool

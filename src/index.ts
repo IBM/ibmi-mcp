@@ -29,6 +29,133 @@ import {
   validateToolsPath,
 } from "./ibmi-mcp-server/utils/cli/argumentParser.js";
 import { YamlConfigBuilder } from "@/ibmi-mcp-server/utils/yaml/yamlConfigBuilder.js";
+import { GLOBAL_TOOLS } from "./ibmi-mcp-server/utils/yaml/toolsetManager.js";
+
+/**
+ * List all available toolsets from YAML configuration and exit
+ * This command parses the YAML tools configuration and displays a formatted list of all toolsets
+ */
+async function listToolsetsCommand(): Promise<void> {
+  console.log("\n📦 Available Toolsets\n");
+
+  try {
+    // Apply CLI overrides to get the correct tools path
+    applyCliOverrides(cliArgs);
+
+    if (!config.toolsYamlPath) {
+      console.error("❌ No YAML tools configuration found.");
+      console.error(
+        "   Use --tools <path> to specify YAML tools configuration or set TOOLS_YAML_PATH environment variable.\n",
+      );
+      return;
+    }
+
+    console.log(`📁 Configuration: ${config.toolsYamlPath}`);
+    console.log("");
+
+    // Create a context for this operation
+    const context = requestContextService.createRequestContext({
+      operation: "ListToolsets",
+      yamlPath: config.toolsYamlPath,
+    });
+
+    // Parse YAML configuration to extract toolsets
+    const configBuilder = new YamlConfigBuilder(context);
+
+    // Configure sources based on path type (same logic as in yamlToolProcessor)
+    if (Array.isArray(config.toolsYamlPath)) {
+      configBuilder.addFiles(config.toolsYamlPath);
+    } else {
+      const { resolve } = await import("path");
+      const { existsSync, statSync } = await import("fs");
+      const resolvedPath = resolve(config.toolsYamlPath);
+
+      if (existsSync(resolvedPath)) {
+        const stats = statSync(resolvedPath);
+        if (stats.isDirectory()) {
+          configBuilder.addDirectory(config.toolsYamlPath);
+        } else {
+          configBuilder.addFile(config.toolsYamlPath);
+        }
+      } else {
+        configBuilder.addFile(config.toolsYamlPath);
+      }
+    }
+
+    // Build configuration
+    const configResult = await configBuilder.build();
+
+    if (!configResult.success || !configResult.config) {
+      console.error("❌ Failed to parse YAML configuration:");
+      if (configResult.errors) {
+        configResult.errors.forEach((error) => console.error(`   ${error}`));
+      }
+      return;
+    }
+
+    const yamlConfig = configResult.config;
+
+    // Display global tools section
+    console.log("🌍 Global Tools (automatically added to all toolsets):");
+    console.log(`   • ${GLOBAL_TOOLS}`);
+    console.log("");
+
+    if (!yamlConfig.toolsets || Object.keys(yamlConfig.toolsets).length === 0) {
+      console.log("ℹ️  No toolsets found in YAML configuration.");
+      console.log(
+        "   Individual tools may be available without being organized into toolsets.\n",
+      );
+      return;
+    }
+
+    // Display toolsets information
+    console.log(`Found ${Object.keys(yamlConfig.toolsets).length} toolsets:\n`);
+
+    for (const [toolsetName, toolsetConfig] of Object.entries(
+      yamlConfig.toolsets,
+    )) {
+      const toolsetToolCount = toolsetConfig.tools
+        ? toolsetConfig.tools.length
+        : 0;
+      const globalToolCount = GLOBAL_TOOLS.length;
+      const totalToolCount = toolsetToolCount;
+
+      console.log(`🔧 ${toolsetName}`);
+
+      if (toolsetConfig.title && toolsetConfig.title !== toolsetName) {
+        console.log(`   Title: ${toolsetConfig.title}`);
+      }
+
+      if (toolsetConfig.description) {
+        console.log(`   Description: ${toolsetConfig.description}`);
+      }
+
+      console.log(
+        `   Tools: ${totalToolCount} tools (${toolsetToolCount} specific + ${globalToolCount} global)`,
+      );
+
+      if (toolsetToolCount > 0) {
+        console.log(`   Specific tools: ${toolsetConfig.tools.join(", ")}`);
+      }
+
+      console.log("");
+    }
+
+    console.log("💡 Usage examples:");
+    console.log(
+      `   npx ibmi-mcp-server --tools ${config.toolsYamlPath} --toolsets ${Object.keys(yamlConfig.toolsets).slice(0, 2).join(",")}`,
+    );
+    console.log(
+      `   npm run start:http -- --tools ${config.toolsYamlPath} --toolsets ${Object.keys(yamlConfig.toolsets)[0]}`,
+    );
+    console.log("");
+  } catch (error) {
+    console.error("❌ Error listing toolsets:");
+    console.error(
+      `   ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
 
 // Parse CLI arguments and handle immediate responses
 const cliArgs = parseCliArguments();
@@ -36,6 +163,12 @@ const cliArgs = parseCliArguments();
 // Handle help request immediately
 if (cliArgs.help) {
   showHelp();
+  process.exit(0);
+}
+
+// Handle list toolsets request immediately
+if (cliArgs.listToolsets) {
+  await listToolsetsCommand();
   process.exit(0);
 }
 
@@ -73,6 +206,10 @@ if (cliArgs.tools) {
 }
 if (cliArgs.transport) {
   console.info(`Using MCP transport type: ${config.mcpTransportType}`);
+}
+
+if (cliArgs.toolsets && cliArgs.toolsets.length > 0) {
+  console.info(`Using toolsets: ${cliArgs.toolsets.join(", ")}`);
 }
 
 let mcpStdioServer: McpServer | undefined;

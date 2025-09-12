@@ -12,9 +12,11 @@ import type { CliArguments } from "../ibmi-mcp-server/utils/cli/argumentParser.j
 type BaseConfig = typeof config;
 
 // Create a resolved configuration type that includes the CLI-overridable fields
-export interface ResolvedConfig extends Omit<BaseConfig, "mcpTransportType"> {
+export interface ResolvedConfig
+  extends Omit<BaseConfig, "mcpTransportType" | "selectedToolsets"> {
   toolsYamlPath: string | undefined;
   mcpTransportType: "stdio" | "http";
+  selectedToolsets?: string[];
 }
 
 /**
@@ -35,6 +37,7 @@ export function resolveConfiguration(cliArgs: CliArguments): ResolvedConfig {
       cliArgs.transport ||
       (config.mcpTransportType as "stdio" | "http") ||
       "stdio",
+    selectedToolsets: cliArgs.toolsets,
   };
 
   return resolvedConfig;
@@ -65,5 +68,10 @@ export function applyCliOverrides(cliArgs: CliArguments): void {
     } catch {
       // ignore env mutation failures in restricted environments
     }
+  }
+
+  if (cliArgs.toolsets && cliArgs.toolsets.length > 0) {
+    // Store selected toolsets in config for access by other modules
+    config.selectedToolsets = cliArgs.toolsets;
   }
 }

@@ -203,6 +203,8 @@ Configure the server using these environment variables (or a `.env` file):
 | `YAML_ALLOW_DUPLICATE_TOOLS`          | Allow duplicate tool names across merged YAML files.                                      | `false`                                |
 | `YAML_ALLOW_DUPLICATE_SOURCES`        | Allow duplicate source names across merged YAML files.                                    | `false`                                |
 | `YAML_VALIDATE_MERGED`                | Validate the merged YAML configuration before use.                                        | `true`                                 |
+| `YAML_AUTO_RELOAD`                    | Enable automatic reloading of YAML tools when configuration files change.                 | `true`                                 |
+| `SELECTED_TOOLSETS`                   | Comma-separated list of toolset names to load/filter tools (overrides full load).         | (none)                                 |
 | `DB2i_HOST`                           | IBM i Db2 for i host (Mapepire daemon or gateway host).                                   | (none)                                 |
 | `DB2i_USER`                           | IBM i user profile for Db2 for i connections.                                             | (none)                                 |
 | `DB2i_PASS`                           | Password for the IBM i user profile.                                                      | (none)                                 |

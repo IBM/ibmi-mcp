@@ -16,18 +16,11 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": [
-              "index",
-              "installation",
-              "quickstart",
-              "configuration"
-            ]
+            "pages": ["index", "installation", "quickstart", "configuration"]
           },
           {
             "group": "Core Concepts",
-            "pages": [
-              "concepts/architecture"
-            ]
+            "pages": ["concepts/architecture"]
           },
           {
             "group": "SQL Tools System",
@@ -87,9 +80,7 @@
         "groups": [
           {
             "group": "Tutorials",
-            "pages": [
-              "examples/first-tool"
-            ]
+            "pages": ["examples/first-tool"]
           },
           {
             "group": "Use Cases",
@@ -141,15 +132,15 @@
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {

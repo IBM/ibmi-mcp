@@ -187,3 +187,11 @@ data/
 devdocs.md
 release/
 tmp/
+
+# =============================================================================
+# CREDENTIALS & SENSITIVE FILES
+# =============================================================================
+**/test-mcp.json
+**/test-server.json
+**/*credentials*.json
+**/*secrets*.json

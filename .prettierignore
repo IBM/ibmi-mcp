@@ -1,0 +1,24 @@
+# Ignore agents directory as it has its own prettier configuration
+agents/
+
+# Common ignore patterns
+node_modules/
+dist/
+build/
+coverage/
+*.log
+*.lock
+.env
+.env.local
+.env.production
+.env.test
+
+# Release artifacts
+release/
+
+# Temporary files
+tmp/
+temp/
+
+# Generated documentation
+docs/api/

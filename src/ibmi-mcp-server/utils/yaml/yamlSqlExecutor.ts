@@ -6,7 +6,11 @@
  */
 
 import { SourceManager } from "../../services/sourceManager.js";
-import { YamlToolExecutionResult, YamlToolParameter } from "./types.js";
+import {
+  YamlToolExecutionResult,
+  YamlToolParameter,
+  YamlToolSecurityConfig,
+} from "./types.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
   requestContextService,
@@ -93,6 +97,7 @@ export class YamlSqlExecutor {
    * @param sqlStatement - SQL statement with parameter placeholders
    * @param parameters - Parameters for processing
    * @param parameterDefinitions - Parameter definitions for validation
+   * @param securityConfig - Security configuration for validation
    * @param context - Request context
    * @returns Execution result
    */
@@ -102,8 +107,40 @@ export class YamlSqlExecutor {
     sqlStatement: string,
     parameters: Record<string, unknown>,
     parameterDefinitions: YamlToolParameter[] = [],
-    context?: RequestContext,
+    // Note: securityConfig and context order changed recently.
+    // Accept both orders for backward compatibility.
+    securityConfigOrContext?: YamlToolSecurityConfig | RequestContext,
+    maybeContext?: RequestContext,
   ): Promise<YamlToolExecutionResult<T>> {
+    // Backward-compat param handling:
+    // - Old: (..., parameterDefinitions, context)
+    // - New: (..., parameterDefinitions, securityConfig, context)
+    let context: RequestContext | undefined;
+    let securityConfig: YamlToolSecurityConfig | undefined;
+
+    if (
+      maybeContext &&
+      typeof maybeContext === "object" &&
+      ("operation" in maybeContext || "requestId" in maybeContext)
+    ) {
+      // New order provided
+      context = maybeContext as RequestContext;
+      securityConfig = securityConfigOrContext as YamlToolSecurityConfig | undefined;
+    } else if (
+      securityConfigOrContext &&
+      typeof securityConfigOrContext === "object" &&
+      ("operation" in (securityConfigOrContext as Record<string, unknown>) ||
+        "requestId" in (securityConfigOrContext as Record<string, unknown>))
+    ) {
+      // Old order provided (context passed as the 6th arg)
+      context = securityConfigOrContext as RequestContext;
+      securityConfig = undefined;
+    } else {
+      // Neither provided, or only securityConfig provided
+      securityConfig = securityConfigOrContext as YamlToolSecurityConfig | undefined;
+      context = undefined;
+    }
+
     const operationContext =
       context ||
       requestContextService.createRequestContext({
@@ -136,7 +173,40 @@ export class YamlSqlExecutor {
         let processedSql: string;
         let bindingParameters: (string | number | (string | number)[])[] = [];
 
-        if (parameterDefinitions.length > 0) {
+        // Special handling for direct SQL substitution (e.g., execute_sql tool)
+        if (
+          parameterDefinitions.length === 1 &&
+          parameterDefinitions[0] &&
+          sqlStatement.trim() === `:${parameterDefinitions[0].name}`
+        ) {
+          // This is a direct SQL substitution case (like execute_sql)
+          const paramName = parameterDefinitions[0].name;
+          if (
+            paramName in parameters &&
+            typeof parameters[paramName] === "string"
+          ) {
+            processedSql = parameters[paramName] as string;
+            bindingParameters = [];
+
+            logger.debug(
+              {
+                ...operationContext,
+                originalStatement: sqlStatement,
+                substitutedSql:
+                  processedSql.substring(0, 100) +
+                  (processedSql.length > 100 ? "..." : ""),
+                parameterName: paramName,
+              },
+              `Applied direct SQL substitution for tool: ${toolName}`,
+            );
+          } else {
+            throw new McpError(
+              JsonRpcErrorCode.ValidationError,
+              `Missing or invalid SQL parameter '${paramName}' for direct substitution`,
+              { paramName, toolName },
+            );
+          }
+        } else if (parameterDefinitions.length > 0) {
           // Process with unified parameter validation and binding
           const result = await ParameterProcessor.process(
             sqlStatement,
@@ -186,12 +256,21 @@ export class YamlSqlExecutor {
         }
 
         // Execute the query
-        const result = await this.sourceManager.executeQuery<T>(
-          sourceName,
-          processedSql,
-          bindingParameters,
-          operationContext,
-        );
+        // Only pass securityConfig when provided to preserve older 4-arg expectations
+        const result = await (securityConfig
+          ? this.sourceManager.executeQuery<T>(
+              sourceName,
+              processedSql,
+              bindingParameters,
+              operationContext,
+              securityConfig,
+            )
+          : this.sourceManager.executeQuery<T>(
+              sourceName,
+              processedSql,
+              bindingParameters,
+              operationContext,
+            ));
 
         const executionTime = Date.now() - startTime;
 

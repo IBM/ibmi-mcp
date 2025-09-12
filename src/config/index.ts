@@ -214,6 +214,11 @@ const EnvSchema = z.object({
   YAML_ALLOW_DUPLICATE_TOOLS: z.coerce.boolean().default(false),
   YAML_ALLOW_DUPLICATE_SOURCES: z.coerce.boolean().default(false),
   YAML_VALIDATE_MERGED: z.coerce.boolean().default(true),
+
+  /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */
+  YAML_AUTO_RELOAD: z.coerce.boolean().default(true),
+
+  SELECTED_TOOLSETS: z.string().optional(),
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);
@@ -403,6 +408,14 @@ export const config = {
     allowDuplicateSources: env.YAML_ALLOW_DUPLICATE_SOURCES,
     validateMerged: env.YAML_VALIDATE_MERGED,
   },
+
+  /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */
+  yamlAutoReload: env.YAML_AUTO_RELOAD,
+
+  /** Selected toolsets for filtering tools. Set via CLI --toolsets option or SELECTED_TOOLSETS environment variable. */
+  selectedToolsets: env.SELECTED_TOOLSETS?.split(",")
+    .map((ts) => ts.trim())
+    .filter(Boolean) as string[] | undefined,
 };
 
 export const logLevel: string = config.logLevel;

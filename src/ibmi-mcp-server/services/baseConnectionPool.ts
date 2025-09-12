@@ -13,6 +13,8 @@ import {
   RequestContext,
 } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { YamlToolSecurityConfig } from "../utils/yaml/types.js";
+import { SqlSecurityValidator } from "../utils/security/sqlSecurityValidator.js";
 
 /**
  * Connection configuration for a pool instance
@@ -224,6 +226,7 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
     query: string,
     params?: BindingValue[],
     context?: RequestContext,
+    securityConfig?: YamlToolSecurityConfig,
   ): Promise<QueryResult<T>> {
     const operationContext =
       context ||
@@ -306,6 +309,15 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
           }
         }
 
+        // Apply security validation if config is provided
+        if (securityConfig) {
+          SqlSecurityValidator.validateQuery(
+            query,
+            securityConfig,
+            operationContext,
+          );
+        }
+
         const result = await poolState.pool.execute(query, {
           parameters: params,
         });
@@ -349,6 +361,7 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
     params?: BindingValue[],
     context?: RequestContext,
     fetchSize: number = 300,
+    securityConfig?: YamlToolSecurityConfig,
   ): Promise<{
     data: unknown[];
     success: boolean;
@@ -380,6 +393,15 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
           throw new McpError(
             JsonRpcErrorCode.InternalError,
             "Connection pool is not available",
+          );
+        }
+
+        // Apply security validation if config is provided
+        if (securityConfig) {
+          SqlSecurityValidator.validateQuery(
+            query,
+            securityConfig,
+            operationContext,
           );
         }
 
@@ -579,6 +601,9 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
       );
     }
   }
+
+  /**
+   * Close all connection pools gracefully
 
   /**
    * Close all connection pools gracefully

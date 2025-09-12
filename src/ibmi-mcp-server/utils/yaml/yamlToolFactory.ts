@@ -21,6 +21,11 @@ import {
   RequestContext,
 } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { CachedToolConfig } from "./toolConfigCache.js";
+import {
+  standardYamlToolOutputSchema,
+  ToolConfigBuilder,
+} from "./toolConfigBuilder.js";
 
 /**
  * Generated tool information for tracking
@@ -56,22 +61,9 @@ export interface ToolFactoryStats {
   totalParameters: number;
 }
 
-export const yamlToolOutputSchema = z
-  .object({
-    success: z.boolean().describe("Whether the SQL execution was successful"),
-    columns: z
-      .array(z.any())
-      .optional()
-      .describe("Column metadata for the query result"),
-    data: z
-      .array(z.record(z.any()))
-      .describe(
-        "Query result rows as an array of objects with mixed data types",
-      ),
-    error: z.string().optional().describe("Error message if execution failed"),
-  })
-  .strict()
-  .describe("SQL query execution result with dynamic column structure");
+// Note: yamlToolOutputSchema has been moved to ToolConfigBuilder as standardYamlToolOutputSchema
+// This export is kept for backward compatibility
+export { standardYamlToolOutputSchema as yamlToolOutputSchema } from "./toolConfigBuilder.js";
 
 /**
  * YAML Tool Factory
@@ -96,77 +88,16 @@ export class YamlToolFactory {
     this.toolsetManager = ToolsetManager.getInstance();
   }
 
-  /**
-   * Generate a Zod schema from YAML parameter definitions
-   * @param parameters - YAML parameter definitions
-   * @param toolName - Tool name for error reporting
-   * @returns Generated Zod schema
-   */
+  // Note: generateZodSchema has been moved to ToolConfigBuilder
+  // This method is kept for backward compatibility
   generateZodSchema(
     parameters: YamlToolParameter[],
     toolName: string,
   ): z.ZodObject<Record<string, z.ZodTypeAny>> {
-    const schemaShape: Record<string, z.ZodTypeAny> = {};
-
-    // Process parameters
-    for (const param of parameters) {
-      let zodType: z.ZodTypeAny;
-
-      // Generate Zod type based on parameter type
-      switch (param.type) {
-        case "string":
-          zodType = z.string();
-          break;
-        case "number":
-          zodType = z.number();
-          break;
-        case "integer":
-          zodType = z.number().int();
-          break;
-        case "float":
-          zodType = z.number();
-          break;
-        case "boolean":
-          zodType = z.boolean();
-          break;
-        case "array":
-          // For array parameters, create array of the specified item type
-          if (param.itemType === "string") {
-            zodType = z.array(z.string());
-          } else if (
-            param.itemType === "number" ||
-            param.itemType === "integer" ||
-            param.itemType === "float"
-          ) {
-            zodType = z.array(z.number());
-          } else if (param.itemType === "boolean") {
-            zodType = z.array(z.boolean());
-          } else {
-            zodType = z.array(z.unknown());
-          }
-          break;
-        default:
-          throw new McpError(
-            JsonRpcErrorCode.InvalidParams,
-            `Unsupported parameter type '${param.type}' for parameter '${param.name}' in tool '${toolName}'`,
-            { toolName, parameterName: param.name, parameterType: param.type },
-          );
-      }
-
-      // Add default value if provided
-      if (param.default !== undefined) {
-        zodType = zodType.default(param.default);
-      }
-
-      // Add description if provided
-      if (param.description) {
-        zodType = zodType.describe(param.description);
-      }
-
-      schemaShape[param.name] = zodType;
-    }
-
-    return z.object(schemaShape);
+    return ToolConfigBuilder.getInstance().generateZodSchema(
+      parameters,
+      toolName,
+    );
   }
 
   /**
@@ -269,6 +200,27 @@ export class YamlToolFactory {
   }
 
   /**
+   * Create a cached tool configuration without registering it
+   * @deprecated Use ToolConfigBuilder.buildToolConfig() instead
+   * This method is kept for backward compatibility
+   */
+  async createCachedToolConfig(
+    toolName: string,
+    config: YamlTool,
+    _zodSchema: z.ZodObject<Record<string, z.ZodTypeAny>>,
+    toolsets: string[],
+    context: RequestContext,
+  ): Promise<CachedToolConfig> {
+    // Delegate to the standardized ToolConfigBuilder
+    return ToolConfigBuilder.getInstance().buildToolConfig(
+      toolName,
+      config,
+      toolsets,
+      context,
+    );
+  }
+
+  /**
    * Register a generated tool with the MCP server
    * @param server - MCP server instance
    * @param toolName - Name of the tool
@@ -312,7 +264,7 @@ export class YamlToolFactory {
         title: this.formatToolTitle(toolName),
         description: config.description,
         inputSchema: zodSchema.shape,
-        outputSchema: yamlToolOutputSchema.shape,
+        outputSchema: standardYamlToolOutputSchema.shape,
         annotations: {
           title: this.formatToolTitle(toolName),
           domain: config.domain,
@@ -346,6 +298,7 @@ export class YamlToolFactory {
               config.statement,
               params,
               config.parameters || [],
+              config.security,
               handlerContext,
             );
 
@@ -357,6 +310,7 @@ export class YamlToolFactory {
               success: result.success,
               columns: result.metadata?.columnsTypes,
               data: result.data,
+              metadata: result.metadata,
             },
           };
         } catch (error) {

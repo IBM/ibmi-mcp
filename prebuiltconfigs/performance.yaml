@@ -117,6 +117,7 @@ tools:
   execute_sql:
     source: ibmi-system
     description: "Execute arbitrary SQL statements against the IBM i database for data analysis and troubleshooting"
+    readOnlyHint: true
     parameters:
       - name: sql
         type: string

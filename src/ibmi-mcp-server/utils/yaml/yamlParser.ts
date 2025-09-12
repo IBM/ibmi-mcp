@@ -49,7 +49,7 @@ const YamlSourceSchema = z.object({
 const YamlToolSchema = z.object({
   source: z.string().min(1, "Source reference cannot be empty"),
   description: z.string().min(1, "Tool description cannot be empty"),
-  statement: z.string().min(1, "SQL statement cannot be empty"),
+  statement: z.string().min(1, "SQL statement cannot be empty").optional(),
   parameters: z.array(YamlToolParameterSchema).optional(),
   domain: z.string().optional(),
   category: z.string().optional(),
@@ -217,20 +217,23 @@ export class YamlParser {
           };
         }
 
-        // Additional validation - check toolset tool references
-        const toolsetValidationErrors = this.validateToolsetReferences(config);
-        if (toolsetValidationErrors.length > 0) {
+        // Note: Toolset validation is intentionally deferred to post-merge validation
+        // in YamlConfigBuilder to support cross-file tool references with YAML_MERGE_ARRAYS
+
+        // Additional validation - check tool-specific requirements
+        const toolValidationErrors = this.validateToolRequirements(config);
+        if (toolValidationErrors.length > 0) {
           logger.error(
             {
               ...operationContext,
-              errors: toolsetValidationErrors,
+              errors: toolValidationErrors,
             },
-            "Toolset reference validation failed",
+            "Tool requirements validation failed",
           );
 
           return {
             success: false,
-            errors: toolsetValidationErrors,
+            errors: toolValidationErrors,
           };
         }
 
@@ -397,29 +400,24 @@ export class YamlParser {
   }
 
   /**
-   * Validate that all toolset tool references exist in the tools section
+   * Validate tool-specific requirements
    * @param config - Parsed YAML configuration
    * @returns Array of validation errors
    * @private
    */
-  private static validateToolsetReferences(config: YamlToolsConfig): string[] {
+  private static validateToolRequirements(config: YamlToolsConfig): string[] {
     const errors: string[] = [];
 
-    // Skip validation if either section is missing
-    if (!config.toolsets || !config.tools) {
+    // Skip validation if tools section is missing
+    if (!config.tools) {
       return errors;
     }
 
-    const toolNames = Object.keys(config.tools);
-
-    Object.entries(config.toolsets).forEach(([toolsetName, toolset]) => {
-      toolset.tools.forEach((toolName) => {
-        if (!toolNames.includes(toolName)) {
-          errors.push(
-            `Toolset '${toolsetName}' references unknown tool '${toolName}'. Available tools: ${toolNames.join(", ")}`,
-          );
-        }
-      });
+    Object.entries(config.tools).forEach(([toolName, tool]) => {
+      // All tools must have a statement
+      if (!tool.statement || tool.statement.trim().length === 0) {
+        errors.push(`Tool '${toolName}' must have a non-empty statement field`);
+      }
     });
 
     return errors;

@@ -17,6 +17,7 @@ import { ResponseFormatter } from "../../../mcp-server/tools/utils/tool-utils.js
 import { measureToolExecution } from "../../../utils/internal/performance.js";
 import { getRequestContext } from "../../../utils/internal/asyncContext.js";
 import {
+  ExecuteSqlInput,
   ExecuteSqlInputSchema,
   executeSqlLogic,
   ExecuteSqlResponse,
@@ -179,7 +180,7 @@ export const registerExecuteSqlTool = async (
           try {
             const result = await measureToolExecution(
               TOOL_NAME,
-              () => executeSqlLogic(params as any),
+              () => executeSqlLogic(params as ExecuteSqlInput),
               params,
             );
             return responseFormatter(result);
@@ -202,8 +203,10 @@ export const registerExecuteSqlTool = async (
                 },
               ],
               structuredContent: {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 code: (handledError as any).code,
                 message: (handledError as Error).message,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 details: (handledError as any).details,
               },
             };

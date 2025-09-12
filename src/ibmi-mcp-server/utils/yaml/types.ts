@@ -207,3 +207,43 @@ export interface YamlToolExecutionResult<T = unknown> {
     parameterCount?: number;
   };
 }
+
+/**
+ * TypeScript tool configuration for toolset assignment
+ * Defines how TypeScript-based tools are assigned to toolsets
+ */
+export interface TypeScriptTool {
+  /** Tool domain (e.g., "sysadmin", "performance") */
+  domain: string;
+  /** Tool category (e.g., "sql-generation", "analysis") */
+  category: string;
+  /** Tool description */
+  description?: string;
+  /** List of specific toolsets this tool belongs to */
+  toolsets?: string[];
+  /** Whether this tool should be added to ALL toolsets */
+  global?: boolean;
+}
+
+/**
+ * TypeScript tools configuration structure
+ * Loaded from typescript-tools.yaml
+ */
+export interface TypeScriptToolsConfig {
+  /** TypeScript tool definitions mapped by tool name */
+  typescript_tools: Record<string, TypeScriptTool>;
+  /** Configuration metadata */
+  metadata?: {
+    version?: string;
+    description?: string;
+    last_updated?: string;
+  };
+}
+
+/**
+ * Enhanced YAML tools configuration that includes TypeScript tool mappings
+ */
+export interface EnhancedYamlToolsConfig extends YamlToolsConfig {
+  /** TypeScript tool configurations */
+  typescript_tools?: Record<string, TypeScriptTool>;
+}
