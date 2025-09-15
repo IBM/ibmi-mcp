@@ -14,6 +14,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { stream } from "hono/streaming";
 import http from "http";
 import { config } from "@/config/index.js";
+import { handleAuthRequest, enforceTLS } from "@/ibmi-mcp-server/auth/index.js";
 import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   logger,
@@ -369,6 +370,15 @@ export function createHttpApp(
       timestamp: new Date().toISOString(),
     });
   });
+
+  // IBM i HTTP Authentication endpoint (conditional)
+  if (config.ibmiHttpAuth.enabled) {
+    app.post("/api/v1/auth", enforceTLS, handleAuthRequest);
+    logger.info(
+      transportContext,
+      "IBM i HTTP authentication endpoint enabled at /api/v1/auth",
+    );
+  }
 
   app.get(
     MCP_ENDPOINT_PATH,

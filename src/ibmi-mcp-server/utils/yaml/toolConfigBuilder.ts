@@ -290,8 +290,8 @@ export class ToolConfigBuilder {
           config.statement,
           params,
           config.parameters || [],
-          config.security,
           handlerContext,
+          config.security,
         );
 
         // Return consistent response format

@@ -174,7 +174,7 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
           user: poolState.config.user.substring(0, 3) + "***",
           ignoreUnauthorized: poolState.config.ignoreUnauthorized ?? true,
         },
-        `Initializing connection pool: ${String(poolId)}`,
+        `Initializing connection pool: ${String(poolId).substring(0, 7)}***`,
       );
 
       // Create daemon server configuration
@@ -194,7 +194,7 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
 
       logger.info(
         context,
-        `Connection pool initialized successfully: ${String(poolId)}`,
+        `Connection pool initialized successfully: ${String(poolId).substring(0, 7)}***`,
       );
     } catch (error) {
       poolState.isInitialized = false;

@@ -298,8 +298,8 @@ export class YamlToolFactory {
               config.statement,
               params,
               config.parameters || [],
-              config.security,
               handlerContext,
+              config.security,
             );
 
           return {

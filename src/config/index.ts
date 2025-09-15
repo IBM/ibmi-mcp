@@ -122,7 +122,7 @@ const EnvSchema = z.object({
       "MCP_AUTH_SECRET_KEY must be at least 32 characters long for security reasons.",
     )
     .optional(),
-  MCP_AUTH_MODE: z.enum(["jwt", "oauth", "none"]).default("none"),
+  MCP_AUTH_MODE: z.enum(["jwt", "oauth", "ibmi", "none"]).default("none"),
   OAUTH_ISSUER_URL: z.string().url().optional(),
   OAUTH_JWKS_URI: z.string().url().optional(),
   OAUTH_AUDIENCE: z.string().optional(),
@@ -214,6 +214,25 @@ const EnvSchema = z.object({
   YAML_ALLOW_DUPLICATE_TOOLS: z.coerce.boolean().default(false),
   YAML_ALLOW_DUPLICATE_SOURCES: z.coerce.boolean().default(false),
   YAML_VALIDATE_MERGED: z.coerce.boolean().default(true),
+
+  /** IBM i HTTP Authentication configuration. From `IBMI_AUTH_*` environment variables. */
+  IBMI_HTTP_AUTH_ENABLED: z.coerce.boolean().default(false),
+  IBMI_AUTH_ALLOW_HTTP: z.coerce.boolean().default(false),
+  IBMI_AUTH_TOKEN_EXPIRY_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3600),
+  IBMI_AUTH_CLEANUP_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(300),
+  IBMI_AUTH_MAX_CONCURRENT_SESSIONS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(100),
 
   /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */
   YAML_AUTO_RELOAD: z.coerce.boolean().default(true),
@@ -407,6 +426,15 @@ export const config = {
     allowDuplicateTools: env.YAML_ALLOW_DUPLICATE_TOOLS,
     allowDuplicateSources: env.YAML_ALLOW_DUPLICATE_SOURCES,
     validateMerged: env.YAML_VALIDATE_MERGED,
+  },
+
+  /** IBM i HTTP Authentication configuration. From `IBMI_AUTH_*` environment variables. */
+  ibmiHttpAuth: {
+    enabled: env.IBMI_HTTP_AUTH_ENABLED,
+    allowHttp: env.IBMI_AUTH_ALLOW_HTTP,
+    tokenExpirySeconds: env.IBMI_AUTH_TOKEN_EXPIRY_SECONDS,
+    cleanupIntervalSeconds: env.IBMI_AUTH_CLEANUP_INTERVAL_SECONDS,
+    maxConcurrentSessions: env.IBMI_AUTH_MAX_CONCURRENT_SESSIONS,
   },
 
   /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */

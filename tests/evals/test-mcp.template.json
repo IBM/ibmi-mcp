@@ -2,9 +2,7 @@
   "mcpServers": {
     "ibmi-mcp-server": {
       "command": "npx",
-      "args": [
-        "/path/to/your/ibmi-mcp-server/dist/index.js"
-      ],
+      "args": ["/path/to/your/ibmi-mcp-server/dist/index.js"],
       "env": {
         "TOOLS_YAML_PATH": "prebuiltconfigs",
         "NODE_OPTIONS": "--no-deprecation",

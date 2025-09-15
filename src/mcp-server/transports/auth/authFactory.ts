@@ -7,6 +7,7 @@
 import { config } from "@/config/index.js";
 import { logger, requestContextService } from "@/utils/index.js";
 import { AuthStrategy } from "./strategies/authStrategy.js";
+import { IBMiTokenStrategy } from "./strategies/ibmiTokenStrategy.js";
 import { JwtStrategy } from "./strategies/jwtStrategy.js";
 import { OauthStrategy } from "./strategies/oauthStrategy.js";
 
@@ -32,6 +33,12 @@ export function createAuthStrategy(): AuthStrategy | null {
     case "oauth":
       logger.debug(context, "Instantiating OAuth authentication strategy.");
       return new OauthStrategy();
+    case "ibmi":
+      logger.debug(
+        context,
+        "Instantiating IBM i token authentication strategy.",
+      );
+      return new IBMiTokenStrategy();
     case "none":
       logger.info(context, "Authentication is disabled ('none' mode).");
       return null; // No authentication

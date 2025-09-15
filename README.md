@@ -27,10 +27,28 @@
       - [Run the Example Scripts:](#run-the-example-scripts)
     - [6. Running Tests](#6-running-tests)
   - [⚙️ Configuration](#️-configuration)
+  - [IBM i HTTP Authentication (Beta)](#ibm-i-http-authentication-beta)
+    - [Authentication Flow](#authentication-flow)
+    - [Configuration](#configuration)
+    - [Getting Access Tokens](#getting-access-tokens)
+      - [Option 1: Using the Token Script (Recommended)](#option-1-using-the-token-script-recommended)
+      - [Option 2: Direct HTTP Request](#option-2-direct-http-request)
+    - [Client Integration](#client-integration)
+    - [Security Considerations](#security-considerations)
+    - [Authentication Endpoints](#authentication-endpoints)
   - [SQL Tool Configuration](#sql-tool-configuration)
     - [Sources](#sources)
     - [Tools](#tools)
     - [Toolsets](#toolsets)
+  - [Running the Server (Development)](#running-the-server-development)
+    - [Transport Modes](#transport-modes)
+      - [HTTP Transport (Recommended for Development)](#http-transport-recommended-for-development)
+      - [Stdio Transport (for CLI tools and MCP Inspector)](#stdio-transport-for-cli-tools-and-mcp-inspector)
+    - [Session Modes (HTTP Only)](#session-modes-http-only)
+    - [CLI Options](#cli-options)
+    - [Common Development Scenarios](#common-development-scenarios)
+    - [Development Tips](#development-tips)
+    - [Troubleshooting](#troubleshooting)
   - [MCP Inspector](#mcp-inspector)
   - [Docker \& Podman Deployment](#docker--podman-deployment)
     - [Prerequisites](#prerequisites)
@@ -190,7 +208,7 @@ Configure the server using these environment variables (or a `.env` file):
 | `MCP_HTTP_PORT`                       | Port for the HTTP server.                                                                 | `3010`                                 |
 | `MCP_HTTP_HOST`                       | Host address for the HTTP server.                                                         | `127.0.0.1`                            |
 | `MCP_ALLOWED_ORIGINS`                 | Comma-separated allowed origins for CORS.                                                 | (none)                                 |
-| `MCP_AUTH_MODE`                       | Authentication mode for HTTP: `jwt`, `oauth`, or `none`.                                  | `none`                                 |
+| `MCP_AUTH_MODE`                       | Authentication mode for HTTP: `jwt`, `oauth`, `ibmi`, or `none`.                          | `none`                                 |
 | `MCP_AUTH_SECRET_KEY`                 | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
 | `OAUTH_ISSUER_URL`                    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
 | `OAUTH_AUDIENCE`                      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |
@@ -210,6 +228,11 @@ Configure the server using these environment variables (or a `.env` file):
 | `DB2i_PASS`                           | Password for the IBM i user profile.                                                      | (none)                                 |
 | `DB2i_PORT`                           | Port for the Mapepire daemon/gateway used for Db2 for i.                                  | `8076`                                 |
 | `DB2i_IGNORE_UNAUTHORIZED`            | If `true`, skip TLS certificate verification for Mapepire (self-signed certs, etc.).      | `true`                                 |
+| `IBMI_HTTP_AUTH_ENABLED`              | **Required for `ibmi` auth mode.** Enable IBM i HTTP authentication endpoints.            | `false`                                |
+| `IBMI_AUTH_ALLOW_HTTP`                | Allow HTTP requests for authentication (development only, use HTTPS in production).       | `false`                                |
+| `IBMI_AUTH_TOKEN_EXPIRY_SECONDS`      | Default token lifetime in seconds for IBM i authentication tokens.                        | `3600` (1 hour)                        |
+| `IBMI_AUTH_CLEANUP_INTERVAL_SECONDS`  | How often to clean expired tokens (in seconds).                                           | `300` (5 minutes)                      |
+| `IBMI_AUTH_MAX_CONCURRENT_SESSIONS`   | Maximum number of concurrent authenticated sessions allowed.                              | `100`                                  |
 
 To set the server environment variables, create a `.env` file in the root of this project:
 
@@ -219,6 +242,155 @@ code .env
 ```
 
 Then edit the `.env` file with your IBM i connection details.
+
+## IBM i HTTP Authentication (Beta)
+
+The server supports IBM i HTTP authentication that allows clients to obtain access tokens for authenticated SQL tool execution. This enables per-user connection pooling and secure access to IBM i resources.
+
+### Authentication Flow
+
+1. **Client Authentication**: Clients authenticate with IBM i credentials via HTTP Basic Auth
+2. **Token Generation**: Server creates a secure Bearer token and establishes a dedicated connection pool
+3. **Tool Execution**: Subsequent tool calls use the Bearer token for authenticated execution
+4. **Pool Management**: Each token maintains its own connection pool for isolation and security
+
+### Configuration
+
+To enable IBM i HTTP authentication:
+
+```bash
+# Enable IBM i authentication system
+IBMI_HTTP_AUTH_ENABLED=true
+MCP_AUTH_MODE=ibmi
+
+# Security settings
+IBMI_AUTH_ALLOW_HTTP=true          # Development only - use HTTPS in production
+IBMI_AUTH_TOKEN_EXPIRY_SECONDS=3600 # Token lifetime (1 hour)
+
+# Resource management
+IBMI_AUTH_MAX_CONCURRENT_SESSIONS=100
+IBMI_AUTH_CLEANUP_INTERVAL_SECONDS=300
+
+# IBM i connection details (also used for fallback when no token present)
+DB2i_HOST=your-ibmi-host
+DB2i_USER=your-username
+DB2i_PASS=your-password
+```
+
+### Getting Access Tokens
+
+#### Option 1: Using the Token Script (Recommended)
+
+Use the included `get-access-token.js` script to obtain authentication tokens:
+
+```bash
+# Using credentials from .env file
+node get-access-token.js --verbose
+
+# Using CLI arguments (overrides .env)
+node get-access-token.js --user myuser --password mypass --host my-ibmi-host
+
+# Quiet mode for shell evaluation
+eval $(node get-access-token.js --quiet)
+echo $IBMI_MCP_ACCESS_TOKEN
+```
+
+The script automatically:
+
+- Loads credentials from `.env` with CLI fallback
+- Sets `IBMI_MCP_ACCESS_TOKEN` environment variable
+- Provides copy-paste export commands
+
+#### Option 2: Direct HTTP Request
+
+You can also obtain tokens directly using curl with HTTP Basic Authentication:
+
+```bash
+# Set your IBM i credentials (if not already in .env)
+export DB2i_USER="your-username"
+export DB2i_PASS="your-password"
+export DB2i_HOST="your-ibmi-host"
+```
+
+Run the following curl command:
+```bash
+# Get access token using curl with environment variables
+curl -X POST http://localhost:3010/api/v1/auth \
+  -H "Content-Type: application/json" \
+  -u "$DB2i_USER:$DB2i_PASS" \
+  -d '{
+    "host": "'$DB2i_HOST'",
+    "duration": 3600,
+    "poolstart": 2,
+    "poolmax": 5
+  }'
+
+```
+
+### Client Integration
+
+Once you have a token, use it in your MCP client to authenticate requests:
+
+```python
+import asyncio
+import os
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async def main():
+    # Get the access token from environment
+    token = os.environ.get('IBMI_MCP_ACCESS_TOKEN')
+    if not token:
+        raise ValueError("IBMI_MCP_ACCESS_TOKEN environment variable not set")
+
+    # Set up authentication headers
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Connect to the IBM i MCP server with authentication
+    async with streamablehttp_client(
+        "http://localhost:3010/mcp",
+        headers=headers
+    ) as (read_stream, write_stream, _):
+        # Create a session using the authenticated streams
+        async with ClientSession(read_stream, write_stream) as session:
+            # Initialize the connection
+            await session.initialize()
+
+            # List available tools (now authenticated with your IBM i credentials)
+            tools = await session.list_tools()
+            print(f"Available tools: {[tool.name for tool in tools.tools]}")
+
+            # Execute a tool with authenticated IBM i access
+            result = await session.call_tool("system_status", {})
+            print(f"System status result: {result}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Security Considerations
+
+**Development Environment:**
+
+- `IBMI_AUTH_ALLOW_HTTP=true` allows HTTP for testing
+- Use localhost/trusted networks only
+- Shorter token lifetimes for testing
+
+**Production Environment:**
+
+- `IBMI_AUTH_ALLOW_HTTP=false` enforces HTTPS
+- Use proper TLS certificates
+- Longer token lifetimes for stability
+- Network security and access controls
+- Monitor `IBMI_AUTH_MAX_CONCURRENT_SESSIONS` for resource usage
+
+### Authentication Endpoints
+
+When enabled (`IBMI_HTTP_AUTH_ENABLED=true`), the server provides these endpoints:
+
+| Endpoint       | Method | Description                                                  |
+| -------------- | ------ | ------------------------------------------------------------ |
+| `/api/v1/auth` | POST   | Authenticate with IBM i credentials and receive Bearer token |
 
 ## SQL Tool Configuration
 
@@ -277,6 +449,118 @@ toolsets:
 ```
 
 More documentation on SQL tools coming soon!
+
+## Running the Server (Development)
+
+The server supports multiple transport modes and session configurations for different development scenarios. Use the appropriate startup command based on your needs.
+
+### Transport Modes
+
+#### HTTP Transport (Recommended for Development)
+
+```bash
+# Basic HTTP server
+npm run start:http
+
+# HTTP with custom tools path
+npm run start:http -- --tools ./my-configs
+
+# HTTP with specific toolsets
+npm run start:http -- --toolsets performance,monitoring
+```
+
+#### Stdio Transport (for CLI tools and MCP Inspector)
+
+```bash
+# Basic stdio transport
+npm run start:stdio
+
+# Stdio with custom tools path
+npm run start:stdio -- --tools ./my-custom-tools
+```
+
+### Session Modes (HTTP Only)
+
+The `MCP_SESSION_MODE` environment variable controls how the HTTP server handles client sessions:
+
+- **`auto` (default)**: Automatically detects client capabilities and uses the best session mode
+- **`stateful`**: Maintains persistent sessions with connection state
+- **`stateless`**: Each request is independent, no session state maintained
+
+```bash
+# Set session mode via environment variable
+MCP_SESSION_MODE=stateful npm run start:http
+
+# Or set in .env file
+echo "MCP_SESSION_MODE=stateful" >> .env
+npm run start:http
+```
+
+### CLI Options
+
+Both transport modes support these command-line options:
+
+> **Note**: CLI arguments override corresponding settings in `.env` file when provided.
+
+| Option | Short | Description | Example |
+|--------|-------|-------------|---------|
+| `--tools <path>` | | Override YAML tools configuration path (overrides `TOOLS_YAML_PATH`) | `--tools ./custom-configs` |
+| `--toolsets <list>` | `-ts` | Load only specific toolsets (comma-separated) (overrides `SELECTED_TOOLSETS`) | `--toolsets performance,security` |
+| `--transport <type>` | `-t` | Force transport type (`http` or `stdio`) (overrides `MCP_TRANSPORT_TYPE`) | `--transport http` |
+| `--help` | `-h` | Show help information | `--help` |
+| `--list-toolsets` | | List available toolsets from YAML configuration | `--list-toolsets` |
+
+### Common Development Scenarios
+
+**1. Standard Development Server**
+```bash
+npm run start:http
+# Server: http://localhost:3010/mcp
+# Tools: prebuiltconfigs/ (from .env)
+# Session: auto-detected
+```
+
+**2. Custom Tools Path**
+```bash
+npm run start:http -- --tools ./my-tools
+# Server: http://localhost:3010/mcp (port from .env or default)
+# Tools: ./my-tools
+```
+
+**3. Specific Toolsets Only**
+```bash
+npm run start:http -- --toolsets performance,monitoring
+# Only loads tools from 'performance' and 'monitoring' toolsets
+```
+
+
+### Development Tips
+
+- **Hot Reloading**: Enable `YAML_AUTO_RELOAD=true` in `.env` for automatic tool configuration updates
+- **Verbose Logging**: Set `MCP_LOG_LEVEL=debug` for detailed operation logs
+- **CORS**: Configure `MCP_ALLOWED_ORIGINS` for web-based clients
+- **Authentication**: Use `MCP_AUTH_MODE=ibmi` with IBM i HTTP auth for token-based access
+
+### Troubleshooting
+
+**Port Already in Use**
+```bash
+# Configure port in .env file
+echo "MCP_HTTP_PORT=3011" >> .env
+npm run start:http
+```
+
+**Tools Not Loading**
+```bash
+# Check tools path
+npm run start:http -- --tools ./prebuiltconfigs
+
+# List available toolsets first
+npm run start:http -- --list-toolsets --tools ./prebuiltconfigs
+
+# Get help
+npm run start:http -- --help
+```
 
 ## MCP Inspector
 

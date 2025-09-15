@@ -6,6 +6,7 @@
  */
 
 import { SourceManager } from "../../services/sourceManager.js";
+import { AuthenticatedPoolManager } from "../../services/authenticatedPoolManager.js";
 import {
   YamlToolExecutionResult,
   YamlToolParameter,
@@ -18,6 +19,8 @@ import {
 } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
 import { ParameterProcessor } from "../sql/parameterProcessor.js";
+import { authContext } from "@/mcp-server/transports/auth/index.js";
+import { QueryResult } from "@ibm/mapepire-js";
 
 /**
  * SQL execution engine for YAML-defined tools
@@ -97,8 +100,8 @@ export class YamlSqlExecutor {
    * @param sqlStatement - SQL statement with parameter placeholders
    * @param parameters - Parameters for processing
    * @param parameterDefinitions - Parameter definitions for validation
-   * @param securityConfig - Security configuration for validation
-   * @param context - Request context
+   * @param context - Request context (optional)
+   * @param securityConfig - Security configuration for validation (optional)
    * @returns Execution result
    */
   static async executeStatementWithParameters<T = Record<string, unknown>>(
@@ -107,40 +110,9 @@ export class YamlSqlExecutor {
     sqlStatement: string,
     parameters: Record<string, unknown>,
     parameterDefinitions: YamlToolParameter[] = [],
-    // Note: securityConfig and context order changed recently.
-    // Accept both orders for backward compatibility.
-    securityConfigOrContext?: YamlToolSecurityConfig | RequestContext,
-    maybeContext?: RequestContext,
+    context?: RequestContext,
+    securityConfig?: YamlToolSecurityConfig,
   ): Promise<YamlToolExecutionResult<T>> {
-    // Backward-compat param handling:
-    // - Old: (..., parameterDefinitions, context)
-    // - New: (..., parameterDefinitions, securityConfig, context)
-    let context: RequestContext | undefined;
-    let securityConfig: YamlToolSecurityConfig | undefined;
-
-    if (
-      maybeContext &&
-      typeof maybeContext === "object" &&
-      ("operation" in maybeContext || "requestId" in maybeContext)
-    ) {
-      // New order provided
-      context = maybeContext as RequestContext;
-      securityConfig = securityConfigOrContext as YamlToolSecurityConfig | undefined;
-    } else if (
-      securityConfigOrContext &&
-      typeof securityConfigOrContext === "object" &&
-      ("operation" in (securityConfigOrContext as Record<string, unknown>) ||
-        "requestId" in (securityConfigOrContext as Record<string, unknown>))
-    ) {
-      // Old order provided (context passed as the 6th arg)
-      context = securityConfigOrContext as RequestContext;
-      securityConfig = undefined;
-    } else {
-      // Neither provided, or only securityConfig provided
-      securityConfig = securityConfigOrContext as YamlToolSecurityConfig | undefined;
-      context = undefined;
-    }
-
     const operationContext =
       context ||
       requestContextService.createRequestContext({
@@ -255,22 +227,14 @@ export class YamlSqlExecutor {
           );
         }
 
-        // Execute the query
-        // Only pass securityConfig when provided to preserve older 4-arg expectations
-        const result = await (securityConfig
-          ? this.sourceManager.executeQuery<T>(
-              sourceName,
-              processedSql,
-              bindingParameters,
-              operationContext,
-              securityConfig,
-            )
-          : this.sourceManager.executeQuery<T>(
-              sourceName,
-              processedSql,
-              bindingParameters,
-              operationContext,
-            ));
+        // Execute the query with auth-aware routing
+        const result = await this.executeWithAuthRouting<T>(
+          processedSql,
+          bindingParameters,
+          sourceName,
+          operationContext,
+          securityConfig,
+        );
 
         const executionTime = Date.now() - startTime;
 
@@ -305,6 +269,74 @@ export class YamlSqlExecutor {
         errorCode: JsonRpcErrorCode.InternalError,
       },
     );
+  }
+
+  /**
+   * Execute a query with auth-aware routing
+   * Routes to authenticated pools when IBM i tokens are present, otherwise uses source manager
+   * @param sql - Processed SQL statement
+   * @param parameters - Binding parameters
+   * @param sourceName - Source name for fallback routing
+   * @param context - Request context
+   * @param securityConfig - Optional security configuration
+   * @returns Query execution result
+   * @private
+   */
+  private static async executeWithAuthRouting<T>(
+    sql: string,
+    parameters: (string | number | (string | number)[])[],
+    sourceName: string,
+    context: RequestContext,
+    securityConfig?: YamlToolSecurityConfig,
+  ): Promise<QueryResult<T>> {
+    // Check for IBM i authentication context
+    const authInfo = authContext.getStore()?.authInfo;
+
+    if (authInfo?.ibmiToken) {
+      // Use authenticated pool manager when IBM i token is present
+      logger.debug(
+        {
+          ...context,
+          authClientId: authInfo.clientId,
+          ibmiHost: authInfo.ibmiHost,
+          routingMode: "authenticated",
+        },
+        "Executing SQL via authenticated pool",
+      );
+
+      const poolManager = AuthenticatedPoolManager.getInstance();
+      return poolManager.executeQuery<T>(
+        authInfo.ibmiToken,
+        sql,
+        parameters,
+        context,
+      );
+    } else {
+      // Fall back to regular source manager (environment credentials)
+      logger.debug(
+        {
+          ...context,
+          sourceName,
+          routingMode: "environment",
+        },
+        "Executing SQL via source manager",
+      );
+
+      return securityConfig
+        ? this.sourceManager.executeQuery<T>(
+            sourceName,
+            sql,
+            parameters,
+            context,
+            securityConfig,
+          )
+        : this.sourceManager.executeQuery<T>(
+            sourceName,
+            sql,
+            parameters,
+            context,
+          );
+    }
   }
 
   /**

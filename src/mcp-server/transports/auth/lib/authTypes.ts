@@ -7,10 +7,13 @@ import type { AuthInfo as SdkAuthInfo } from "@modelcontextprotocol/sdk/server/a
 
 /**
  * Defines the structure for authentication information derived from a token.
- * It extends the base SDK type to include common optional claims.
+ * It extends the base SDK type to include common optional claims and IBM i specific context.
  */
 export type AuthInfo = SdkAuthInfo & {
   subject?: string;
+  // IBM i specific extensions for authenticated pool routing
+  ibmiToken?: string;
+  ibmiHost?: string;
 };
 
 // The declaration for `http.IncomingMessage` is no longer needed here,
