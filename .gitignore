@@ -195,3 +195,7 @@ tmp/
 **/test-server.json
 **/*credentials*.json
 **/*secrets*.json
+
+# secrets directory for private keys
+secrets/
+*.pem

@@ -13,6 +13,12 @@ import https from "https";
 import http from "http";
 import { parseArgs } from "node:util";
 import dotenv from "dotenv";
+import { readFile } from "node:fs/promises";
+import {
+  createCipheriv,
+  publicEncrypt,
+  randomBytes,
+} from "node:crypto";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -76,6 +82,14 @@ const options = {
     description: "Maximum pool size",
     default: "5",
   },
+  "public-key-path": {
+    type: "string",
+    description: "Path to PEM-encoded server public key (skips HTTP fetch)",
+  },
+  "key-id": {
+    type: "string",
+    description: "Key identifier to use when --public-key-path is provided",
+  },
 };
 
 let args;
@@ -85,7 +99,9 @@ try {
 } catch (error) {
   console.error("❌ Error parsing arguments:", error.message);
   console.error(
+
     "\nUsage: node test-auth.js --user <username> --password <password> --host <ibmi-host> [--verbose] [--https]",
+
   );
   console.error("\nOptions:");
   Object.entries(options).forEach(([key, opt]) => {
@@ -185,194 +201,285 @@ if (TEST_CONFIG.verbose) {
   }
 }
 
-// Create Basic Auth header
-const encodedCredentials = Buffer.from(
-  `${TEST_CONFIG.username}:${TEST_CONFIG.password}`,
-).toString("base64");
-
-// Request payload
-const requestData = JSON.stringify({
-  host: ibmiHost, // IBM i host
-  duration: parseInt(args.duration, 10), // Token lifetime in seconds
-  poolstart: parseInt(args["pool-start"], 10), // Starting pool size
-  poolmax: parseInt(args["pool-max"], 10), // Max pool size
-});
-
-// Request options
-const requestOptions = {
-  hostname: TEST_CONFIG.server,
-  port: TEST_CONFIG.port,
-  path: TEST_CONFIG.path,
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "Content-Length": Buffer.byteLength(requestData),
-    Authorization: `Basic ${encodedCredentials}`,
-  },
-  // For HTTPS testing, ignore self-signed certificates
-  rejectUnauthorized: false,
-};
-
-if (TEST_CONFIG.verbose) {
-  console.log("📤 Sending authentication request...");
-}
-
 const httpModule = TEST_CONFIG.useHttps ? https : http;
 
-const req = httpModule.request(requestOptions, (res) => {
-  if (TEST_CONFIG.verbose) {
-    console.log(`📥 Response Status: ${res.statusCode} ${res.statusMessage}`);
-    console.log("📥 Response Headers:");
-    Object.entries(res.headers).forEach(([key, value]) => {
-      console.log(`   ${key}: ${value}`);
-    });
-    console.log();
+function toBase64(buffer) {
+  return Buffer.from(buffer).toString("base64");
+}
+
+async function readPublicKeyFromFile(path, keyId) {
+  const publicKey = await readFile(path, "utf8");
+  if (!keyId) {
+    throw new Error(
+      "--key-id is required when using --public-key-path to identify the server key",
+    );
+  }
+  return { keyId, publicKey };
+}
+
+async function fetchPublicKeyFromServer() {
+  return new Promise((resolve, reject) => {
+    const req = httpModule.request(
+      {
+        hostname: TEST_CONFIG.server,
+        port: TEST_CONFIG.port,
+        path: "/api/v1/auth/public-key",
+        method: "GET",
+        headers: { Accept: "application/json" },
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+        res.on("end", () => {
+          if (res.statusCode !== 200) {
+            return reject(
+              new Error(
+                `Failed to fetch public key: ${res.statusCode} ${res.statusMessage}`,
+              ),
+            );
+          }
+          try {
+            const parsed = JSON.parse(body);
+            if (!parsed.keyId || !parsed.publicKey) {
+              throw new Error("Response missing keyId or publicKey");
+            }
+            resolve({ keyId: parsed.keyId, publicKey: parsed.publicKey });
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+
+    req.on("error", (err) => reject(err));
+    req.end();
+  });
+}
+
+async function resolvePublicKey() {
+  if (args["public-key-path"]) {
+    try {
+      return await readPublicKeyFromFile(
+        args["public-key-path"],
+        args["key-id"],
+      );
+    } catch (error) {
+      console.error("Failed to read public key from file:", error.message);
+      process.exit(1);
+    }
   }
 
-  let responseBody = "";
-  res.on("data", (chunk) => {
-    responseBody += chunk;
-  });
+  try {
+    return await fetchPublicKeyFromServer();
+  } catch (error) {
+    console.error("Failed to fetch public key:", error.message);
+    process.exit(1);
+  }
+}
 
-  res.on("end", () => {
-    try {
-      const parsedResponse = JSON.parse(responseBody);
+function encryptPayload(publicKeyMetadata) {
+  const sessionKey = randomBytes(32);
+  const iv = randomBytes(12);
 
-      if (args.quiet && res.statusCode === 201 && parsedResponse.access_token) {
-        // Quiet mode: output only export command
-        console.log(
-          `export IBMI_MCP_ACCESS_TOKEN="${parsedResponse.access_token}"`,
-        );
-        return;
-      }
+  const payload = {
+    credentials: {
+      username: TEST_CONFIG.username,
+      password: TEST_CONFIG.password,
+    },
+    request: {
+      host: ibmiHost,
+      duration: parseInt(args.duration, 10),
+      poolstart: parseInt(args["pool-start"], 10),
+      poolmax: parseInt(args["pool-max"], 10),
+    },
+  };
 
-      if (TEST_CONFIG.verbose) {
-        console.log("📥 Response Body:");
-        console.log(JSON.stringify(parsedResponse, null, 2));
+  const cipher = createCipheriv("aes-256-gcm", sessionKey, iv);
+  const ciphertext = Buffer.concat([
+    cipher.update(JSON.stringify(payload), "utf8"),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
 
-        if (res.statusCode === 201) {
-          console.log();
-          console.log("✅ Authentication successful!");
-          console.log(
-            `   Token: ${parsedResponse.access_token.substring(0, 20)}...`,
-          );
-          console.log(`   Expires: ${parsedResponse.expires_at}`);
-          console.log(`   Duration: ${parsedResponse.expires_in} seconds`);
+  const encryptedSessionKey = publicEncrypt(
+    {
+      key: publicKeyMetadata.publicKey,
+      oaepHash: "sha256",
+    },
+    sessionKey,
+  );
 
-          console.log();
-          console.log("🔍 Token details:");
-          console.log(`   Length: ${parsedResponse.access_token.length} bytes`);
-          console.log(`   Type: ${parsedResponse.token_type}`);
+  return {
+    keyId: publicKeyMetadata.keyId,
+    encryptedSessionKey: toBase64(encryptedSessionKey),
+    iv: toBase64(iv),
+    authTag: toBase64(authTag),
+    ciphertext: toBase64(ciphertext),
+  };
+}
 
-          // Set environment variable for the token
-          console.log();
-          console.log(
-            "🔧 Setting IBMI_MCP_ACCESS_TOKEN environment variable...",
-          );
+async function main() {
+  const publicKeyMetadata = await resolvePublicKey();
 
-          // For the current process
-          process.env.IBMI_MCP_ACCESS_TOKEN = parsedResponse.access_token;
+  if (TEST_CONFIG.verbose) {
+    console.log("🔐 Using server public key:");
+    console.log(`   Key ID: ${publicKeyMetadata.keyId}`);
+    console.log("   PEM snippet:");
+    console.log(
+      publicKeyMetadata.publicKey.split("\n").slice(0, 2).join("\n") +
+        "\n...",
+    );
+  }
 
-          console.log("✅ Environment variable set for current process!");
-          console.log(
-            "💡 Use in your test agent: process.env.IBMI_MCP_ACCESS_TOKEN",
-          );
-          console.log();
-          console.log("📋 To set for your shell session, run:");
-          console.log(
-            `   export IBMI_MCP_ACCESS_TOKEN="${parsedResponse.access_token}"`,
-          );
-          console.log();
-          console.log("🚀 Or use with eval to set automatically:");
-          console.log("   eval $(node get-access-token.js --quiet)");
-        } else {
-          console.log();
-          console.log("❌ Authentication failed!");
-          if (parsedResponse.error) {
-            console.log(`   Error Code: ${parsedResponse.error.code}`);
-            console.log(`   Error Message: ${parsedResponse.error.message}`);
+  const envelope = encryptPayload(publicKeyMetadata);
+  const requestData = JSON.stringify(envelope);
 
-            // Specific guidance for TLS error
-            if (
-              parsedResponse.error.message.includes("HTTPS/TLS is required")
-            ) {
-              console.log();
-              console.log(
-                "💡 This error means TLS enforcement is working correctly.",
-              );
-              console.log(
-                "   To test in development, restart the server with:",
-              );
-              console.log(
-                "   IBMI_HTTP_AUTH_ENABLED=true IBMI_AUTH_ALLOW_HTTP=true npm start",
-              );
-              console.log("   Then run the test again.");
-            }
-          }
+  const requestOptions = {
+    hostname: TEST_CONFIG.server,
+    port: TEST_CONFIG.port,
+    path: TEST_CONFIG.path,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(requestData),
+    },
+    rejectUnauthorized: false,
+  };
+
+  if (TEST_CONFIG.verbose) {
+    console.log("📤 Sending authentication request...");
+  }
+
+  const req = httpModule.request(requestOptions, (res) => {
+    if (TEST_CONFIG.verbose) {
+      console.log(
+        `📥 Response Status: ${res.statusCode} ${res.statusMessage}`,
+      );
+      console.log("📥 Response Headers:");
+      Object.entries(res.headers).forEach(([key, value]) => {
+        console.log(`   ${key}: ${value}`);
+      });
+      console.log();
+    }
+
+    let responseBody = "";
+    res.on("data", (chunk) => {
+      responseBody += chunk;
+    });
+
+    res.on("end", () => {
+      try {
+        const parsedResponse = JSON.parse(responseBody);
+        const isSuccess = res.statusCode === 201;
+        const token = parsedResponse.access_token;
+
+        if (TEST_CONFIG.verbose) {
+          console.log("📥 Response Body:");
+          console.log(JSON.stringify(parsedResponse, null, 2));
+        } else if (!args.quiet) {
+          console.log(JSON.stringify(parsedResponse, null, 2));
         }
-      } else {
-        // Non-verbose mode: just output the JSON response
-        console.log(JSON.stringify(parsedResponse, null, 2));
 
-        // Handle quiet mode for shell evaluation
-        if (res.statusCode === 201 && parsedResponse.access_token) {
-          process.env.IBMI_MCP_ACCESS_TOKEN = parsedResponse.access_token;
+        if (isSuccess && token) {
+          process.env.IBMI_MCP_ACCESS_TOKEN = token;
 
           if (args.quiet) {
-            // Output only the export command for eval
+            console.log(`export IBMI_MCP_ACCESS_TOKEN="${token}"`);
+            return;
+          }
+
+          if (TEST_CONFIG.verbose) {
+            console.log();
+            console.log("✅ Authentication successful!");
+            console.log(`   Token: ${token.substring(0, 20)}...`);
+            console.log(`   Expires: ${parsedResponse.expires_at}`);
+            console.log(`   Duration: ${parsedResponse.expires_in} seconds`);
+
+            console.log();
+            console.log("🔍 Token details:");
+            console.log(`   Length: ${token.length} bytes`);
+            console.log(`   Type: ${parsedResponse.token_type}`);
+
+            console.log();
             console.log(
-              `export IBMI_MCP_ACCESS_TOKEN="${parsedResponse.access_token}"`,
+              "🔧 IBMI_MCP_ACCESS_TOKEN set for this process. To export in your shell:",
+            );
+            console.log(`   export IBMI_MCP_ACCESS_TOKEN="${token}"`);
+            console.log();
+            console.log("🚀 Or evaluate automatically:");
+            console.log("   eval $(node get-access-token.js --quiet)");
+          } else {
+            console.log("✅ Authentication successful. Token stored in IBMI_MCP_ACCESS_TOKEN.");
+          }
+          return;
+        }
+
+        // handle failure path
+        console.log();
+        console.log("❌ Authentication failed!");
+        if (parsedResponse.error) {
+          console.log(`   Error Code: ${parsedResponse.error.code}`);
+          console.log(`   Error Message: ${parsedResponse.error.message}`);
+
+          if (parsedResponse.error.message?.includes("HTTPS/TLS is required")) {
+            console.log();
+            console.log(
+              "💡 TLS enforcement is active. Allow HTTP in development (IBMI_AUTH_ALLOW_HTTP=true) or rerun with --https.",
             );
           }
         }
+      } catch (parseError) {
+        if (TEST_CONFIG.verbose) {
+          console.log("Raw response:", responseBody);
+          console.log("❌ Failed to parse JSON response:", parseError.message);
+        } else {
+          console.error(
+            JSON.stringify(
+              { error: "Failed to parse JSON response", raw: responseBody },
+              null,
+              2,
+            ),
+          );
+        }
+        process.exit(1);
       }
-    } catch (parseError) {
-      if (TEST_CONFIG.verbose) {
-        console.log("Raw response:", responseBody);
-        console.log("❌ Failed to parse JSON response:", parseError.message);
-      } else {
-        console.error(
-          JSON.stringify(
-            { error: "Failed to parse JSON response", raw: responseBody },
-            null,
-            2,
-          ),
+    });
+  });
+
+  req.on("error", (error) => {
+    if (TEST_CONFIG.verbose) {
+      console.log("❌ Request failed:", error.message);
+
+      if (error.code === "ECONNREFUSED") {
+        console.log("💡 Make sure the server is running with:");
+        console.log("   IBMI_HTTP_AUTH_ENABLED=true npm start");
+      }
+
+      if (
+        error.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" &&
+        TEST_CONFIG.useHttps
+      ) {
+        console.log(
+          "💡 For HTTPS testing, add --https flag for insecure connections",
         );
       }
-      process.exit(1);
-    }
-  });
-});
-
-req.on("error", (error) => {
-  if (TEST_CONFIG.verbose) {
-    console.log("❌ Request failed:", error.message);
-
-    if (error.code === "ECONNREFUSED") {
-      console.log("💡 Make sure the server is running with:");
-      console.log("   IBMI_HTTP_AUTH_ENABLED=true npm start");
-    }
-
-    if (
-      error.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" &&
-      TEST_CONFIG.useHttps
-    ) {
-      console.log(
-        "💡 For HTTPS testing, add --https flag for insecure connections",
+    } else {
+      console.error(
+        JSON.stringify({ error: error.message, code: error.code }, null, 2),
       );
     }
-  } else {
-    console.error(
-      JSON.stringify({ error: error.message, code: error.code }, null, 2),
-    );
+    process.exit(1);
+  });
+
+  req.write(requestData);
+  req.end();
+
+  if (TEST_CONFIG.verbose) {
+    console.log("⏳ Waiting for response...");
   }
-  process.exit(1);
-});
-
-// Send the request
-req.write(requestData);
-req.end();
-
-if (TEST_CONFIG.verbose) {
-  console.log("⏳ Waiting for response...");
 }
+
+void main();

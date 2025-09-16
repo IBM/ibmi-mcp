@@ -11,55 +11,13 @@ import { logger, requestContextService } from "@/utils/index.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
 import { TokenManager } from "./tokenManager.js";
 import { AuthenticatedPoolManager } from "../services/authenticatedPoolManager.js";
-
-/**
- * Authentication request body interface
- */
-export interface AuthRequest {
-  host: string; // IBM i host to connect to
-  duration?: number; // Token lifetime in seconds
-  poolstart?: number; // Initial pool size
-  poolmax?: number; // Maximum pool size
-}
-
-/**
- * Authentication response interface
- */
-export interface AuthResponse {
-  access_token: string;
-  token_type: "Bearer";
-  expires_in: number;
-  expires_at: string;
-}
-
-/**
- * Parse HTTP Basic Authentication header
- * @param authHeader - Authorization header value
- * @returns Parsed credentials or null if invalid
- */
-function parseBasicAuth(
-  authHeader: string,
-): { username: string; password: string } | null {
-  if (!authHeader.startsWith("Basic ")) {
-    return null;
-  }
-
-  try {
-    const base64Credentials = authHeader.substring(6);
-    const credentials = Buffer.from(base64Credentials, "base64").toString(
-      "utf-8",
-    );
-    const [username, password] = credentials.split(":", 2);
-
-    if (!username || password === undefined) {
-      return null;
-    }
-
-    return { username, password };
-  } catch {
-    return null;
-  }
-}
+import {
+  type AuthRequest,
+  type AuthResponse,
+  type AuthCredentials,
+  type EncryptedAuthEnvelope,
+} from "./types.js";
+import { decryptAuthEnvelope } from "./crypto.js";
 
 /**
  * Validate authentication request body
@@ -150,6 +108,63 @@ function validateAuthRequest(body: unknown): AuthRequest {
   return validated as AuthRequest;
 }
 
+function validateEncryptedEnvelope(body: unknown): EncryptedAuthEnvelope {
+  if (!body || typeof body !== "object") {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidRequest,
+      "Encrypted payload must be a JSON object",
+    );
+  }
+
+  const envelope = body as Record<string, unknown>;
+  const requiredFields: Array<keyof EncryptedAuthEnvelope> = [
+    "keyId",
+    "encryptedSessionKey",
+    "iv",
+    "authTag",
+    "ciphertext",
+  ];
+
+  for (const field of requiredFields) {
+    const value = envelope[field];
+    if (typeof value !== "string" || value.trim().length === 0) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
+        `Encrypted payload is missing required field: ${field}`,
+      );
+    }
+  }
+
+  return {
+    keyId: envelope.keyId as string,
+    encryptedSessionKey: envelope.encryptedSessionKey as string,
+    iv: envelope.iv as string,
+    authTag: envelope.authTag as string,
+    ciphertext: envelope.ciphertext as string,
+  };
+}
+
+function validateCredentials(credentials: AuthCredentials): AuthCredentials {
+  if (!credentials.username || !credentials.username.trim()) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidRequest,
+      "Username is required",
+    );
+  }
+
+  if (credentials.password === undefined || credentials.password === null) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidRequest,
+      "Password is required",
+    );
+  }
+
+  return {
+    username: credentials.username.trim(),
+    password: credentials.password,
+  };
+}
+
 /**
  * Middleware to enforce TLS for authentication endpoints
  * In development environment, TLS can be bypassed with IBMI_AUTH_ALLOW_HTTP=true
@@ -222,37 +237,10 @@ export const handleAuthRequest = async (c: Context) => {
       );
     }
 
-    // Parse HTTP Basic Authentication
-    const authHeader = c.req.header("Authorization");
-    if (!authHeader) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        "Authorization header is required",
-      );
-    }
-
-    const credentials = parseBasicAuth(authHeader);
-    if (!credentials) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        "Invalid Authorization header format. Expected HTTP Basic Authentication",
-      );
-    }
-
-    logger.info(
-      {
-        ...context,
-        user: credentials.username,
-        hasPassword: !!credentials.password,
-      },
-      "Processing authentication request",
-    );
-
-    // Parse and validate request body
-    let requestBody: AuthRequest;
+    let envelope: EncryptedAuthEnvelope;
     try {
       const body = await c.req.json();
-      requestBody = validateAuthRequest(body);
+      envelope = validateEncryptedEnvelope(body);
     } catch (error) {
       if (error instanceof McpError) {
         throw error;
@@ -262,6 +250,18 @@ export const handleAuthRequest = async (c: Context) => {
         "Invalid JSON in request body",
       );
     }
+
+    const decrypted = decryptAuthEnvelope(envelope, context);
+    const credentials = validateCredentials(decrypted.credentials);
+    const requestBody = validateAuthRequest(decrypted.request);
+
+    logger.info(
+      {
+        ...context,
+        user: credentials.username,
+      },
+      "Processing authentication request",
+    );
 
     // Check concurrent session limits
     const tokenManager = TokenManager.getInstance();

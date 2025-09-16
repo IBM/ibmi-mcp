@@ -233,6 +233,9 @@ const EnvSchema = z.object({
     .int()
     .positive()
     .default(100),
+  IBMI_AUTH_PRIVATE_KEY_PATH: z.string().min(1).optional(),
+  IBMI_AUTH_PUBLIC_KEY_PATH: z.string().min(1).optional(),
+  IBMI_AUTH_KEY_ID: z.string().min(1).optional(),
 
   /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */
   YAML_AUTO_RELOAD: z.coerce.boolean().default(true),
@@ -435,6 +438,9 @@ export const config = {
     tokenExpirySeconds: env.IBMI_AUTH_TOKEN_EXPIRY_SECONDS,
     cleanupIntervalSeconds: env.IBMI_AUTH_CLEANUP_INTERVAL_SECONDS,
     maxConcurrentSessions: env.IBMI_AUTH_MAX_CONCURRENT_SESSIONS,
+    privateKeyPath: env.IBMI_AUTH_PRIVATE_KEY_PATH,
+    publicKeyPath: env.IBMI_AUTH_PUBLIC_KEY_PATH,
+    keyId: env.IBMI_AUTH_KEY_ID,
   },
 
   /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */
@@ -445,6 +451,25 @@ export const config = {
     .map((ts) => ts.trim())
     .filter(Boolean) as string[] | undefined,
 };
+
+if (config.ibmiHttpAuth.enabled) {
+  const missing: string[] = [];
+  if (!config.ibmiHttpAuth.privateKeyPath) {
+    missing.push("IBMI_AUTH_PRIVATE_KEY_PATH");
+  }
+  if (!config.ibmiHttpAuth.publicKeyPath) {
+    missing.push("IBMI_AUTH_PUBLIC_KEY_PATH");
+  }
+  if (!config.ibmiHttpAuth.keyId) {
+    missing.push("IBMI_AUTH_KEY_ID");
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `IBM i HTTP auth is enabled but missing required key configuration: ${missing.join(", ")}`,
+    );
+  }
+}
 
 export const logLevel: string = config.logLevel;
 export const environment: string = config.environment;

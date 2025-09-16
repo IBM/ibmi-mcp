@@ -15,6 +15,10 @@ export {
 export {
   handleAuthRequest,
   enforceTLS,
+} from "./httpAuthEndpoint.js";
+export {
   type AuthRequest,
   type AuthResponse,
-} from "./httpAuthEndpoint.js";
+  type AuthCredentials,
+  type EncryptedAuthEnvelope,
+} from "./types.js";
