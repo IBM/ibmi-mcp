@@ -1,7 +1,7 @@
 # ibmi-mcp-server: Architectural Standard & Developer Mandate
 
-**Effective Date:** 2025-07-31
-**Version:** 2.2
+**Effective Date:** 2025-09-16
+**Version:** 1.0.0
 
 ## Preamble
 
@@ -351,6 +351,250 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
   );
 };
 ```
+
+### C. The Canonical Pattern: SQL Tools (YAML-Defined)
+
+IBM i systems require extensive database interactions, making SQL tools fundamental to the server's value proposition. Unlike general-purpose tools, SQL tools are defined declaratively in YAML configurations and processed by the YAML SQL execution engine.
+
+**Step 1: Define the YAML Tool Configuration**
+
+SQL tools are defined in YAML files with specific structure requirements. The YAML approach enables rapid development of IBM i database tools without TypeScript code.
+
+```yaml
+# Example: prebuiltconfigs/example-sql-tool.yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+
+tools:
+  query_active_jobs:
+    source: ibmi-system
+    description: "List active jobs with optional user filtering"
+    statement: |
+      SELECT job_name, user_name, job_status, cpu_used
+      FROM qsys2.active_job_info
+      WHERE (:user_filter IS NULL OR user_name = :user_filter)
+      ORDER BY cpu_used DESC
+      FETCH FIRST :max_rows ROWS ONLY
+    parameters:
+      - name: user_filter
+        type: string
+        description: "Filter by specific user name"
+        required: false
+      - name: max_rows
+        type: integer
+        description: "Maximum jobs to return"
+        default: 50
+        minimum: 1
+        maximum: 1000
+
+toolsets:
+  job_tools:
+    tools: [query_active_jobs]
+
+metadata:
+  version: "1.0.0"
+  description: "Basic job management tools"
+```
+
+**Step 2: YAML Tool Architecture Components**
+
+The YAML SQL tool system consists of several key components:
+
+1. **Sources**: Database connection configurations with environment variable support
+2. **Tools**: Individual SQL operations with parameters and metadata
+3. **Toolsets**: Logical groupings of related tools
+4. **Security**: Optional scope-based authorization and audit requirements
+5. **Metadata**: Versioning and documentation information
+
+**Step 3: Parameter Processing and SQL Security**
+
+The `YamlSqlExecutor` processes parameters through several validation layers:
+
+- **Zod Schema Validation**: Type checking and constraint enforcement
+- **SQL Security Validation**: Protection against injection attacks
+- **Parameter Binding**: Secure substitution using prepared statements
+- **IBM i Authority Checking**: Integration with IBM i security model
+
+**Step 4: Tool Registration and Execution Flow**
+
+YAML SQL tools follow this execution pattern:
+
+1. **Configuration Loading**: YAML files parsed and validated at startup
+2. **Dynamic Registration**: Tools registered with MCP server using generated schemas
+3. **Runtime Execution**:
+   - Parameter validation against Zod schemas
+   - SQL security checks via `sqlSecurityValidator`
+   - Connection pooling through `AuthenticatedPoolManager`
+   - Query execution via Mapepire integration
+   - Result formatting and error handling
+
+**Step 5: Error Handling and Security**
+
+SQL tools implement comprehensive error handling:
+
+```typescript
+// Automatic error handling in YamlSqlExecutor
+try {
+  const result = await this.sourceManager.executeQuery(
+    sourceName,
+    processedStatement,
+    context
+  );
+  return this.formatSuccessResponse(result, toolName);
+} catch (error) {
+  throw new McpError(
+    JsonRpcErrorCode.INTERNAL_ERROR,
+    `SQL execution failed: ${error.message}`,
+    { toolName, sql: statement, source: sourceName }
+  );
+}
+```
+
+Security features include:
+- **SQL Injection Protection**: Parameter binding and statement validation
+- **Authority Integration**: Leverages IBM i integrated security
+- **Audit Logging**: Configurable audit trail for sensitive operations
+- **Scope-Based Access**: MCP authentication integration
+
+**Step 6: Best Practices for YAML SQL Tools**
+
+1. **Parameter Design**:
+   - Use descriptive names that match IBM i conventions
+   - Provide comprehensive descriptions for LLM understanding
+   - Include appropriate constraints (min/max, patterns, enums)
+   - Set sensible defaults for optional parameters
+
+2. **SQL Statement Quality**:
+   - Use IBM i system services (QSYS2 views/procedures) when available
+   - Include appropriate filtering and sorting
+   - Implement row limiting for large result sets
+   - Consider performance implications on production systems
+
+3. **Security Considerations**:
+   - Mark sensitive operations with `security.audit: true`
+   - Use appropriate scope requirements
+   - Validate authority requirements in descriptions
+   - Consider regulatory compliance needs
+
+4. **Documentation and Metadata**:
+   - Provide clear, LLM-friendly descriptions
+   - Include relevant keywords for tool discovery
+   - Specify domain classifications for organizational clarity
+   - Add warnings for operations requiring special authority
+
+### D. Step-by-Step Guide: Creating YAML SQL Tools
+
+**Step 1: Create YAML Configuration File**
+
+```yaml
+# prebuiltconfigs/example.yaml
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+
+tools:
+  query_libraries:
+    source: ibmi-system
+    description: "List IBM i libraries with optional name filtering"
+    statement: |
+      SELECT library_name, library_type, library_owner
+      FROM qsys2.library_info
+      WHERE (:name_filter IS NULL OR UPPER(library_name) LIKE UPPER(:name_filter))
+      ORDER BY library_name
+      FETCH FIRST :max_rows ROWS ONLY
+    parameters:
+      - name: name_filter
+        type: string
+        description: "Optional library name pattern (use % for wildcards)"
+        required: false
+      - name: max_rows
+        type: integer
+        description: "Maximum libraries to return"
+        required: false
+        default: 100
+        minimum: 1
+        maximum: 1000
+
+toolsets:
+  basic_queries:
+    tools: [query_libraries]
+
+metadata:
+  version: "1.0.0"
+  description: "Basic IBM i SQL tools"
+```
+
+**Step 2: Parameter Types and Constraints**
+
+```yaml
+parameters:
+  # String with validation
+  - name: library_name
+    type: string
+    required: true
+    pattern: "^[A-Z][A-Z0-9_]*$"
+    maxLength: 10
+
+  # Integer with bounds
+  - name: max_rows
+    type: integer
+    default: 50
+    minimum: 1
+    maximum: 1000
+
+  # Enum for controlled values
+  - name: object_type
+    type: string
+    enum: ["*PGM", "*FILE", "*SRVPGM"]
+    default: "*FILE"
+
+  # Optional parameter (nullable in SQL)
+  - name: optional_filter
+    type: string
+    required: false
+```
+
+**Step 3: SQL Security Patterns**
+
+```sql
+-- ✅ GOOD: Parameter binding, NULL checks, row limits
+SELECT * FROM qsys2.object_statistics
+WHERE library_name = :library
+  AND (:type_filter IS NULL OR object_type = :type_filter)
+FETCH FIRST :limit ROWS ONLY;
+
+-- ❌ BAD: No binding, no limits
+SELECT * FROM table WHERE column = 'user_input';
+```
+
+**Step 4: Security Configuration**
+
+```yaml
+tools:
+  secure_tool:
+    # ... basic configuration
+    security:
+      scopes: ["system:read"]
+      audit: true
+    metadata:
+      warning: "Requires system authority"
+```
+
+**Step 5: Testing and Validation**
+
+```bash
+npm run validate -- --config prebuiltconfigs/example.yaml
+npm test -- --grep "yaml-sql"
+```
+
+This condensed guide focuses on the essential patterns while maintaining compatibility with the existing YAML SQL architecture.
 
 ## III. Resource Development Workflow
 
