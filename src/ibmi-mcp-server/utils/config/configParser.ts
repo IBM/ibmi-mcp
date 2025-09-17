@@ -8,116 +8,26 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { load as yamlLoad } from "js-yaml";
-import { z } from "zod";
-import {
-  YamlToolsConfig,
-  YamlToolParameter,
-  YamlParsingResult,
-  ProcessedYamlTool,
-} from "./types.js";
+import { ProcessedSQLTool } from "./types.js";
+import { ParsingResult, SqlToolsConfig } from "../../schemas/index.js";
+import { SqlToolParameter } from "../../schemas/index.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
   requestContextService,
   RequestContext,
 } from "@/utils/internal/requestContext.js";
+
+// Import schemas from centralized location
+import {
+  SqlToolsConfigSchema,
+  SqlToolParameterSchema,
+} from "@/ibmi-mcp-server/schemas/index.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
-
-/**
- * Zod schema for validating YAML tool parameters
- */
-const YamlToolParameterSchema = z.object({
-  name: z.string().min(1, "Parameter name cannot be empty"),
-  type: z.enum(["string", "number", "boolean", "integer"]),
-  description: z.string().optional(),
-  default: z.union([z.string(), z.number(), z.boolean()]).optional(),
-});
-
-/**
- * Zod schema for validating YAML source configurations
- */
-const YamlSourceSchema = z.object({
-  host: z.string().min(1, "Host cannot be empty"),
-  user: z.string().min(1, "User cannot be empty"),
-  password: z.string().min(1, "Password cannot be empty"),
-  port: z.number().int().positive().optional(),
-  "ignore-unauthorized": z.boolean().optional(),
-});
-
-/**
- * Zod schema for validating YAML tool definitions
- */
-const YamlToolSchema = z.object({
-  source: z.string().min(1, "Source reference cannot be empty"),
-  description: z.string().min(1, "Tool description cannot be empty"),
-  statement: z.string().min(1, "SQL statement cannot be empty").optional(),
-  parameters: z.array(YamlToolParameterSchema).optional(),
-  domain: z.string().optional(),
-  category: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
-  // MCP Tool annotation hints
-  readOnlyHint: z.boolean().optional(),
-  destructiveHint: z.boolean().optional(),
-  idempotentHint: z.boolean().optional(),
-  openWorldHint: z.boolean().optional(),
-  // Security configuration for execute_sql tool
-  security: z
-    .object({
-      readOnly: z.boolean().optional(),
-      maxQueryLength: z.number().optional(),
-      forbiddenKeywords: z.array(z.string()).optional(),
-    })
-    .optional(),
-});
-
-/**
- * Zod schema for validating YAML toolset definitions
- */
-const YamlToolsetSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
-  tools: z
-    .array(z.string().min(1, "Tool name cannot be empty"))
-    .min(1, "Toolset must contain at least one tool"),
-  metadata: z.record(z.any()).optional(),
-});
-
-/**
- * Zod schema for validating the complete YAML configuration
- */
-const YamlToolsConfigSchema = z
-  .object({
-    sources: z
-      .record(
-        z.string().min(1, "Source name cannot be empty"),
-        YamlSourceSchema,
-      )
-      .optional(),
-    tools: z
-      .record(z.string().min(1, "Tool name cannot be empty"), YamlToolSchema)
-      .optional(),
-    toolsets: z
-      .record(
-        z.string().min(1, "Toolset name cannot be empty"),
-        YamlToolsetSchema,
-      )
-      .optional(),
-    metadata: z.record(z.any()).optional(),
-  })
-  .refine(
-    (data) => {
-      // Ensure at least one section exists
-      return data.sources || data.tools || data.toolsets;
-    },
-    {
-      message:
-        "YAML file must contain at least one section: sources, tools, or toolsets",
-    },
-  );
 
 /**
  * YAML configuration parser with validation and environment variable interpolation
  */
-export class YamlParser {
+export class ConfigParser {
   /**
    * Parse and validate a YAML tools configuration file
    * @param filePath - Path to the YAML configuration file
@@ -127,7 +37,7 @@ export class YamlParser {
   static async parseYamlFile(
     filePath: string,
     context?: RequestContext,
-  ): Promise<YamlParsingResult> {
+  ): Promise<ParsingResult> {
     const operationContext =
       context ||
       requestContextService.createRequestContext({
@@ -176,7 +86,7 @@ export class YamlParser {
         const parsedYaml = yamlLoad(interpolatedContent);
 
         // Validate against schema
-        const validationResult = YamlToolsConfigSchema.safeParse(parsedYaml);
+        const validationResult = SqlToolsConfigSchema.safeParse(parsedYaml);
 
         if (!validationResult.success) {
           const errors = validationResult.error.errors.map(
@@ -197,7 +107,7 @@ export class YamlParser {
           };
         }
 
-        const config = validationResult.data as YamlToolsConfig;
+        const config = validationResult.data as SqlToolsConfig;
 
         // Additional validation - check tool source references
         const sourceValidationErrors =
@@ -377,7 +287,7 @@ export class YamlParser {
    * @private
    */
   private static validateToolSourceReferences(
-    config: YamlToolsConfig,
+    config: SqlToolsConfig,
   ): string[] {
     const errors: string[] = [];
 
@@ -405,7 +315,7 @@ export class YamlParser {
    * @returns Array of validation errors
    * @private
    */
-  private static validateToolRequirements(config: YamlToolsConfig): string[] {
+  private static validateToolRequirements(config: SqlToolsConfig): string[] {
     const errors: string[] = [];
 
     // Skip validation if tools section is missing
@@ -429,8 +339,8 @@ export class YamlParser {
    * @returns Array of processed tools
    * @private
    */
-  private static processTools(config: YamlToolsConfig): ProcessedYamlTool[] {
-    const processedTools: ProcessedYamlTool[] = [];
+  private static processTools(config: SqlToolsConfig): ProcessedSQLTool[] {
+    const processedTools: ProcessedSQLTool[] = [];
 
     // Return empty array if tools section is missing
     if (!config.tools) {
@@ -478,11 +388,11 @@ export class YamlParser {
    * @param parameter - Parameter definition to validate
    * @returns Validation result
    */
-  static validateParameter(parameter: YamlToolParameter): {
+  static validateParameter(parameter: SqlToolParameter): {
     valid: boolean;
     errors: string[];
   } {
-    const result = YamlToolParameterSchema.safeParse(parameter);
+    const result = SqlToolParameterSchema.safeParse(parameter);
 
     if (result.success) {
       return { valid: true, errors: [] };

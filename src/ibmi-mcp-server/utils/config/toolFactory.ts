@@ -8,10 +8,10 @@
 import { SourceManager } from "../../services/sourceManager.js";
 import { AuthenticatedPoolManager } from "../../services/authenticatedPoolManager.js";
 import {
-  YamlToolExecutionResult,
-  YamlToolParameter,
-  YamlToolSecurityConfig,
-} from "./types.js";
+  SqlToolParameter,
+  SqlToolSecurityConfig,
+  SqlToolExecutionResult,
+} from "@/ibmi-mcp-server/schemas/index.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
   requestContextService,
@@ -26,7 +26,7 @@ import { QueryResult } from "@ibm/mapepire-js";
  * SQL execution engine for YAML-defined tools
  * Handles parameter binding and multi-source query execution
  */
-export class YamlSqlExecutor {
+export class SQLToolFactory {
   private static sourceManager: SourceManager;
 
   /**
@@ -109,10 +109,10 @@ export class YamlSqlExecutor {
     sourceName: string,
     sqlStatement: string,
     parameters: Record<string, unknown>,
-    parameterDefinitions: YamlToolParameter[] = [],
+    parameterDefinitions: SqlToolParameter[] = [],
     context?: RequestContext,
-    securityConfig?: YamlToolSecurityConfig,
-  ): Promise<YamlToolExecutionResult<T>> {
+    securityConfig?: SqlToolSecurityConfig,
+  ): Promise<SqlToolExecutionResult> {
     const operationContext =
       context ||
       requestContextService.createRequestContext({
@@ -248,18 +248,35 @@ export class YamlSqlExecutor {
           `SQL executed successfully for tool: ${toolName}`,
         );
 
+        const simplifiedColumns = (result.metadata?.columns ?? []).map(
+          (column, index) => {
+            const record = column as {
+              name?: string;
+              type?: string;
+              label?: string;
+            };
+
+            const name = record.name ?? record.label ?? `column_${index}`;
+
+            return {
+              name,
+              type: record.type,
+              label: record.label ?? record.name,
+            };
+          },
+        );
+
         return {
-          success: result.success,
-          data: result.data,
-          metadata: {
-            executionTime,
-            rowCount: result.data?.length || 0,
-            columnsTypes: result.metadata.columns,
-            affectedRows: (result.metadata as { affectedRows?: number })
-              ?.affectedRows,
-            parameterMode:
-              parameterDefinitions.length > 0 ? "parameters" : "none",
+          data: result.data || [],
+          rowCount: result.data?.length || 0,
+          affectedRows: (result.metadata as { affectedRows?: number })
+            ?.affectedRows,
+          columns: simplifiedColumns,
+          executionTime,
+          parameterMetadata: {
+            mode: parameterDefinitions.length > 0 ? "parameters" : "none",
             parameterCount: bindingParameters.length,
+            processedParameters: parameterDefinitions.map((p) => p.name),
           },
         };
       },
@@ -287,7 +304,7 @@ export class YamlSqlExecutor {
     parameters: (string | number | (string | number)[])[],
     sourceName: string,
     context: RequestContext,
-    securityConfig?: YamlToolSecurityConfig,
+    securityConfig?: SqlToolSecurityConfig,
   ): Promise<QueryResult<T>> {
     // Check for IBM i authentication context
     const authInfo = authContext.getStore()?.authInfo;

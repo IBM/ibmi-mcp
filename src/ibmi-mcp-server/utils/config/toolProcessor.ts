@@ -7,10 +7,10 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { watch, FSWatcher } from "fs";
 import { config } from "@/config/index.js";
-import { YamlConfigBuilder } from "./yamlConfigBuilder.js";
 import { SourceManager } from "../../services/sourceManager.js";
-import { YamlSqlExecutor } from "./yamlSqlExecutor.js";
+import { SQLToolFactory } from "./toolFactory.js";
 import { ToolsetManager } from "./toolsetManager.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
@@ -18,11 +18,18 @@ import {
   RequestContext,
 } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
-import { YamlToolsConfig, ProcessedYamlTool, YamlSource } from "./types.js";
-import { CachedToolConfig } from "./toolConfigCache.js";
+import {
+  ProcessedSQLTool,
+  CachedToolConfig,
+  ConfigSource,
+  ConfigBuildResult,
+} from "./types.js";
+import { SqlToolsConfig } from "../../schemas/index.js";
+import { SourceConfig } from "../../schemas/index.js";
 import { resolve } from "path";
 import { existsSync, statSync } from "fs";
 import { ToolConfigBuilder } from "./toolConfigBuilder.js";
+import { createHandlerFromDefinition } from "./toolDefinitions.js";
 
 /**
  * Result of tool processing operation
@@ -54,13 +61,22 @@ export interface ToolProcessingResult {
  *
  * Internally manages all dependencies and complexity, exposing only a simple API.
  */
-export class YamlToolProcessor {
+export class ToolProcessor {
   private sourceManager: SourceManager;
   private toolsetManager: ToolsetManager;
   private isInitialized: boolean = false;
-  private yamlConfig: YamlToolsConfig | null = null;
-  private processedTools: ProcessedYamlTool[] = [];
+  private yamlConfig: SqlToolsConfig | null = null;
+  private processedTools: ProcessedSQLTool[] = [];
   private toolConfigs: CachedToolConfig[] = [];
+
+  // File watching capabilities
+  private static changeCallbacks: Map<
+    string,
+    (filePath: string, eventType: string, context?: RequestContext) => void
+  > = new Map();
+  private static nextCallbackId = 1;
+  private static watchers: Map<string, FSWatcher> = new Map();
+  private static watchedPaths: Set<string> = new Set();
 
   constructor() {
     // Initialize internal dependencies
@@ -76,16 +92,13 @@ export class YamlToolProcessor {
     const operationContext =
       context ||
       requestContextService.createRequestContext({
-        operation: "YamlToolProcessor.initialize",
+        operation: "ToolProcessor.initialize",
       });
 
     return ErrorHandler.tryCatch(
       async () => {
         if (this.isInitialized) {
-          logger.debug(
-            operationContext,
-            "YamlToolProcessor already initialized",
-          );
+          logger.debug(operationContext, "ToolProcessor already initialized");
           return;
         }
 
@@ -109,7 +122,7 @@ export class YamlToolProcessor {
         }
 
         // Initialize SQL executor
-        YamlSqlExecutor.initialize(this.sourceManager);
+        SQLToolFactory.initialize(this.sourceManager);
 
         // Initialize toolset manager
         await this.toolsetManager.initialize(this.yamlConfig, operationContext);
@@ -121,7 +134,7 @@ export class YamlToolProcessor {
         );
       },
       {
-        operation: "YamlToolProcessor.initialize",
+        operation: "ToolProcessor.initialize",
         context: operationContext,
         errorCode: JsonRpcErrorCode.InternalError,
       },
@@ -137,7 +150,7 @@ export class YamlToolProcessor {
     const operationContext =
       context ||
       requestContextService.createRequestContext({
-        operation: "YamlToolProcessor.processTools",
+        operation: "ToolProcessor.processTools",
       });
 
     return ErrorHandler.tryCatch(
@@ -145,7 +158,7 @@ export class YamlToolProcessor {
         if (!this.isInitialized) {
           throw new McpError(
             JsonRpcErrorCode.InternalError,
-            "YamlToolProcessor not initialized. Call initialize() first.",
+            "ToolProcessor not initialized. Call initialize() first.",
           );
         }
 
@@ -205,7 +218,7 @@ export class YamlToolProcessor {
         return result;
       },
       {
-        operation: "YamlToolProcessor.processTools",
+        operation: "ToolProcessor.processTools",
         context: operationContext,
         errorCode: JsonRpcErrorCode.InternalError,
       },
@@ -224,7 +237,7 @@ export class YamlToolProcessor {
     const operationContext =
       context ||
       requestContextService.createRequestContext({
-        operation: "YamlToolProcessor.registerWithServer",
+        operation: "ToolProcessor.registerWithServer",
       });
 
     return ErrorHandler.tryCatch(
@@ -239,16 +252,17 @@ export class YamlToolProcessor {
           let yamlRegisteredCount = 0;
           for (const config of this.toolConfigs) {
             try {
+              const handler = createHandlerFromDefinition(config);
               server.registerTool(
                 config.name,
                 {
                   title: config.title,
                   description: config.description,
-                  inputSchema: config.inputSchema,
-                  outputSchema: config.outputSchema,
+                  inputSchema: config.inputSchema.shape,
+                  outputSchema: config.outputSchema.shape,
                   annotations: config.annotations,
                 },
-                config.handler,
+                handler,
               );
               yamlRegisteredCount++;
             } catch (error) {
@@ -271,7 +285,7 @@ export class YamlToolProcessor {
         );
       },
       {
-        operation: "YamlToolProcessor.registerWithServer",
+        operation: "ToolProcessor.registerWithServer",
         context: operationContext,
         errorCode: JsonRpcErrorCode.InternalError,
       },
@@ -290,7 +304,7 @@ export class YamlToolProcessor {
    * Get the YAML configuration
    * @returns The parsed YAML configuration
    */
-  getYamlConfig(): YamlToolsConfig | null {
+  getYamlConfig(): SqlToolsConfig | null {
     return this.yamlConfig;
   }
 
@@ -362,14 +376,18 @@ export class YamlToolProcessor {
    */
   private async parseYamlConfig(
     context: RequestContext,
-  ): Promise<YamlToolsConfig> {
-    const configBuilder = new YamlConfigBuilder(context);
+  ): Promise<SqlToolsConfig> {
+    const configBuilder = ToolConfigBuilder.getInstance();
 
     // Configure sources based on configured path
-    this.configureBuilderSources(configBuilder, config.toolsYamlPath!, context);
+    const sources = this.buildConfigSources(config.toolsYamlPath!, context);
 
-    // Build configuration
-    const configResult = await configBuilder.build();
+    // Build configuration using ToolConfigBuilder
+    const configResult = await configBuilder.buildFromSources(
+      sources,
+      undefined,
+      context,
+    );
 
     if (!configResult.success || !configResult.config) {
       const errorMessage = configResult.errors
@@ -385,24 +403,29 @@ export class YamlToolProcessor {
       );
     }
 
+    if (configResult.resolvedFilePaths?.length) {
+      ToolProcessor.startWatching(configResult.resolvedFilePaths, context);
+    }
+
     return configResult.config;
   }
 
   /**
-   * Configure builder sources based on path type
-   * @param configBuilder - Configuration builder instance
+   * Build configuration sources based on YAML tools path type
    * @param yamlToolsPath - Path to YAML tools
    * @param context - Request context
    * @private
    */
-  private configureBuilderSources(
-    configBuilder: YamlConfigBuilder,
+  private buildConfigSources(
     yamlToolsPath: string | string[],
     context: RequestContext,
-  ): void {
+  ): ConfigSource[] {
     if (Array.isArray(yamlToolsPath)) {
-      configBuilder.addFiles(yamlToolsPath);
-      return;
+      return yamlToolsPath.map((path) => ({
+        type: "file" as const,
+        path,
+        required: true,
+      }));
     }
 
     const resolvedPath = resolve(yamlToolsPath);
@@ -410,13 +433,14 @@ export class YamlToolProcessor {
       const stats = statSync(resolvedPath);
       if (stats.isDirectory()) {
         logger.debug(context, `Detected directory path: ${yamlToolsPath}`);
-        configBuilder.addDirectory(yamlToolsPath);
+        return [{ type: "directory", path: yamlToolsPath, required: true }];
       } else {
         logger.debug(context, `Detected file path: ${yamlToolsPath}`);
-        configBuilder.addFile(yamlToolsPath);
+        return [{ type: "file", path: yamlToolsPath, required: true }];
       }
     } else {
-      configBuilder.addFile(yamlToolsPath);
+      // Path doesn't exist, treat as file (ToolConfigBuilder will validate appropriately)
+      return [{ type: "file", path: yamlToolsPath, required: true }];
     }
   }
 
@@ -427,7 +451,7 @@ export class YamlToolProcessor {
    * @private
    */
   private async registerSources(
-    sources: Record<string, YamlSource>,
+    sources: Record<string, SourceConfig>,
     context: RequestContext,
   ): Promise<void> {
     logger.info(context, `Registering ${Object.keys(sources).length} sources`);
@@ -449,8 +473,8 @@ export class YamlToolProcessor {
    */
   private async processYamlTools(
     _context: RequestContext,
-  ): Promise<ProcessedYamlTool[]> {
-    const processedTools: ProcessedYamlTool[] = [];
+  ): Promise<ProcessedSQLTool[]> {
+    const processedTools: ProcessedSQLTool[] = [];
 
     if (!this.yamlConfig?.tools) {
       return processedTools;
@@ -505,7 +529,7 @@ export class YamlToolProcessor {
    * @private
    */
   private async createToolConfigurations(
-    processedTools: ProcessedYamlTool[],
+    processedTools: ProcessedSQLTool[],
     context: RequestContext,
   ): Promise<CachedToolConfig[]> {
     const { ToolConfigBuilder } = await import("./toolConfigBuilder.js");
@@ -537,5 +561,137 @@ export class YamlToolProcessor {
     this.yamlConfig = null;
     this.processedTools = [];
     this.toolConfigs = [];
+  }
+
+  // ============================================================================
+  // Simplified File Watching (moved from YamlConfigBuilder)
+  // ============================================================================
+
+  /**
+   * Register a callback to be called when YAML configuration files change
+   * @param callback - Function to call when files change
+   * @returns Callback ID for unregistering
+   */
+  static registerChangeCallback(
+    callback: (
+      filePath: string,
+      eventType: string,
+      context?: RequestContext,
+    ) => void,
+  ): string {
+    const id = `callback_${ToolProcessor.nextCallbackId++}`;
+    ToolProcessor.changeCallbacks.set(id, callback);
+    return id;
+  }
+
+  /**
+   * Unregister a change callback
+   * @param callbackId - ID returned from registerChangeCallback
+   * @returns True if callback was found and removed
+   */
+  static unregisterChangeCallback(callbackId: string): boolean {
+    return ToolProcessor.changeCallbacks.delete(callbackId);
+  }
+
+  /**
+   * Get the number of registered change callbacks
+   * @returns Number of registered callbacks
+   */
+  static getCallbackCount(): number {
+    return ToolProcessor.changeCallbacks.size;
+  }
+
+  /**
+   * Start watching YAML configuration files for changes
+   * @param filePaths - Array of file paths to watch
+   * @param context - Request context for logging
+   */
+  static startWatching(filePaths: string[], context?: RequestContext): void {
+    if (!config.yamlAutoReload) {
+      return;
+    }
+
+    for (const filePath of filePaths) {
+      if (ToolProcessor.watchedPaths.has(filePath)) {
+        continue; // Already watching this path
+      }
+
+      try {
+        const watcher = watch(filePath, { persistent: false }, (eventType) => {
+          logger.info(
+            context || {},
+            `YAML file changed (${eventType}): ${filePath}`,
+          );
+
+          // Call all registered callbacks
+          for (const callback of ToolProcessor.changeCallbacks.values()) {
+            try {
+              callback(filePath, eventType, context);
+            } catch (error) {
+              logger.error(
+                context || {},
+                `Error in YAML change callback: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            }
+          }
+        });
+
+        ToolProcessor.watchers.set(filePath, watcher);
+        ToolProcessor.watchedPaths.add(filePath);
+
+        logger.debug(context || {}, `Started watching YAML file: ${filePath}`);
+      } catch (error) {
+        logger.warning(
+          context || {},
+          `Failed to watch YAML file: ${filePath}. ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Stop watching all files and clear watchers
+   */
+  static clearWatchers(): void {
+    for (const watcher of ToolProcessor.watchers.values()) {
+      try {
+        watcher.close();
+      } catch {
+        // Ignore errors when closing watchers
+      }
+    }
+    ToolProcessor.watchers.clear();
+    ToolProcessor.watchedPaths.clear();
+    ToolProcessor.changeCallbacks.clear();
+  }
+
+  // Static factory methods for convenience (replaces YamlConfigBuilder static methods)
+  static async fromFile(
+    filePath: string,
+    context?: RequestContext,
+  ): Promise<ConfigBuildResult> {
+    return ToolConfigBuilder.fromFile(filePath, context);
+  }
+
+  static async fromFiles(
+    filePaths: string[],
+    context?: RequestContext,
+  ): Promise<ConfigBuildResult> {
+    return ToolConfigBuilder.fromFiles(filePaths, context);
+  }
+
+  static async fromDirectory(
+    directoryPath: string,
+    context?: RequestContext,
+  ): Promise<ConfigBuildResult> {
+    return ToolConfigBuilder.fromDirectory(directoryPath, context);
+  }
+
+  static async fromGlob(
+    pattern: string,
+    baseDir?: string,
+    context?: RequestContext,
+  ): Promise<ConfigBuildResult> {
+    return ToolConfigBuilder.fromGlob(pattern, baseDir, context);
   }
 }

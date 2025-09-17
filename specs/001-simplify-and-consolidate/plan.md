@@ -1,7 +1,7 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Simplify and Consolidate YAML Utilities
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `001-simplify-and-consolidate` | **Date**: 2025-09-17 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/001-simplify-and-consolidate/spec.md`
 
 ## Execution Flow (/plan command scope)
 
@@ -33,25 +33,41 @@
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Primary requirement: Consolidate and simplify YAML utility architecture by eliminating code duplication, removing ghost code, and reducing complexity while maintaining existing functionality. Target: 30% code reduction across yamlConfigBuilder, yamlToolsLoader, and yamlToolFactory. Technical approach: Incremental refactoring with API preservation during transition.
 
 ## Technical Context
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: TypeScript (Node.js)
+**Primary Dependencies**: Zod (schema validation), @modelcontextprotocol/sdk, yaml parsing libraries
+**Storage**: File system (YAML configuration files), in-memory caching
+**Testing**: Vitest (existing test framework)
+**Target Platform**: Node.js server environment (IBM i MCP server)
+**Project Type**: Single (server-side utility refactoring)
+**Performance Goals**: Maintain or improve YAML tool processing speed, reduce memory footprint
+**Constraints**: Must preserve all public APIs during transition, maintain backward compatibility, pass existing tests
+**Scale/Scope**: 3 main utility classes, ~2,200 lines of code to reduce to ~1,200 lines (45% reduction target)
 
 ## Constitution Check
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-[Gates determined based on constitution file]
+**✅ Simplicity & Ergonomics**: Refactoring aligns with simplifying tool creation and expanding IBM i coverage through cleaner, more maintainable utilities.
+
+**✅ Security First**: No security implications - this is internal code structure improvement. All existing security patterns preserved.
+
+**✅ Testability & Reliability**: Requirement FR-009 mandates all existing tests continue to pass. Integration testing approach maintained per constitution.
+
+**✅ Observability & Maintainability**: Core goal is improving maintainability through code consolidation and complexity reduction.
+
+**✅ IBM i System Respect**: Internal refactoring respects enterprise stability - no functional changes to external behavior.
+
+**✅ Enterprise-First Design**: Maintains auditability and reliability while improving code quality for long-term maintenance.
+
+**✅ Clarity Over Cleverness**: Consolidation eliminates clever duplications in favor of explicit, single-purpose classes.
+
+**✅ Composable Tool Architecture**: Improves tool architecture by reducing complexity while maintaining composability.
+
+**No violations detected** - This refactoring directly supports constitutional principles through improved maintainability and clarity.
 
 ## Project Structure
 

@@ -6,45 +6,9 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import { logger, RequestContext } from "@/utils/internal/index.js";
-
-/**
- * Cached tool configuration that contains all pre-processed data needed for fast registration
- */
-export interface CachedToolConfig {
-  /** Tool name/identifier */
-  name: string;
-  /** Tool title for display */
-  title: string;
-  /** Tool description */
-  description: string;
-  /** Pre-built Zod input schema */
-  inputSchema: Record<string, z.ZodTypeAny>;
-  /** Output schema shape */
-  outputSchema: Record<string, z.ZodTypeAny>;
-  /** Tool annotations including toolsets */
-  annotations: {
-    title: string;
-    domain?: string;
-    category?: string;
-    readOnlyHint?: boolean;
-    destructiveHint?: boolean;
-    idempotentHint?: boolean;
-    openWorldHint?: boolean;
-    toolsets: string[];
-    customMetadata?: Record<string, unknown>;
-  };
-  /** Pre-built tool handler function */
-  handler: (
-    params: Record<string, unknown>,
-    mcpContext: Record<string, unknown>,
-  ) => Promise<{
-    content: Array<{ type: "text"; text: string }>;
-    structuredContent: Record<string, unknown>;
-    isError?: boolean;
-  }>;
-}
+import { CachedToolConfig } from "./types.js";
+import { createHandlerFromDefinition } from "./toolDefinitions.js";
 
 /**
  * Statistics about the cached tools
@@ -126,8 +90,14 @@ export class ToolConfigCache {
           this.cache.set(toolConfig.name, toolConfig);
           cachedToolCount++;
 
-          // Collect toolset names
-          toolConfig.annotations.toolsets.forEach((ts) => toolsetNames.add(ts));
+          const annotationToolsets = Array.isArray(
+            (toolConfig.annotations as { toolsets?: unknown }).toolsets,
+          )
+            ? ((toolConfig.annotations as { toolsets?: string[] }).toolsets ??
+              [])
+            : [];
+
+          annotationToolsets.forEach((ts) => toolsetNames.add(ts));
         } catch (error) {
           logger.error(
             cacheContext,
@@ -206,16 +176,18 @@ export class ToolConfigCache {
 
     for (const [toolName, config] of this.cache) {
       try {
+        const handler = createHandlerFromDefinition(config);
+
         server.registerTool(
           toolName,
           {
             title: config.title,
             description: config.description,
-            inputSchema: config.inputSchema,
-            outputSchema: config.outputSchema,
+            inputSchema: config.inputSchema.shape,
+            outputSchema: config.outputSchema.shape,
             annotations: config.annotations,
           },
-          config.handler,
+          handler,
         );
         registeredCount++;
       } catch (error) {
@@ -266,3 +238,4 @@ export class ToolConfigCache {
     };
   }
 }
+export { CachedToolConfig };

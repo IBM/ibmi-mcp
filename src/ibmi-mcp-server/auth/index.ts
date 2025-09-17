@@ -12,10 +12,7 @@ export {
   AuthenticatedPoolManager,
   type AuthPoolOptions,
 } from "../services/authenticatedPoolManager.js";
-export {
-  handleAuthRequest,
-  enforceTLS,
-} from "./httpAuthEndpoint.js";
+export { handleAuthRequest, enforceTLS } from "./httpAuthEndpoint.js";
 export {
   type AuthRequest,
   type AuthResponse,

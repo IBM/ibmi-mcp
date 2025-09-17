@@ -14,10 +14,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { stream } from "hono/streaming";
 import http from "http";
 import { config } from "@/config/index.js";
-import {
-  handleAuthRequest,
-  enforceTLS,
-} from "@/ibmi-mcp-server/auth/index.js";
+import { handleAuthRequest, enforceTLS } from "@/ibmi-mcp-server/auth/index.js";
 import { getPublicKeyMetadata } from "@/ibmi-mcp-server/auth/crypto.js";
 import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {

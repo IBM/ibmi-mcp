@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import { logger, type RequestContext } from "../../../utils/index.js";
-import { ToolsetManager } from "../../../ibmi-mcp-server/utils/yaml/toolsetManager.js";
+import { ToolsetManager } from "../../utils/config/toolsetManager.js";
 
 // Zod schema for individual toolset information
 export const ToolsetInfoSchema = z.object({

@@ -11,6 +11,7 @@ tools:
     source: ibmi-system
     description: "Overall system performance statistics with CPU, memory, and I/O metrics"
     parameters: []
+    responseFormat: markdown
     statement: |
       SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS=>'YES',DETAILED_INFO=>'ALL')) X
 

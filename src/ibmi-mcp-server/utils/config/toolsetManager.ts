@@ -5,7 +5,10 @@
  * @module src/utils/yaml/toolsetManager
  */
 
-import { YamlToolsConfig, YamlToolset } from "./types.js";
+import {
+  SqlToolsetConfig,
+  SqlToolsConfig,
+} from "@/ibmi-mcp-server/schemas/index.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
   requestContextService,
@@ -31,7 +34,7 @@ export interface ToolsetInfo {
   /** Toolsets this tool belongs to */
   toolsets: string[];
   /** Toolset metadata for MCP */
-  toolsetMetadata: Record<string, YamlToolset>;
+  toolsetMetadata: Record<string, SqlToolsetConfig>;
 }
 
 /**
@@ -54,7 +57,7 @@ export interface ToolsetStats {
  */
 export class ToolsetManager {
   private static instance: ToolsetManager | undefined;
-  private toolsetConfig: Record<string, YamlToolset> = {};
+  private toolsetConfig: Record<string, SqlToolsetConfig> = {};
   private toolToToolsets: Map<string, string[]> = new Map();
   private toolsetToTools: Map<string, string[]> = new Map();
 
@@ -74,7 +77,7 @@ export class ToolsetManager {
    * @param context - Request context for logging
    */
   async initialize(
-    config: YamlToolsConfig,
+    config: SqlToolsConfig,
     context?: RequestContext,
   ): Promise<void> {
     const operationContext =
@@ -184,7 +187,7 @@ export class ToolsetManager {
       toolsets = Object.keys(this.toolsetConfig);
     }
 
-    const toolsetMetadata: Record<string, YamlToolset> = {};
+    const toolsetMetadata: Record<string, SqlToolsetConfig> = {};
 
     // Build toolset metadata for the tool
     for (const toolsetName of toolsets) {
@@ -223,7 +226,7 @@ export class ToolsetManager {
    * @param toolsetName - Name of the toolset
    * @returns Toolset configuration or undefined if not found
    */
-  getToolsetConfig(toolsetName: string): YamlToolset | undefined {
+  getToolsetConfig(toolsetName: string): SqlToolsetConfig | undefined {
     return this.toolsetConfig[toolsetName];
   }
 

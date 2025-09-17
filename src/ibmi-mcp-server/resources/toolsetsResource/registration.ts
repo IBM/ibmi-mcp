@@ -16,7 +16,7 @@ import {
   requestContextService,
 } from "../../../utils/index.js";
 import { toolsetsResourceLogic } from "./logic.js";
-import { ToolsetManager } from "../../../ibmi-mcp-server/utils/yaml/toolsetManager.js";
+import { ToolsetManager } from "../../utils/config/toolsetManager.js";
 
 /**
  * Registers the 'toolsets' resource and its handlers with the provided MCP server instance.

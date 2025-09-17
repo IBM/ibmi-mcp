@@ -9,7 +9,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { JsonRpcErrorCode } from "../../../types-global/errors.js";
 import { ErrorHandler, requestContextService } from "../../../utils/index.js";
-import { ToolsetManager } from "../../utils/yaml/toolsetManager.js";
+import { ToolsetManager } from "../../utils/config/toolsetManager.js";
 import {
   logOperationStart,
   logOperationSuccess,

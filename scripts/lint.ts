@@ -10,11 +10,25 @@ import chalk from "chalk";
 
 async function runLint() {
   console.log(chalk.blue.bold("Starting comprehensive linting process..."));
-  console.log(chalk.yellow("Running ESLint on the entire project."));
+  console.log(
+    chalk.yellow(
+      "Running ESLint on the project (excluding agents/, release/, and dist/).",
+    ),
+  );
 
   try {
     const startTime = Date.now();
-    const { exitCode } = await execa("eslint", ["."], {
+    const eslintArgs = [
+      ".",
+      "--ignore-pattern",
+      "agents/**",
+      "--ignore-pattern",
+      "release/**",
+      "--ignore-pattern",
+      "dist/**",
+    ];
+
+    const { exitCode } = await execa("eslint", eslintArgs, {
       stdio: "inherit",
     });
 

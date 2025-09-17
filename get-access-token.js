@@ -14,11 +14,7 @@ import http from "http";
 import { parseArgs } from "node:util";
 import dotenv from "dotenv";
 import { readFile } from "node:fs/promises";
-import {
-  createCipheriv,
-  publicEncrypt,
-  randomBytes,
-} from "node:crypto";
+import { createCipheriv, publicEncrypt, randomBytes } from "node:crypto";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -99,9 +95,7 @@ try {
 } catch (error) {
   console.error("❌ Error parsing arguments:", error.message);
   console.error(
-
     "\nUsage: node test-auth.js --user <username> --password <password> --host <ibmi-host> [--verbose] [--https]",
-
   );
   console.error("\nOptions:");
   Object.entries(options).forEach(([key, opt]) => {
@@ -329,8 +323,7 @@ async function main() {
     console.log(`   Key ID: ${publicKeyMetadata.keyId}`);
     console.log("   PEM snippet:");
     console.log(
-      publicKeyMetadata.publicKey.split("\n").slice(0, 2).join("\n") +
-        "\n...",
+      publicKeyMetadata.publicKey.split("\n").slice(0, 2).join("\n") + "\n...",
     );
   }
 
@@ -355,9 +348,7 @@ async function main() {
 
   const req = httpModule.request(requestOptions, (res) => {
     if (TEST_CONFIG.verbose) {
-      console.log(
-        `📥 Response Status: ${res.statusCode} ${res.statusMessage}`,
-      );
+      console.log(`📥 Response Status: ${res.statusCode} ${res.statusMessage}`);
       console.log("📥 Response Headers:");
       Object.entries(res.headers).forEach(([key, value]) => {
         console.log(`   ${key}: ${value}`);
@@ -412,7 +403,9 @@ async function main() {
             console.log("🚀 Or evaluate automatically:");
             console.log("   eval $(node get-access-token.js --quiet)");
           } else {
-            console.log("✅ Authentication successful. Token stored in IBMI_MCP_ACCESS_TOKEN.");
+            console.log(
+              "✅ Authentication successful. Token stored in IBMI_MCP_ACCESS_TOKEN.",
+            );
           }
           return;
         }

@@ -6,7 +6,10 @@
  */
 
 import { BindingValue, QueryResult } from "@ibm/mapepire-js";
-import { YamlSource, YamlToolSecurityConfig } from "../utils/yaml/types.js";
+import {
+  SourceConfig,
+  SqlToolSecurityConfig,
+} from "@/ibmi-mcp-server/schemas/index.js";
 import { ErrorHandler, logger } from "@/utils/internal/index.js";
 import {
   requestContextService,
@@ -32,7 +35,7 @@ export interface SourceHealth extends PoolHealth {
  */
 export class SourceManager extends BaseConnectionPool<string> {
   private static instance: SourceManager | undefined;
-  private sourceConfigs: Map<string, YamlSource> = new Map();
+  private sourceConfigs: Map<string, SourceConfig> = new Map();
 
   /**
    * Get the singleton instance of the SourceManager
@@ -52,7 +55,7 @@ export class SourceManager extends BaseConnectionPool<string> {
    */
   async registerSource(
     sourceName: string,
-    sourceConfig: YamlSource,
+    sourceConfig: SourceConfig,
     context?: RequestContext,
   ): Promise<void> {
     const operationContext =
@@ -120,7 +123,7 @@ export class SourceManager extends BaseConnectionPool<string> {
     query: string,
     params?: BindingValue[],
     context?: RequestContext,
-    securityConfig?: YamlToolSecurityConfig,
+    securityConfig?: SqlToolSecurityConfig,
   ): Promise<QueryResult<T>> {
     return super.executeQuery<T>(
       sourceName,

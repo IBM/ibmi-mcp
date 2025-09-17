@@ -146,17 +146,11 @@ function validateEncryptedEnvelope(body: unknown): EncryptedAuthEnvelope {
 
 function validateCredentials(credentials: AuthCredentials): AuthCredentials {
   if (!credentials.username || !credentials.username.trim()) {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidRequest,
-      "Username is required",
-    );
+    throw new McpError(JsonRpcErrorCode.InvalidRequest, "Username is required");
   }
 
   if (credentials.password === undefined || credentials.password === null) {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidRequest,
-      "Password is required",
-    );
+    throw new McpError(JsonRpcErrorCode.InvalidRequest, "Password is required");
   }
 
   return {

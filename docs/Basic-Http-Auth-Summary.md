@@ -14,7 +14,6 @@
 
 - **Env templates (`.env`)** document the new key-path env vars and keep upstream’s IBM i HTTP auth defaults.
 
-
 ## Sequence Overview
 
 ```mermaid
@@ -41,7 +40,6 @@ sequenceDiagram
     Auth-->>CLI: 201 JSON { access_token, expires_in, ... }
 ```
 
-
 ## Why
 
 Plain Basic Auth sent credentials base64-encoded (effectively cleartext over HTTP). The new flow enforces that IBM i usernames/passwords are encrypted client-side with the server’s public key, eliminating the exposure if TLS is disabled in development and strengthening defense in depth in production.
@@ -55,7 +53,6 @@ Plain Basic Auth sent credentials base64-encoded (effectively cleartext over HTT
 5. Verify `.env`
 
 Manual validation: generate a keypair (`openssl` command), set the env vars, restart `npm run start:http`, and run the CLI. You should get a token; tampered payloads should trigger 400s with decrypt errors.
-
 
 1. **Prepare keys**
    - Generate an RSA keypair (example):

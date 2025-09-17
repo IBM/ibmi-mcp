@@ -13,7 +13,7 @@ import {
   RequestContext,
 } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
-import { YamlToolSecurityConfig } from "../utils/yaml/types.js";
+import { SqlToolSecurityConfig } from "@/ibmi-mcp-server/schemas/index.js";
 import { SqlSecurityValidator } from "../utils/security/sqlSecurityValidator.js";
 
 /**
@@ -226,7 +226,7 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
     query: string,
     params?: BindingValue[],
     context?: RequestContext,
-    securityConfig?: YamlToolSecurityConfig,
+    securityConfig?: SqlToolSecurityConfig,
   ): Promise<QueryResult<T>> {
     const operationContext =
       context ||
@@ -361,7 +361,7 @@ export abstract class BaseConnectionPool<TId extends string | symbol = string> {
     params?: BindingValue[],
     context?: RequestContext,
     fetchSize: number = 300,
-    securityConfig?: YamlToolSecurityConfig,
+    securityConfig?: SqlToolSecurityConfig,
   ): Promise<{
     data: unknown[];
     success: boolean;

@@ -13,7 +13,7 @@ import {
 } from "@/utils/internal/requestContext.js";
 import { ErrorHandler } from "@/utils/internal/errorHandler.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
-import { YamlToolParameter } from "../yaml/types.js";
+import { SqlToolParameter } from "../../schemas/index.js";
 
 /**
  * Parameter processing mode
@@ -97,7 +97,7 @@ export class ParameterProcessor {
   static async process(
     sql: string,
     parameterValues: Record<string, unknown>,
-    parameterDefinitions: YamlToolParameter[] = [],
+    parameterDefinitions: SqlToolParameter[] = [],
     options: ParameterProcessingOptions = {},
   ): Promise<ParameterProcessingResult> {
     const context =
@@ -228,7 +228,7 @@ export class ParameterProcessor {
    */
   private static async validateAndProcessParameters(
     parameterValues: Record<string, unknown>,
-    parameterDefinitions: YamlToolParameter[],
+    parameterDefinitions: SqlToolParameter[],
     context: RequestContext,
   ): Promise<Record<string, unknown>> {
     if (parameterDefinitions.length === 0) {
@@ -287,7 +287,7 @@ export class ParameterProcessor {
    */
   private static validateParameter(
     value: unknown,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
   ): ValidationResult {
     const result: ValidationResult = {
       valid: true,
@@ -372,7 +372,7 @@ export class ParameterProcessor {
    */
   private static validateStringParameter(
     value: unknown,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
     result: ValidationResult,
   ): string {
     let stringValue: string;
@@ -434,7 +434,7 @@ export class ParameterProcessor {
    */
   private static validateIntegerParameter(
     value: unknown,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
     result: ValidationResult,
   ): number {
     let numericValue: number;
@@ -492,7 +492,7 @@ export class ParameterProcessor {
    */
   private static validateFloatParameter(
     value: unknown,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
     result: ValidationResult,
   ): number {
     let numericValue: number;
@@ -543,7 +543,7 @@ export class ParameterProcessor {
    */
   private static validateBooleanParameter(
     value: unknown,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
     result: ValidationResult,
   ): number {
     let booleanValue: boolean;
@@ -596,7 +596,7 @@ export class ParameterProcessor {
    */
   private static validateArrayParameter(
     value: unknown,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
     result: ValidationResult,
   ): (string | number)[] {
     if (!Array.isArray(value)) {
@@ -630,7 +630,7 @@ export class ParameterProcessor {
 
     for (let i = 0; i < value.length; i++) {
       const item = value[i];
-      const itemDefinition: YamlToolParameter = {
+      const itemDefinition: SqlToolParameter = {
         name: `${definition.name}[${i}]`,
         type: itemType,
         required: true,
@@ -653,7 +653,7 @@ export class ParameterProcessor {
    */
   private static validateEnumConstraint(
     value: BindingValue,
-    definition: YamlToolParameter,
+    definition: SqlToolParameter,
     result: ValidationResult,
   ): void {
     if (!definition.enum || definition.enum.length === 0) {

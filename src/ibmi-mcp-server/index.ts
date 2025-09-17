@@ -1,6 +1,6 @@
 import { config } from "@/config/index.js";
-import { YamlToolProcessor } from "./utils/yaml/yamlToolProcessor.js";
-import { ToolConfigCache } from "./utils/yaml/toolConfigCache.js";
+import { ToolProcessor } from "./utils/config/toolProcessor.js";
+import { ToolConfigCache } from "./utils/config/toolConfigCache.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   logger,
@@ -15,7 +15,7 @@ let serverReplacementCallback: ((newServer: McpServer) => void) | null = null;
 let cachedToolConfigs: ToolConfigCache | null = null;
 
 // Global tool processor instance
-let toolProcessor: YamlToolProcessor | null = null;
+let toolProcessor: ToolProcessor | null = null;
 
 /**
  * Set the server replacement callback for auto-reload functionality
@@ -59,7 +59,7 @@ export const registerSQLTools = async (server: McpServer): Promise<void> => {
 
     // Initialize processor if needed
     if (!toolProcessor) {
-      toolProcessor = new YamlToolProcessor();
+      toolProcessor = new ToolProcessor();
     }
 
     // Initialize cache if needed
@@ -134,11 +134,9 @@ async function setupAutoReload(
   server: McpServer,
   context: RequestContext,
 ): Promise<void> {
-  const { YamlConfigBuilder } = await import(
-    "./utils/yaml/yamlConfigBuilder.js"
-  );
+  const { ToolProcessor } = await import("./utils/config/toolProcessor.js");
 
-  YamlConfigBuilder.registerChangeCallback(
+  ToolProcessor.registerChangeCallback(
     async (filePath, eventType, changeContext) => {
       const rebuildContext =
         changeContext ||
@@ -155,7 +153,7 @@ async function setupAutoReload(
 
       try {
         // Create new processor for rebuild
-        const newProcessor = new YamlToolProcessor();
+        const newProcessor = new ToolProcessor();
         await newProcessor.initialize(rebuildContext);
         const result = await newProcessor.processTools(rebuildContext);
 

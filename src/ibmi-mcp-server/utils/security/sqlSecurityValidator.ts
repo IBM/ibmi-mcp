@@ -10,7 +10,7 @@ const { Parser } = pkg;
 import { logger } from "@/utils/internal/logger.js";
 import { RequestContext } from "@/utils/internal/requestContext.js";
 import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
-import { YamlToolSecurityConfig } from "../yaml/types.js";
+import { SqlToolSecurityConfig } from "../../schemas/index.js";
 
 /**
  * Security validation result
@@ -128,7 +128,7 @@ export class SqlSecurityValidator {
    */
   static validateQuery(
     query: string,
-    securityConfig: YamlToolSecurityConfig,
+    securityConfig: SqlToolSecurityConfig,
     context: RequestContext,
   ): void {
     logger.debug(
@@ -168,7 +168,7 @@ export class SqlSecurityValidator {
    */
   private static validateQueryLength(
     query: string,
-    securityConfig: YamlToolSecurityConfig,
+    securityConfig: SqlToolSecurityConfig,
   ): void {
     const maxLength = securityConfig.maxQueryLength ?? 10000;
     if (query.length > maxLength) {
@@ -193,7 +193,7 @@ export class SqlSecurityValidator {
    */
   private static validateForbiddenKeywords(
     query: string,
-    securityConfig: YamlToolSecurityConfig,
+    securityConfig: SqlToolSecurityConfig,
     context: RequestContext,
   ): void {
     if (

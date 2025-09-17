@@ -28,8 +28,8 @@ import {
   showHelp,
   validateToolsPath,
 } from "./ibmi-mcp-server/utils/cli/argumentParser.js";
-import { YamlConfigBuilder } from "@/ibmi-mcp-server/utils/yaml/yamlConfigBuilder.js";
-import { GLOBAL_TOOLS } from "./ibmi-mcp-server/utils/yaml/toolsetManager.js";
+import { ToolProcessor } from "@/ibmi-mcp-server/utils/config/toolProcessor.js";
+import { GLOBAL_TOOLS } from "./ibmi-mcp-server/utils/config/toolsetManager.js";
 
 /**
  * List all available toolsets from YAML configuration and exit
@@ -59,31 +59,10 @@ async function listToolsetsCommand(): Promise<void> {
       yamlPath: config.toolsYamlPath,
     });
 
-    // Parse YAML configuration to extract toolsets
-    const configBuilder = new YamlConfigBuilder(context);
-
-    // Configure sources based on path type (same logic as in yamlToolProcessor)
-    if (Array.isArray(config.toolsYamlPath)) {
-      configBuilder.addFiles(config.toolsYamlPath);
-    } else {
-      const { resolve } = await import("path");
-      const { existsSync, statSync } = await import("fs");
-      const resolvedPath = resolve(config.toolsYamlPath);
-
-      if (existsSync(resolvedPath)) {
-        const stats = statSync(resolvedPath);
-        if (stats.isDirectory()) {
-          configBuilder.addDirectory(config.toolsYamlPath);
-        } else {
-          configBuilder.addFile(config.toolsYamlPath);
-        }
-      } else {
-        configBuilder.addFile(config.toolsYamlPath);
-      }
-    }
-
-    // Build configuration
-    const configResult = await configBuilder.build();
+    // Parse YAML configuration to extract toolsets using ToolProcessor
+    const configResult = Array.isArray(config.toolsYamlPath)
+      ? await ToolProcessor.fromFiles(config.toolsYamlPath, context)
+      : await ToolProcessor.fromFile(config.toolsYamlPath, context);
 
     if (!configResult.success || !configResult.config) {
       console.error("❌ Failed to parse YAML configuration:");
@@ -260,9 +239,9 @@ const shutdown = async (signal: string): Promise<void> => {
     }
 
     await closePromise;
-    // Cleanup YAML config cache and file watchers before exit
+    // Cleanup YAML watchers before exit
     try {
-      YamlConfigBuilder.clearCacheAndWatchers();
+      ToolProcessor.clearWatchers();
     } catch {
       // best-effort
     }
@@ -278,7 +257,7 @@ const shutdown = async (signal: string): Promise<void> => {
       error,
     );
     try {
-      YamlConfigBuilder.clearCacheAndWatchers();
+      ToolProcessor.clearWatchers();
     } catch {
       // best-effort
     }
@@ -361,7 +340,7 @@ const start = async (): Promise<void> => {
       error,
     );
     try {
-      YamlConfigBuilder.clearCacheAndWatchers();
+      ToolProcessor.clearWatchers();
     } catch {
       // ignore
     }

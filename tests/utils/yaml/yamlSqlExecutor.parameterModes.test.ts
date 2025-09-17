@@ -13,12 +13,12 @@ vi.mock("../../../src/utils/scheduling/index.js", () => ({
   schedulerService: vi.fn(),
 }));
 
-import { YamlSqlExecutor } from "../../../src/ibmi-mcp-server/utils/yaml/yamlSqlExecutor.js";
+import { SQLToolFactory } from "../../../src/ibmi-mcp-server/utils/config/toolFactory.js";
 import { SourceManager } from "../../../src/ibmi-mcp-server/services/sourceManager.js";
-import { YamlToolParameter } from "../../../src/ibmi-mcp-server/utils/yaml/types.js";
+import { SqlToolParameter } from "../../../src/ibmi-mcp-server/schemas/index.js";
 import { requestContextService } from "../../../src/utils/internal/requestContext.js";
 
-describe("YamlSqlExecutor - Parameter Binding", () => {
+describe("SQLToolFactory - Parameter Binding", () => {
   let mockSourceManager: {
     executeQuery: Mock;
   };
@@ -32,12 +32,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       executeQuery: vi.fn(),
     };
 
-    // Initialize YamlSqlExecutor with mock
-    YamlSqlExecutor.initialize(mockSourceManager as unknown as SourceManager);
+    // Initialize SQLToolFactory with mock
+    SQLToolFactory.initialize(mockSourceManager as unknown as SourceManager);
 
     // Create test context
     testContext = requestContextService.createRequestContext({
-      operation: "TestYamlSqlExecutor",
+      operation: "TestSQLToolFactory",
     });
 
     // Reset mocks
@@ -64,12 +64,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         username: "john_doe",
         minAge: 18,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string", description: "User name" },
         { name: "minAge", type: "integer", description: "Minimum age", min: 0 },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         toolName,
         sourceName,
         sql,
@@ -78,9 +78,9 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
-      expect(result.metadata?.parameterMode).toBe("parameters");
-      expect(result.metadata?.parameterCount).toBe(2);
+      expect(result.data).toBeDefined();
+      expect(result.parameterMetadata?.mode).toBe("parameters");
+      expect(result.parameterMetadata?.parameterCount).toBe(2);
 
       // Verify the source manager was called with processed SQL and parameters
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
@@ -97,12 +97,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         "0": "john_doe",
         "1": 18,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "0", type: "string" },
         { name: "1", type: "integer" },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "test_tool",
         "test_source",
         sql,
@@ -111,7 +111,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE name = ? AND age > ?",
@@ -127,12 +127,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         userIds: [1, 2, 3],
         status: "active",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "userIds", type: "array", itemType: "integer" },
         { name: "status", type: "string", enum: ["active", "inactive"] },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "get_users_by_ids",
         "test_source",
         sql,
@@ -141,7 +141,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE id IN (?) AND status = ?",
@@ -155,12 +155,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         age: "not-a-number", // Invalid integer
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "age", type: "integer", min: 0, max: 120 },
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "test_tool",
           "test_source",
           sql,
@@ -181,13 +181,13 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         username: "john_doe",
         // minAge is missing
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string", required: true },
         { name: "minAge", type: "integer", required: true },
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "test_tool",
           "test_source",
           sql,
@@ -205,12 +205,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         username: "john_doe",
         // active is not provided, should use default
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string", required: true },
         { name: "active", type: "boolean", default: true, required: false },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "test_tool",
         "test_source",
         sql,
@@ -219,7 +219,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE name = ? AND active = ?",
@@ -234,7 +234,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const sql = "SELECT COUNT(*) as total_users FROM users";
       const parameters = {};
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "test_tool",
         "test_source",
         sql,
@@ -243,8 +243,8 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
-      expect(result.metadata?.parameterMode).toBe("none");
+      expect(result.data).toBeDefined();
+      expect(result.parameterMetadata?.mode).toBe("none");
 
       // Should call with original SQL and no binding parameters
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
@@ -263,7 +263,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         username: "TESTUSER",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         {
           name: "username",
           type: "string",
@@ -273,7 +273,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "getUserProfile",
         "ibmi-system",
         sql,
@@ -282,7 +282,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "ibmi-system",
         "select * from qsys2.user_info_basic where authorization_name = ?",
@@ -296,7 +296,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         clCommand: "DSPLIB QSYS",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         {
           name: "clCommand",
           type: "string",
@@ -306,7 +306,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "executeCl",
         "ibmi-system",
         sql,
@@ -315,7 +315,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "ibmi-system",
         "call qsys2.qcmdexc(?)",
@@ -342,7 +342,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         objectTypes: ["*FILE", "*PGM", "*SRVPGM"],
         maxResults: 100,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "startDate", type: "string", required: true },
         { name: "endDate", type: "string", required: true },
         { name: "userName", type: "string", required: true },
@@ -361,7 +361,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "auditJournalQuery",
         "ibmi-system",
         sql,
@@ -370,7 +370,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
 
       // Verify all parameters are properly bound
       const [, processedSql, bindingParams] =
@@ -399,12 +399,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
 
       const sql = "SELECT * FROM users WHERE name = :username";
       const parameters = { username: "test" };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string" },
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "test_tool",
           "test_source",
           sql,
@@ -424,7 +424,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {};
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "test_tool",
           "test_source",
           sql,
@@ -437,10 +437,10 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
 
     it("should handle uninitialized executor", async () => {
       // Create a new instance without initializing
-      YamlSqlExecutor.initialize(undefined as unknown as SourceManager);
+      SQLToolFactory.initialize(undefined as unknown as SourceManager);
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "test_tool",
           "test_source",
           "SELECT 1",
@@ -462,12 +462,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         active: true,
         // Missing positional parameter should be handled gracefully
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string", required: true },
         { name: "active", type: "boolean", required: true },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "hybrid_test",
         "test_source",
         sql,
@@ -476,7 +476,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
 
       // Verify named parameters were converted to positional
       const [, processedSql, bindingParams] =
@@ -493,14 +493,14 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         tableName: "users",
         username: "john_doe",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "tableName", type: "string", required: true },
         { name: "username", type: "string", required: true },
       ];
 
       // Should detect template mode and reject
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "template_test",
           "test_source",
           sql,
@@ -517,7 +517,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const sql = "SELECT * FROM users";
       const parameters = { someParam: "ignored" };
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "no_params_test",
         "test_source",
         sql,
@@ -526,8 +526,8 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
-      expect(result.metadata?.parameterMode).toBe("none");
+      expect(result.data).toBeDefined();
+      expect(result.parameterMetadata?.mode).toBe("none");
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users",
@@ -543,12 +543,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         user_name: "test_user",
         min_age_value: 21,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "user_name", type: "string", pattern: "^[a-zA-Z_]+$" },
         { name: "min_age_value", type: "integer", min: 18, max: 100 },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "special_chars_test",
         "test_source",
         sql,
@@ -557,7 +557,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE name = ? AND age = ?",
@@ -572,11 +572,11 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         username: "john_doe",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string", required: true },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "quoted_strings_test",
         "test_source",
         sql,
@@ -585,7 +585,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
 
       // Should only replace actual parameters, not quoted strings
       const [, processedSql, bindingParams] =
@@ -602,11 +602,11 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         username: "john_doe",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "username", type: "string", required: true },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "duplicate_params_test",
         "test_source",
         sql,
@@ -615,7 +615,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
 
       // Should replace both instances with the same value
       const [, processedSql, bindingParams] =
@@ -634,13 +634,13 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         count: "42", // String to integer
         ratio: "3.14", // String to float
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "active", type: "boolean" },
         { name: "count", type: "integer", min: 1 },
         { name: "ratio", type: "float", min: 0.0 },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "type_conversion_test",
         "test_source",
         sql,
@@ -649,7 +649,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE active = ? AND count = ? AND ratio = ?",
@@ -665,7 +665,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         statuses: ["active", "pending"],
         roles: ["admin", "user", "guest"],
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         {
           name: "statuses",
           type: "array",
@@ -681,7 +681,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "complex_array_test",
         "test_source",
         sql,
@@ -690,7 +690,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE status IN (?) AND roles IN (?)",
@@ -707,7 +707,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         statuses: ["active", "invalid_status"],
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         {
           name: "statuses",
           type: "array",
@@ -717,7 +717,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "invalid_enum_test",
           "test_source",
           sql,
@@ -735,7 +735,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         // Only provide one parameter, others should use defaults
         startDate: "2024-01-01",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "startDate", type: "string", required: true },
         {
           name: "status",
@@ -746,7 +746,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         { name: "limit", type: "integer", default: 100, min: 1, max: 1000 },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "complex_defaults_test",
         "test_source",
         sql,
@@ -755,7 +755,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE created_after = ? AND status = ? AND limit_count = ?",
@@ -768,12 +768,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const sql =
         "SELECT * FROM users WHERE name = 'unmatched quote AND id = :id";
       const parameters = { id: 123 };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "id", type: "integer" },
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "malformed_sql_test",
           "test_source",
           sql,
@@ -787,12 +787,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
     it("should handle malformed parameter syntax", async () => {
       const sql = "SELECT * FROM users WHERE id = :123invalid"; // Parameter name can't start with number
       const parameters = { "123invalid": 123 };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "123invalid", type: "integer" },
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "invalid_param_syntax_test",
           "test_source",
           sql,
@@ -809,12 +809,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         name: null,
         age: undefined,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "name", type: "string", required: false, default: "unknown" },
         { name: "age", type: "integer", required: false, default: 0 },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "null_undefined_test",
         "test_source",
         sql,
@@ -823,7 +823,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE name = ? AND age = ?",
@@ -838,11 +838,11 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         description: longString,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "description", type: "string", maxLength: 10000 },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "long_string_test",
         "test_source",
         sql,
@@ -851,7 +851,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE description = ?",
@@ -866,12 +866,12 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         description: longString,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "description", type: "string", maxLength: 1000 },
       ];
 
       await expect(
-        YamlSqlExecutor.executeStatementWithParameters(
+        SQLToolFactory.executeStatementWithParameters(
           "length_limit_test",
           "test_source",
           sql,
@@ -891,14 +891,14 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         flag3: 1,
         flag4: 0,
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         { name: "flag1", type: "boolean" },
         { name: "flag2", type: "boolean" },
         { name: "flag3", type: "boolean" },
         { name: "flag4", type: "boolean" },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "boolean_conversion_test",
         "test_source",
         sql,
@@ -907,7 +907,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM settings WHERE flag1 = ? AND flag2 = ? AND flag3 = ? AND flag4 = ?",
@@ -922,7 +922,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         email: "test@example.com",
         phone: "+1-555-0123",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         {
           name: "email",
           type: "string",
@@ -935,7 +935,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "regex_validation_test",
         "test_source",
         sql,
@@ -944,7 +944,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE email = ? AND phone = ?",
@@ -958,7 +958,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       const parameters = {
         name: "test_user",
       };
-      const parameterDefinitions: YamlToolParameter[] = [
+      const parameterDefinitions: SqlToolParameter[] = [
         {
           name: "name",
           type: "string",
@@ -966,7 +966,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         },
       ];
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "invalid_regex_test",
         "test_source",
         sql,
@@ -976,7 +976,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
       );
 
       // Should succeed but log a warning about invalid pattern
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE name = ?",
@@ -998,7 +998,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         };
       });
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "test_tool",
         "test_source",
         "SELECT * FROM users WHERE id = :id",
@@ -1007,17 +1007,17 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
-      expect(result.metadata?.executionTime).toBeGreaterThan(0);
-      expect(result.metadata?.rowCount).toBe(1);
-      expect(result.metadata?.parameterMode).toBe("parameters");
-      expect(result.metadata?.parameterCount).toBe(1);
+      expect(result.data).toBeDefined();
+      expect(result.executionTime).toBeGreaterThan(0);
+      expect(result.rowCount).toBe(1);
+      expect(result.parameterMetadata?.mode).toBe("parameters");
+      expect(result.parameterMetadata?.parameterCount).toBe(1);
     });
 
     it("should handle large parameter arrays efficiently", async () => {
       const largeArray = Array.from({ length: 1000 }, (_, i) => i + 1);
 
-      const result = await YamlSqlExecutor.executeStatementWithParameters(
+      const result = await SQLToolFactory.executeStatementWithParameters(
         "test_tool",
         "test_source",
         "SELECT * FROM users WHERE id IN (:ids)",
@@ -1026,7 +1026,7 @@ describe("YamlSqlExecutor - Parameter Binding", () => {
         testContext,
       );
 
-      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(mockSourceManager.executeQuery).toHaveBeenCalledWith(
         "test_source",
         "SELECT * FROM users WHERE id IN (?)",

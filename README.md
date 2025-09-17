@@ -313,6 +313,7 @@ export DB2i_HOST="your-ibmi-host"
 ```
 
 Run the following curl command:
+
 ```bash
 # Get access token using curl with environment variables
 curl -X POST http://localhost:3010/api/v1/auth \
@@ -502,17 +503,18 @@ Both transport modes support these command-line options:
 
 > **Note**: CLI arguments override corresponding settings in `.env` file when provided.
 
-| Option | Short | Description | Example |
-|--------|-------|-------------|---------|
-| `--tools <path>` | | Override YAML tools configuration path (overrides `TOOLS_YAML_PATH`) | `--tools ./custom-configs` |
-| `--toolsets <list>` | `-ts` | Load only specific toolsets (comma-separated) (overrides `SELECTED_TOOLSETS`) | `--toolsets performance,security` |
-| `--transport <type>` | `-t` | Force transport type (`http` or `stdio`) (overrides `MCP_TRANSPORT_TYPE`) | `--transport http` |
-| `--help` | `-h` | Show help information | `--help` |
-| `--list-toolsets` | | List available toolsets from YAML configuration | `--list-toolsets` |
+| Option               | Short | Description                                                                   | Example                           |
+| -------------------- | ----- | ----------------------------------------------------------------------------- | --------------------------------- |
+| `--tools <path>`     |       | Override YAML tools configuration path (overrides `TOOLS_YAML_PATH`)          | `--tools ./custom-configs`        |
+| `--toolsets <list>`  | `-ts` | Load only specific toolsets (comma-separated) (overrides `SELECTED_TOOLSETS`) | `--toolsets performance,security` |
+| `--transport <type>` | `-t`  | Force transport type (`http` or `stdio`) (overrides `MCP_TRANSPORT_TYPE`)     | `--transport http`                |
+| `--help`             | `-h`  | Show help information                                                         | `--help`                          |
+| `--list-toolsets`    |       | List available toolsets from YAML configuration                               | `--list-toolsets`                 |
 
 ### Common Development Scenarios
 
 **1. Standard Development Server**
+
 ```bash
 npm run start:http
 # Server: http://localhost:3010/mcp
@@ -521,6 +523,7 @@ npm run start:http
 ```
 
 **2. Custom Tools Path**
+
 ```bash
 npm run start:http -- --tools ./my-tools
 # Server: http://localhost:3010/mcp (port from .env or default)
@@ -528,11 +531,11 @@ npm run start:http -- --tools ./my-tools
 ```
 
 **3. Specific Toolsets Only**
+
 ```bash
 npm run start:http -- --toolsets performance,monitoring
 # Only loads tools from 'performance' and 'monitoring' toolsets
 ```
-
 
 ### Development Tips
 
@@ -544,6 +547,7 @@ npm run start:http -- --toolsets performance,monitoring
 ### Troubleshooting
 
 **Port Already in Use**
+
 ```bash
 # Configure port in .env file
 echo "MCP_HTTP_PORT=3011" >> .env
@@ -551,6 +555,7 @@ npm run start:http
 ```
 
 **Tools Not Loading**
+
 ```bash
 # Check tools path
 npm run start:http -- --tools ./prebuiltconfigs

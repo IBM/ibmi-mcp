@@ -174,9 +174,9 @@ function createPinoLogger(): PinoLogger {
       env: config.environment,
     },
     // Automatically add request context to every log message via async local storage.
-    mixin() {
-      return getRequestContext() ?? {};
-    },
+    // mixin() {
+    //   return getRequestContext() ?? {};
+    // },
     // Use Pino's standard error serializer for robust error logging.
     serializers: {
       err: pino.stdSerializers.err,
