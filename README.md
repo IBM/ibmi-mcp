@@ -2,7 +2,7 @@
 
 # ibmi-mcp-server
 
-**Build production-grade Model Context Protocol (MCP) servers with a powerful, type-safe, and extensible foundation.**
+**MCP server for IBM i**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.1-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
@@ -13,7 +13,12 @@
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/ajshedivy/ibmi-mcp-server)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
 
+**📚 [Documentation](https://ibm-d95bab6e.mintlify.app/) | ⚠️ Docs are under active development**
+
 </div>
+
+<details>
+<summary><strong>📋 Table of Contents</strong></summary>
 
 - [ibmi-mcp-server](#ibmi-mcp-server)
   - [✨ Key Features](#-key-features)
@@ -73,7 +78,11 @@
   - [🌍 Explore More MCP Resources](#-explore-more-mcp-resources)
   - [📜 License](#-license)
 
-This repository provides a robust MCP server implementation for IBM i.
+</details>
+
+
+
+
 
 ## ✨ Key Features
 
