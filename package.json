@@ -50,6 +50,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "validate": "tsx scripts/validate-config.ts",
+    "generate-schemas": "tsx scripts/generate-json-schemas.ts",
     "audit": "npm audit --production",
     "audit:fix": "npm audit fix --production",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run build"
