@@ -24,7 +24,8 @@ services:
   # MCP Gateway - the main API server for the MCP stack
   # ──────────────────────────────────────────────────────────────────────
   gateway:
-    image: ghcr.io/ibm/mcp-context-forge:0.5.0 # Use the release MCP Context Forge image
+    image: ${IMAGE_LOCAL:-mcpgateway/mcpgateway:latest} # Use 0.5.0 - works with ARM64 emulation
+    #image: ghcr.io/ibm/mcp-context-forge:0.7.0 # Use the release MCP Context Forge image (x86-64-v3 only)
     #image: ${IMAGE_LOCAL:-mcpgateway/mcpgateway:latest} # Use the local latest image. Run `make docker-prod` to build it.
     #build:
     #  context: .
@@ -46,11 +47,26 @@ services:
       # - DATABASE_URL=mongodb://admin:${MONGO_PASSWORD:-changeme}@mongodb:27017/mcp
       - CACHE_TYPE=redis # backend for caching (memory, redis, database, or none)
       - REDIS_URL=redis://redis:6379/0
+      # JWT Configuration - Choose ONE approach:
+      # Option 1: HMAC (Default - Simple deployments)
+      - JWT_ALGORITHM=HS256
       - JWT_SECRET_KEY=my-test-key
-      - BASIC_AUTH_USER=admin
-      - BASIC_AUTH_PASSWORD=changeme
+      # Option 2: RSA (Production - Asymmetric, uncomment and generate certs)
+      # - JWT_ALGORITHM=RS256
+      # - JWT_PUBLIC_KEY_PATH=/app/certs/jwt/public.pem
+      # - JWT_PRIVATE_KEY_PATH=/app/certs/jwt/private.pem
+      - JWT_AUDIENCE=mcpgateway-api
+      - JWT_ISSUER=mcpgateway
+      - EMAIL_AUTH_ENABLED=true
+      - PLATFORM_ADMIN_EMAIL=admin@example.com
+      - PLATFORM_ADMIN_PASSWORD=changeme
+      - REQUIRE_TOKEN_EXPIRATION=false
       - MCPGATEWAY_UI_ENABLED=true
       - MCPGATEWAY_ADMIN_API_ENABLED=true
+      # Security configuration (using defaults)
+      - ENVIRONMENT=development
+      - SECURITY_HEADERS_ENABLED=true
+      - CORS_ALLOW_CREDENTIALS=true
       # - SSL=true
       # - CERT_FILE=/app/certs/cert.pem
       # - KEY_FILE=/app/certs/key.pem
@@ -72,12 +88,12 @@ services:
       #   condition: service_completed_successfully
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; import json; resp = urllib.request.urlopen('http://localhost:4444/health', timeout=5); data = json.loads(resp.read()); exit(0 if data.get('status') == 'healthy' else 1)"]
       #test: ["CMD", "curl", "-f", "https://localhost:4444/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
     # volumes:
     #   - ./certs:/app/certs:ro   # mount certs folder read-only
@@ -397,8 +413,12 @@ services:
     restart: unless-stopped
     env_file:
       - .env           # Load environment variables from .env file
+    environment:
+      # Enable YAML auto-reload for development (file watching)
+      - YAML_AUTO_RELOAD=true
     volumes:
-      - ./prebuiltconfigs:/usr/src/app/prebuiltconfigs  # Mount prebuilt configurations
+      - ./prebuiltconfigs:/usr/src/app/prebuiltconfigs:rw  # Mount prebuilt configurations with read-write for auto-reload
+      - ./secrets:/usr/src/app/secrets:ro  # Mount secrets directory as read-only
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
       interval: 30s

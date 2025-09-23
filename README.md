@@ -32,7 +32,7 @@
     - [Configuration](#configuration)
     - [Getting Access Tokens](#getting-access-tokens)
       - [Option 1: Using the Token Script (Recommended)](#option-1-using-the-token-script-recommended)
-      - [Option 2: Direct HTTP Request](#option-2-direct-http-request)
+      - [Sequence Overview](#sequence-overview)
     - [Client Integration](#client-integration)
     - [Security Considerations](#security-considerations)
     - [Authentication Endpoints](#authentication-endpoints)
@@ -54,6 +54,8 @@
     - [Prerequisites](#prerequisites)
       - [Docker](#docker)
       - [Podman (Alternative to Docker)](#podman-alternative-to-docker)
+      - [Build MCP Gateway Image](#build-mcp-gateway-image)
+      - [Configure MCP environment](#configure-mcp-environment)
     - [Quick Start with Docker](#quick-start-with-docker)
     - [Quick Start with Podman](#quick-start-with-podman)
     - [Container Architecture](#container-architecture)
@@ -62,7 +64,7 @@
       - [Stop Services](#stop-services)
       - [View Logs](#view-logs)
       - [Rebuild Services](#rebuild-services)
-    - [MCP Context Forge UI:](#mcp-context-forge-ui)
+    - [MCP Gateway UI:](#mcp-gateway-ui)
     - [Virtual Server Catalog Demo (Comming soon!!)](#virtual-server-catalog-demo-comming-soon)
   - [Architecture Overview](#architecture-overview)
   - [🏗️ Project Structure](#️-project-structure)
@@ -256,12 +258,25 @@ The server supports IBM i HTTP authentication that allows clients to obtain acce
 
 ### Configuration
 
-To enable IBM i HTTP authentication:
+To enable IBM i HTTP authentication, we need to set up Encryption keys and configure the server environment. To protect IBM i credentials during transmission, the authentication flow uses RSA and AES encryption. You need to generate an RSA keypair for the server:
 
 ```bash
+mkdir -p secrets
+openssl genpkey -algorithm RSA -out secrets/private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -pubout -in secrets/private.pem -out secrets/public.pem
+```
+
+Create or update your `.env` file with the following settings:
+
+```ini
 # Enable IBM i authentication system
 IBMI_HTTP_AUTH_ENABLED=true
 MCP_AUTH_MODE=ibmi
+
+# IBM i authentication settings
+IBMI_AUTH_KEY_ID=development
+IBMI_AUTH_PRIVATE_KEY_PATH=secrets/private.pem
+IBMI_AUTH_PUBLIC_KEY_PATH=secrets/public.pem
 
 # Security settings
 IBMI_AUTH_ALLOW_HTTP=true          # Development only - use HTTPS in production
@@ -271,11 +286,12 @@ IBMI_AUTH_TOKEN_EXPIRY_SECONDS=3600 # Token lifetime (1 hour)
 IBMI_AUTH_MAX_CONCURRENT_SESSIONS=100
 IBMI_AUTH_CLEANUP_INTERVAL_SECONDS=300
 
-# IBM i connection details (also used for fallback when no token present)
+# IBM i connection details
 DB2i_HOST=your-ibmi-host
 DB2i_USER=your-username
 DB2i_PASS=your-password
 ```
+
 
 ### Getting Access Tokens
 
@@ -297,35 +313,37 @@ echo $IBMI_MCP_ACCESS_TOKEN
 
 The script automatically:
 
-- Loads credentials from `.env` with CLI fallback
+- Loads IBM i credentials from `.env` with CLI fallback
+- Fetches the server's public key
+- Encrypts credentials client-side
+- Requests an access token
 - Sets `IBMI_MCP_ACCESS_TOKEN` environment variable
 - Provides copy-paste export commands
 
-#### Option 2: Direct HTTP Request
+#### Sequence Overview
 
-You can also obtain tokens directly using curl with HTTP Basic Authentication:
+```mermaid
+sequenceDiagram
+    participant CLI as Client CLI
+    participant Auth as MCP Server (/api/v1/auth)
+    participant IBM as IBM i
 
-```bash
-# Set your IBM i credentials (if not already in .env)
-export DB2i_USER="your-username"
-export DB2i_PASS="your-password"
-export DB2i_HOST="your-ibmi-host"
-```
+    CLI->>Auth: GET /api/v1/auth/public-key
+    Auth-->>CLI: { keyId, publicKey }
 
-Run the following curl command:
+    CLI->>CLI: Generate AES-256-GCM session key + IV
+    CLI->>CLI: Encrypt credentials + request body with session key
+    CLI->>CLI: Encrypt session key with server public key (RSA-OAEP)
 
-```bash
-# Get access token using curl with environment variables
-curl -X POST http://localhost:3010/api/v1/auth \
-  -H "Content-Type: application/json" \
-  -u "$DB2i_USER:$DB2i_PASS" \
-  -d '{
-    "host": "'$DB2i_HOST'",
-    "duration": 3600,
-    "poolstart": 2,
-    "poolmax": 5
-  }'
+    CLI->>Auth: POST /api/v1/auth { keyId, encryptedSessionKey, iv, authTag, ciphertext }
+    Auth->>Auth: Look up keyId, decrypt session key with private key
+    Auth->>Auth: Decrypt ciphertext, validate GCM tag, validate payload
 
+    Auth->>IBM: Authenticate against IBM i with decrypted credentials
+    IBM-->>Auth: Success/Failure
+
+    Auth->>Auth: Generate access token, provision pool session
+    Auth-->>CLI: 201 JSON { access_token, expires_in, ... }
 ```
 
 ### Client Integration
@@ -654,23 +672,64 @@ Choose one of the following container platforms:
 - **Podman CLI** (Linux): [Installation guide](https://podman.io/docs/installation)
 - **podman-compose**: `pip install podman-compose`
 
+#### Build MCP Gateway Image
+
+The `docker-compose.yml` uses a local build of the MCP Gateway image. To build it, clone the MCP Gateway repository and build the image:
+
+```bash
+git clone https://github.com/IBM/mcp-context-forge.git
+cd mcp-context-forge
+
+# Build image using Docker
+make docker-prod
+
+# Or build image using Podman
+make podman-prod
+```
+This will create a local image named `localhost/mcpgateway/mcpgateway` that the `docker-compose.yml` can use. More details on building the MCP Gateway image can be found in the [MCP Gateway Docs](https://ibm.github.io/mcp-context-forge/deployment/).
+
+#### Configure MCP environment
+
+Create a `.env` file in the `ibmi-mcp-server` directory with your IBM i connection details:
+
+```bash
+cd ibmi-mcp-server
+cp .env.example .env
+# Edit .env with your IBM i connection details
+code .env
+```
+
+make sure to set the follow variables in your `.env` file:
+
+```ini
+# IBM i connection details
+DB2i_HOST="your_host"
+DB2i_USER="your_user"
+DB2i_PASS="your_pass"
+
+# MCP Auth mode
+MCP_AUTH_MODE=ibmi
+
+# IBM i HTTP authentication settings
+IBMI_AUTH_KEY_ID=development
+IBMI_AUTH_PRIVATE_KEY_PATH=secrets/private.pem
+IBMI_AUTH_PUBLIC_KEY_PATH=secrets/public.pem
+
+# Enable IBM i HTTP authentication endpoints (requires MCP_AUTH_MODE=ibmi)
+IBMI_HTTP_AUTH_ENABLED=true
+
+# Allow HTTP requests for authentication (development only, use HTTPS in production)
+IBMI_AUTH_ALLOW_HTTP=true
+```
+
+> Note: You need to generate an RSA keypair for the server if you haven't already done so. See the [IBM i HTTP Authentication](#ibm-i-http-authentication-beta) section for instructions.
+
+Once you have your `.env` file configured, you can start the complete stack using Docker or Podman.
+
+
 ### Quick Start with Docker
 
-1. **Clone and navigate to the project:**
-
-   ```bash
-   git clone https://github.com/ajshedivy/ibmi-mcp-server.git
-   cd ibmi-mcp-server
-   ```
-
-2. **Create your environment file:**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your IBM i connection details
-   ```
-
-3. **Start the complete stack:**
+1. **Start the complete stack:**
 
    ```bash
    # Start all services in background
@@ -680,40 +739,26 @@ Choose one of the following container platforms:
    docker-compose up -d gateway ibmi-mcp-server postgres redis
    ```
 
-4. **Verify services are running:**
+2. **Verify services are running:**
    ```bash
    docker-compose ps
    ```
 
 ### Quick Start with Podman
 
-1. **Clone and navigate to the project:**
-
-   ```bash
-   git clone https://github.com/ajshedivy/ibmi-mcp-server.git
-   cd ibmi-mcp-server
-   ```
-
-2. **Create your environment file:**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your IBM i connection details
-   ```
-
-3. **Start the complete stack:**
+1. **Start the complete stack:**
 
    ```bash
    # Start all services in background
-   podman-compose up -d
+   podman compose up -d
 
    # Or start specific services
-   podman-compose up -d gateway ibmi-mcp-server postgres redis
+   podman compose up -d gateway ibmi-mcp-server postgres redis
    ```
 
-4. **Verify services are running:**
+2. **Verify services are running:**
    ```bash
-   podman-compose ps
+   podman compose ps
    ```
 
 ### Container Architecture
@@ -740,9 +785,9 @@ docker-compose up -d gateway            # Start specific service
 docker-compose up --no-deps gateway     # Start without dependencies
 
 # Podman
-podman-compose up -d                    # Start all services
-podman-compose up -d gateway            # Start specific service
-podman-compose up --no-deps gateway     # Start without dependencies
+podman compose up -d                    # Start all services
+podman compose up -d gateway            # Start specific service
+podman compose up --no-deps gateway     # Start without dependencies
 ```
 
 #### Stop Services
@@ -753,8 +798,8 @@ docker-compose down                     # Stop all services
 docker-compose stop gateway             # Stop specific service
 
 # Podman
-podman-compose down                     # Stop all services
-podman-compose stop gateway             # Stop specific service
+podman compose down                     # Stop all services
+podman compose stop gateway             # Stop specific service
 ```
 
 #### View Logs
@@ -765,8 +810,8 @@ docker-compose logs -f gateway          # Follow gateway logs
 docker-compose logs --tail=100 ibmi-mcp-server
 
 # Podman
-podman-compose logs -f gateway          # Follow gateway logs
-podman-compose logs --tail=100 ibmi-mcp-server
+podman compose logs -f gateway          # Follow gateway logs
+podman compose logs --tail=100 ibmi-mcp-server
 ```
 
 #### Rebuild Services
@@ -777,11 +822,11 @@ docker-compose build ibmi-mcp-server    # Rebuild specific service
 docker-compose up --build -d            # Rebuild and restart all
 
 # Podman
-podman-compose build ibmi-mcp-server    # Rebuild specific service
-podman-compose up --build -d            # Rebuild and restart all
+podman compose build ibmi-mcp-server    # Rebuild specific service
+podman compose up --build -d            # Rebuild and restart all
 ```
 
-### MCP Context Forge UI:
+### MCP Gateway UI:
 
 ![alt text](images/image.png)
 

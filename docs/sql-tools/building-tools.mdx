@@ -1,0 +1,620 @@
+---
+title: "Building SQL Tools"
+description: "Step-by-step guide to creating custom YAML SQL tools for IBM i database operations with examples and best practices."
+---
+
+# Building SQL Tools
+
+This guide walks you through creating custom YAML SQL tools from basic queries to advanced enterprise operations. You'll learn to build tools that integrate seamlessly with AI agents while maintaining IBM i security and performance standards.
+
+<Note>
+**Prerequisites**: Basic SQL knowledge and familiarity with IBM i system services (QSYS2 schema). For YAML syntax, any text editor will work, but one with YAML syntax highlighting is recommended.
+</Note>
+
+## Your First SQL Tool
+
+Let's start with a simple tool that lists active jobs. This example introduces the core concepts you'll use in all YAML SQL tools.
+
+### Step 1: Create the Configuration File
+
+Create a new file called `my-first-tools.yaml`:
+
+```yaml
+# Database connection configuration
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true  # Development only
+
+# Define your SQL tools
+tools:
+  list_active_jobs:
+    source: ibmi-system
+    description: "List currently active jobs on the IBM i system"
+    statement: |
+      SELECT job_name, user_name, job_status, cpu_used, elapsed_time
+      FROM qsys2.active_job_info
+      WHERE job_status = 'ACTIVE'
+      ORDER BY cpu_used DESC
+      FETCH FIRST 20 ROWS ONLY
+    parameters: []
+
+# Organize tools into logical groups
+toolsets:
+  basic_monitoring:
+    title: "Basic System Monitoring"
+    description: "Simple tools for monitoring system activity"
+    tools:
+      - list_active_jobs
+```
+
+### Step 2: Test Your Tool
+
+Start the MCP server with your new configuration:
+
+```bash
+TOOLS_YAML_PATH=my-first-tools.yaml npm run start:http
+```
+
+Use the MCP Inspector to test your tool:
+
+```bash
+npm run mcp-inspector
+```
+
+<Note>
+**Development Tip**: Always start with simple, parameter-free tools to verify your connection and SQL syntax. You can add complexity incrementally as you gain confidence with the YAML structure.
+</Note>
+
+## Adding Parameters
+
+Parameters make tools dynamic and reusable. Let's enhance our job listing tool with filtering capabilities:
+
+<Tabs>
+  <Tab title="Basic Parameters">
+    ```yaml
+    tools:
+      list_jobs_by_user:
+        source: ibmi-system
+        description: "List active jobs for a specific user"
+        parameters:
+          - name: user_name
+            type: string
+            required: true
+            description: "IBM i user profile name (uppercase)"
+            pattern: "^[A-Z][A-Z0-9_]*$"
+            maxLength: 10
+        statement: |
+          SELECT job_name, job_status, cpu_used, elapsed_time
+          FROM qsys2.active_job_info
+          WHERE user_name = :user_name
+          AND job_status = 'ACTIVE'
+          ORDER BY cpu_used DESC
+          FETCH FIRST 50 ROWS ONLY
+    ```
+  </Tab>
+
+  <Tab title="Optional Parameters">
+    ```yaml
+    tools:
+      flexible_job_search:
+        source: ibmi-system
+        description: "Search jobs with optional filtering"
+        parameters:
+          - name: user_filter
+            type: string
+            required: false
+            description: "Optional user name filter"
+          - name: max_rows
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 100
+            description: "Maximum number of jobs to return"
+        statement: |
+          SELECT job_name, user_name, job_status, cpu_used
+          FROM qsys2.active_job_info
+          WHERE (:user_filter IS NULL OR user_name = :user_filter)
+          AND job_status = 'ACTIVE'
+          ORDER BY cpu_used DESC
+          FETCH FIRST :max_rows ROWS ONLY
+    ```
+  </Tab>
+
+  <Tab title="Enum Parameters">
+    ```yaml
+    tools:
+      jobs_by_status:
+        source: ibmi-system
+        description: "List jobs filtered by job status"
+        parameters:
+          - name: status
+            type: string
+            enum: ["ACTIVE", "ENDED", "OUTQ", "MSGW"]
+            default: "ACTIVE"
+            description: "Job status to filter by"
+        statement: |
+          SELECT job_name, user_name, job_status,
+                 job_type, subsystem, elapsed_time
+          FROM qsys2.active_job_info
+          WHERE job_status = :status
+          ORDER BY elapsed_time DESC
+          FETCH FIRST 30 ROWS ONLY
+    ```
+  </Tab>
+</Tabs>
+
+### Parameter Validation
+
+The MCP server automatically validates parameters before executing SQL:
+
+```yaml
+parameters:
+  - name: library_name
+    type: string
+    required: true
+    pattern: "^[A-Z][A-Z0-9_]*$"  # IBM i naming rules
+    maxLength: 10
+    description: "IBM i library name (must be uppercase alphanumeric)"
+
+  - name: row_limit
+    type: integer
+    minimum: 1
+    maximum: 1000
+    default: 50
+    description: "Number of rows to return (1-1000)"
+```
+
+<Warning>
+**Security Note**: Parameter validation is your first line of defense against invalid input. Always include appropriate constraints, especially for string parameters that could be used in injection attacks.
+</Warning>
+
+## Common IBM i Patterns
+
+Here are proven patterns for working with IBM i system services:
+
+### System Information Queries
+
+```yaml
+tools:
+  system_overview:
+    source: ibmi-system
+    description: "Comprehensive system status and configuration"
+    statement: |
+      SELECT
+        system_name,
+        current_timestamp,
+        elapsed_time,
+        total_jobs,
+        active_threads,
+        cpu_utilization,
+        main_storage_size / 1024 / 1024 AS memory_gb,
+        current_unprotected_used / 1024 / 1024 AS used_memory_gb
+      FROM TABLE(QSYS2.SYSTEM_STATUS()) X
+
+  subsystem_status:
+    source: ibmi-system
+    description: "Status of all subsystems"
+    statement: |
+      SELECT subsystem_name, subsystem_library, status,
+             monitor_job, secondary_language,
+             COALESCE(current_active_jobs, 0) as active_jobs,
+             COALESCE(maximum_active_jobs, 0) as max_jobs
+      FROM qsys2.subsystem_info
+      ORDER BY subsystem_name
+```
+
+### Library and Object Management
+
+```yaml
+tools:
+  library_objects:
+    source: ibmi-system
+    description: "List objects in a library with optional type filtering"
+    parameters:
+      - name: library
+        type: string
+        required: true
+        pattern: "^[A-Z][A-Z0-9_]*$"
+        description: "Library name to examine"
+      - name: object_type
+        type: string
+        required: false
+        enum: ["*FILE", "*PGM", "*SRVPGM", "*DTAARA", "*USRSPC"]
+        description: "Object type filter (optional)"
+    statement: |
+      SELECT object_name, object_type, object_size,
+             created_timestamp, last_used_timestamp,
+             object_owner, authorization_list
+      FROM table(qsys2.object_statistics(:library,
+                 COALESCE(:object_type, '*ALL'))) x
+      ORDER BY object_name
+
+  library_list:
+    source: ibmi-system
+    description: "Show current library list for analysis"
+    statement: |
+      SELECT ordinal_position, library_name, library_type,
+             library_text_description
+      FROM qsys2.library_list_info
+      ORDER BY ordinal_position
+```
+
+### Database Analysis
+
+```yaml
+tools:
+  table_analysis:
+    source: ibmi-system
+    description: "Analyze table structure and statistics"
+    parameters:
+      - name: schema
+        type: string
+        required: true
+        description: "Schema (library) name"
+      - name: table_name
+        type: string
+        required: true
+        description: "Table name to analyze"
+    statement: |
+      SELECT
+        t.table_name,
+        t.table_type,
+        t.number_rows,
+        t.create_timestamp,
+        c.column_name,
+        c.ordinal_position,
+        c.data_type,
+        c.column_size,
+        c.is_nullable,
+        c.column_default
+      FROM qsys2.systables t
+      JOIN qsys2.syscolumns c ON t.table_schema = c.table_schema
+                             AND t.table_name = c.table_name
+      WHERE t.table_schema = UPPER(:schema)
+        AND t.table_name = UPPER(:table_name)
+      ORDER BY c.ordinal_position
+
+  foreign_key_relationships:
+    source: ibmi-system
+    description: "Find foreign key relationships for a table"
+    parameters:
+      - name: schema
+        type: string
+        required: true
+      - name: table_name
+        type: string
+        required: true
+    statement: |
+      SELECT
+        fk.constraint_name,
+        fk.table_schema AS fk_schema,
+        fk.table_name AS fk_table,
+        fk.column_name AS fk_column,
+        pk.table_schema AS pk_schema,
+        pk.table_name AS pk_table,
+        pk.column_name AS pk_column
+      FROM qsys2.syskeycst fk
+      JOIN qsys2.sysrefcst r ON fk.constraint_name = r.constraint_name
+      JOIN qsys2.syskeycst pk ON r.unique_constraint_name = pk.constraint_name
+      WHERE fk.table_schema = UPPER(:schema)
+        AND fk.table_name = UPPER(:table_name)
+      ORDER BY fk.constraint_name, fk.ordinal_position
+```
+
+## Advanced Features
+
+### Response Formatting
+
+Control how results are presented to AI agents:
+
+```yaml
+tools:
+  formatted_system_report:
+    source: ibmi-system
+    description: "System report with markdown formatting"
+    responseFormat: markdown
+    statement: |
+      SELECT
+        '# System Status Report' AS report_header,
+        '## Current Time: ' || CURRENT_TIMESTAMP AS timestamp_section,
+        '### CPU Utilization: ' || cpu_utilization || '%' AS cpu_info,
+        '### Memory Usage: ' ||
+          ROUND((current_unprotected_used * 100.0 / main_storage_size), 2) ||
+          '%' AS memory_info
+      FROM TABLE(QSYS2.SYSTEM_STATUS()) X
+```
+
+### Security Configuration
+
+Mark sensitive operations for audit logging and access control:
+
+```yaml
+tools:
+  sensitive_user_info:
+    source: ibmi-system
+    description: "User profile information (requires authority)"
+    security:
+      audit: true
+      scopes: ["user:read"]
+      readOnly: true
+    parameters:
+      - name: user_profile
+        type: string
+        required: true
+        pattern: "^[A-Z][A-Z0-9_]*$"
+    statement: |
+      SELECT user_profile_name, status, previous_signon,
+             days_until_password_expires, user_class_name
+      FROM qsys2.user_info
+      WHERE user_profile_name = :user_profile
+
+  privileged_system_config:
+    source: ibmi-system
+    description: "System configuration requiring special authority"
+    security:
+      audit: true
+      requiredAuthority: "*ALLOBJ"
+      warning: "Requires *ALLOBJ special authority"
+    statement: |
+      SELECT * FROM qsys2.system_value_info
+      WHERE system_value_name LIKE 'Q%SEC%'
+```
+
+### Error Handling and Validation
+
+Build robust tools with comprehensive error handling:
+
+```yaml
+tools:
+  validated_object_query:
+    source: ibmi-system
+    description: "Query objects with comprehensive validation"
+    parameters:
+      - name: library
+        type: string
+        required: true
+        pattern: "^[A-Z][A-Z0-9_]*$"
+        maxLength: 10
+        description: "Library name (must exist and be accessible)"
+      - name: object_filter
+        type: string
+        required: false
+        pattern: "^[A-Z*][A-Z0-9_*]*$"
+        maxLength: 10
+        description: "Object name filter (supports * wildcards)"
+    statement: |
+      WITH library_check AS (
+        SELECT library_name
+        FROM qsys2.library_info
+        WHERE library_name = :library
+      ),
+      object_list AS (
+        SELECT o.*, l.library_name
+        FROM library_check l,
+             table(qsys2.object_statistics(l.library_name,
+                   COALESCE(:object_filter, '*ALL'))) o
+      )
+      SELECT
+        CASE
+          WHEN NOT EXISTS(SELECT 1 FROM library_check)
+          THEN 'ERROR: Library ' || :library || ' not found or not accessible'
+          ELSE object_name
+        END AS result,
+        object_type,
+        object_size,
+        created_timestamp
+      FROM object_list
+      UNION ALL
+      SELECT
+        'ERROR: Library ' || :library || ' not found or not accessible',
+        NULL, NULL, NULL
+      FROM library_check
+      WHERE NOT EXISTS(SELECT 1 FROM library_check)
+      ORDER BY result
+```
+
+## Testing and Debugging
+
+### Validation Commands
+
+Test your YAML configuration before deployment:
+
+```bash
+# Validate YAML syntax and structure
+npm run validate -- --config my-tools.yaml
+
+# List available toolsets
+npm run start:http -- --list-toolsets --tools my-tools.yaml
+
+# Test specific tool execution
+npm run test -- --grep "yaml-sql"
+```
+
+<Note>
+For complete testing strategies including MCP Inspector usage, see the [Quick Start Guide](/quickstart#step-4-test-with-mcp-inspector-5-minutes). For production testing, refer to the [Production Deployment](/deployment/production) guide.
+</Note>
+
+### Debug Mode
+
+Enable debug logging to troubleshoot tool execution:
+
+```bash
+MCP_LOG_LEVEL=debug TOOLS_YAML_PATH=my-tools.yaml npm run start:http
+```
+
+### Common Issues and Solutions
+
+<AccordionGroup>
+  <Accordion title="Parameter Binding Errors" icon="exclamation-triangle">
+    **Problem**: `Parameter :parameter_name not found in statement`
+
+    **Solution**: Ensure parameter names in the `statement` match exactly with parameter definitions:
+
+    ```yaml
+    # ❌ Mismatch
+    parameters:
+      - name: user_name
+    statement: "WHERE user = :username"  # Wrong parameter name
+
+    # ✅ Correct
+    parameters:
+      - name: user_name
+    statement: "WHERE user = :user_name"  # Matching parameter name
+    ```
+  </Accordion>
+
+  <Accordion title="SQL Syntax Errors" icon="code">
+    **Problem**: SQL statement fails to execute
+
+    **Solution**: Test SQL separately in a DB2 client first:
+
+    ```bash
+    # Test in IBM i ACS or other SQL client
+    SELECT * FROM qsys2.active_job_info
+    WHERE user_name = 'TESTUSER'
+    FETCH FIRST 10 ROWS ONLY;
+    ```
+  </Accordion>
+
+  <Accordion title="Authority Issues" icon="lock">
+    **Problem**: `SQL0551: Not authorized to object`
+
+    **Solution**: Verify user has appropriate authorities:
+
+    ```sql
+    -- Check object authorities
+    SELECT * FROM qsys2.object_privileges
+    WHERE object_schema = 'QSYS2'
+      AND object_name = 'ACTIVE_JOB_INFO'
+      AND grantee = 'YOUR_USER';
+    ```
+  </Accordion>
+
+  <Accordion title="Connection Issues" icon="wifi">
+    **Problem**: Cannot connect to IBM i system
+
+    **Solution**: Verify connection parameters and Mapepire daemon:
+
+    ```bash
+    # Check if Mapepire daemon is running
+    ping your-ibmi-host
+    telnet your-ibmi-host 8076
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## File Organization Best Practices
+
+### Single Domain Approach
+
+Organize tools by business domain or functional area:
+
+```
+my-tools/
+├── performance.yaml      # System performance monitoring
+├── security.yaml         # Security and audit tools
+├── business.yaml         # Business logic and reporting
+└── development.yaml      # Development and testing tools
+```
+
+### Multi-Environment Support
+
+Use environment-specific configurations:
+
+```yaml
+# environments/production.yaml
+sources:
+  production:
+    host: ${PROD_DB2i_HOST}
+    user: ${PROD_DB2i_USER}
+    password: ${PROD_DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: false
+
+# environments/development.yaml
+sources:
+  development:
+    host: ${DEV_DB2i_HOST}
+    user: ${DEV_DB2i_USER}
+    password: ${DEV_DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+```
+
+### Version Control
+
+Include metadata for tool versioning and maintenance:
+
+```yaml
+metadata:
+  version: "2.1.0"
+  description: "Production monitoring tools for IBM i"
+  author: "IT Operations Team"
+  created: "2024-01-15"
+  lastUpdated: "2024-01-20"
+  keywords: ["monitoring", "performance", "production"]
+```
+
+## Performance Considerations
+
+### Query Optimization
+
+Always include appropriate performance optimizations:
+
+```yaml
+# ✅ Good: Row limiting and proper indexing
+statement: |
+  SELECT job_name, user_name, cpu_used
+  FROM qsys2.active_job_info
+  WHERE user_name = :user_name
+  ORDER BY cpu_used DESC
+  FETCH FIRST 100 ROWS ONLY
+
+# ❌ Avoid: Unlimited results
+statement: |
+  SELECT * FROM qsys2.active_job_info
+  WHERE user_name = :user_name
+```
+
+### Connection Pooling
+
+The MCP server automatically manages connection pooling, but you can optimize usage:
+
+```yaml
+# Use consistent source names for better pooling
+sources:
+  primary-system:  # Consistent naming
+    host: ${DB2i_HOST}
+    # ... connection details
+
+tools:
+  tool1:
+    source: primary-system  # Reuses connection
+  tool2:
+    source: primary-system  # Reuses connection
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing Guide" icon="flask" href="/sql-tools/testing">
+    Learn how to test and debug your SQL tools effectively
+  </Card>
+  <Card title="Examples & Patterns" icon="lightbulb" href="/sql-tools/examples">
+    Explore real-world examples and advanced patterns
+  </Card>
+  <Card title="Agent Integration" icon="robot" href="/agents/building-agents">
+    Build AI agents that use your custom SQL tools
+  </Card>
+  <Card title="Production Deployment" icon="server" href="/deployment/production">
+    Deploy your tools to production with monitoring
+  </Card>
+</CardGroup>
+
+<Note>
+**Tool Design Philosophy**: Effective SQL tools balance three concerns: **usability** (clear parameters and descriptions for AI agents), **security** (proper validation and authority checking), and **performance** (efficient queries that respect system resources). Start simple and add complexity incrementally as you understand your specific use cases.
+</Note>

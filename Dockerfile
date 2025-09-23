@@ -2,12 +2,13 @@
 # Use a specific Node.js version known to work, Alpine for smaller size
 FROM node:23-alpine AS base
 WORKDIR /usr/src/app
-ENV NODE_ENV=production
+# NODE_ENV will be set by docker-compose from .env file
 
 # ---- Dependencies ----
 # Install dependencies first to leverage Docker cache
 FROM base AS deps
 WORKDIR /usr/src/app
+ENV NODE_ENV=production
 COPY package.json package-lock.json* ./
 # Use npm ci for deterministic installs based on lock file
 # Install only production dependencies in this stage for the final image

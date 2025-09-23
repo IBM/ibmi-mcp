@@ -1,0 +1,288 @@
+---
+title: "Setup Mapepire"
+description: "Complete guide to installing and configuring Mapepire server on IBM i for MCP database connectivity"
+---
+
+# Setup Mapepire
+
+Mapepire is the database connectivity layer that enables the IBM i MCP Server to communicate with Db2 for i. This guide walks through installing and configuring Mapepire on your IBM i system.
+
+<Note>
+**Prerequisites**: You need SSH access to your IBM i system and appropriate administrative privileges to install software and configure network services.
+</Note>
+
+## What is Mapepire?
+
+Mapepire is a modern database connectivity solution for IBM i that:
+- Provides secure, encrypted connections to Db2 for i
+- Supports modern authentication methods
+- Enables remote database access for applications and tools
+- Offers both HTTP and direct socket connectivity options
+
+## Installation Methods
+
+### Option 1: RPM Installation (Recommended)
+
+The easiest way to install Mapepire is using the RPM package manager:
+
+```bash
+yum install mapepire-server
+```
+
+<Note>
+If you need help getting started with RPMs on IBM i, see the [IBM i Open Source RPM Guide](http://ibm.biz/ibmi-rpms).
+</Note>
+
+### Option 2: Manual Installation
+
+If RPM installation isn't available, you can install manually:
+
+1. **Create download directory:**
+   ```bash
+   mkdir -p /opt/download
+   ```
+
+2. **Download the distribution:**
+   ```bash
+   cd /opt/download
+   wget -O mapepire-server-dist.zip \
+     https://github.com/Mapepire-IBMi/mapepire-server/releases/latest/download/mapepire-server-dist.zip
+   ```
+
+3. **Extract and set permissions:**
+   ```bash
+   mkdir -p /opt/mapepire
+   cd /opt/mapepire
+   jar xvf /opt/download/mapepire-server-dist.zip
+   chown -R qsys .
+   ```
+
+## Starting Mapepire
+
+### Service Commander (Recommended for RPM)
+
+If you installed via RPM, use Service Commander for easy management:
+
+```bash
+# Install Service Commander (if not already installed)
+yum install service-commander
+
+# Start the service
+sc start mapepire
+
+# Check if it's running
+sc check mapepire
+
+# Stop the service (when needed)
+sc stop mapepire
+```
+
+### Manual Startup
+
+**For RPM installation:**
+```bash
+nohup /QOpenSys/pkgs/bin/mapepire &
+```
+
+**For manual installation:**
+```bash
+nohup /opt/mapepire/bin/mapepire &
+```
+
+**For manual installation with Service Commander:**
+```bash
+cd /opt/mapepire/lib/mapepire
+sc start mapepire.yaml
+```
+
+## Configuration
+
+### Port Configuration
+
+Mapepire uses **port 8076** by default. This is the standard port and changing it is not recommended.
+
+If you need to change the port:
+
+```bash
+# Set environment variable
+export PORT=8077
+
+# Or edit Service Commander configuration
+scedit mapepire
+```
+
+### TLS/SSL Configuration
+
+Mapepire supports several TLS certificate options:
+
+#### Option 1: Let's Encrypt (Recommended)
+
+If you have Let's Encrypt certificates (e.g., from CertBot), Mapepire will automatically use them:
+
+```bash
+# Certificates should be located at:
+/etc/letsencrypt/live/<hostname>/
+```
+
+#### Option 2: Custom Certificate
+
+Create a custom certificate store with these specifications:
+
+| Setting | Value |
+|---------|-------|
+| File location | `/QOpenSys/etc/mapepire/cert/server.jks` |
+| Format | JKS |
+| Store password | `mapepire` |
+| Key password | `mapepire` |
+| Certificate alias | `mapepire` |
+
+**Example using DCM Tools:**
+```bash
+dcmexport --password=changeit --dcm-store=system --format=pkcs12 mystore.p12
+
+keytool -importkeystore \
+  -srckeystore mystore.p12 \
+  -srcstoretype pkcs12 \
+  -srcstorepass changeit \
+  -srcalias "mydcmalias" \
+  -destkeystore /QOpenSys/etc/mapepire/cert/server.jks \
+  -deststoretype JKS \
+  -deststorepass mapepire \
+  -destkeypass mapepire \
+  -destalias mapepire
+```
+
+#### Option 3: Self-Signed Certificate
+
+If no certificate is configured, Mapepire will automatically generate a self-signed certificate. This is suitable for development but not recommended for production.
+
+### Security Configuration
+
+#### Exit Points
+
+Mapepire uses the same exit points as standard JDBC applications. For more information, see the [IBM Support page on JDBC exit points](https://www.ibm.com/support/pages/node/7073452).
+
+<Warning>
+Due to Mapepire's architecture, all client connections appear to come from `127.0.0.1`. IP-based exit point rules will need to inspect the `CLIENT_WRKSTNNAME` client special register to get the actual client IP address.
+</Warning>
+
+#### Connection Rules
+
+Configure user and IP-based access restrictions in:
+```bash
+/QOpenSys/etc/mapepire/iprules.conf
+```
+
+**Rule format:**
+- `allow <username>@<ip-address>`
+- `deny <username>@<ip-address>`
+- Use `*` as wildcard
+- Last matching rule takes precedence
+- Comments start with `#`
+
+**Example - Disable Q* user profiles:**
+```bash
+# Allow connections from all hosts
+allow *@*
+
+# Deny logins from users starting with Q
+deny q*@*
+```
+
+**Example - Restrict to specific users and IP range:**
+```bash
+# Deny by default
+deny *@*
+
+# Allow only specific users from 192.168.x.x
+allow appusr1@192.168.*
+allow appusr2@192.168.*
+```
+
+## Testing the Installation
+
+### Verify Mapepire is Running
+
+1. **Check the process:**
+   ```bash
+   ps aux | grep mapepire
+   ```
+
+2. **Test connectivity:**
+   ```bash
+   netstat -an | grep 8076
+   ```
+
+3. **Test with Service Commander:**
+   ```bash
+   sc check mapepire
+   ```
+
+### Configure IBM i MCP Server
+
+Once Mapepire is running, configure your IBM i MCP Server `.env` file:
+
+```bash
+# IBM i connection settings
+DB2i_HOST=your-ibmi-hostname
+DB2i_USER=your-username
+DB2i_PASS=your-password
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=true
+```
+
+<Note>
+Set `DB2i_IGNORE_UNAUTHORIZED=true` if using self-signed certificates. For production with proper certificates, set this to `false`.
+</Note>
+
+## Troubleshooting
+
+### Common Issues
+
+**Port already in use:**
+```bash
+# Check what's using the port
+netstat -an | grep 8076
+
+# Kill existing process if needed
+pkill mapepire
+```
+
+**Permission denied:**
+```bash
+# Ensure proper ownership
+chown -R qsys /opt/mapepire
+```
+
+**Certificate issues:**
+```bash
+# Check certificate location and permissions
+ls -la /QOpenSys/etc/mapepire/cert/
+```
+
+### Log Files
+
+Check Mapepire logs for detailed error information:
+```bash
+# Service Commander logs
+sc logs mapepire
+
+# Manual startup logs (if using nohup)
+tail -f nohup.out
+```
+
+## Next Steps
+
+After setting up Mapepire:
+
+1. [Configure your IBM i MCP Server](/configuration)
+2. [Test the connection](/quickstart#test-connection)
+3. [Set up SQL tools](/sql-tools/building-tools)
+4. [Build your first agent](/agents/building-agents)
+
+## Additional Resources
+
+- [Mapepire GitHub Repository](https://github.com/Mapepire-IBMi/mapepire-server)
+- [Mapepire Documentation](https://mapepire-ibmi.github.io/)
+- [IBM i Open Source Documentation](https://ibmi-oss-docs.readthedocs.io/)
+- [DCM Tools for Certificate Management](https://github.com/ThePrez/DCM-tools/)

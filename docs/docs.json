@@ -16,78 +16,53 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["index", "installation", "quickstart", "configuration"]
+            "pages": [
+              "index",
+              "quickstart",
+              "configuration",
+              "setup-mapepire"
+            ]
           },
           {
             "group": "Core Concepts",
-            "pages": ["concepts/architecture"]
+            "pages": [
+              "concepts/architecture",
+              "concepts/mcp-overview"
+            ]
           },
           {
             "group": "SQL Tools System",
             "pages": [
               "sql-tools/overview",
-              "sql-tools/sources",
-              "sql-tools/tools",
-              "sql-tools/toolsets"
+              "sql-tools/building-tools"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Advanced",
-        "groups": [
+          },
           {
-            "group": "Authentication",
+            "group": "Agent Development",
             "pages": [
-              "advanced/authentication/overview",
-              "advanced/authentication/jwt",
-              "advanced/authentication/oauth"
+              "agents/building-agents"
             ]
           },
           {
             "group": "Deployment",
             "pages": [
-              "advanced/deployment/docker",
-              "advanced/deployment/production",
-              "advanced/deployment/monitoring"
-            ]
-          },
-          {
-            "group": "Observability",
-            "pages": [
-              "advanced/observability/logging",
-              "advanced/observability/tracing",
-              "advanced/observability/metrics"
             ]
           }
         ]
       },
       {
-        "tab": "Guides",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "Development Guides",
+            "group": "MCP Protocol",
             "pages": [
-              "guides/yaml-tools",
-              "guides/building-agents",
-              "guides/best-practices"
+              "api/mcp-endpoints"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Examples",
-        "groups": [
-          {
-            "group": "Tutorials",
-            "pages": ["examples/first-tool"]
           },
           {
-            "group": "Use Cases",
+            "group": "Authentication",
             "pages": [
-              "examples/performance",
-              "examples/system-health",
-              "examples/system-administration"
+              "api/auth-endpoints"
             ]
           }
         ]
@@ -108,44 +83,39 @@
         {
           "anchor": "MCP Specification",
           "href": "https://modelcontextprotocol.io/specification",
-          "icon": "book-open"
+          "icon": "book-open-cover"
         }
       ]
     }
   },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
   "navbar": {
     "links": [
       {
-        "label": "Issues",
-        "href": "https://github.com/ajshedivy/ibmi-mcp-server/issues"
+        "label": "GitHub",
+        "href": "https://github.com/ajshedivy/ibmi-mcp-server"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "GitHub",
-      "href": "https://github.com/ajshedivy/ibmi-mcp-server"
+      "label": "Get Started",
+      "href": "https://docs.ibmi-mcp-server.com/quickstart"
     }
   },
   "contextual": {
     "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
+     "copy",
+     "view",
+     "chatgpt",
+     "claude",
+     "perplexity",
+     "mcp",
+     "cursor",
+     "vscode"
+   ]
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/ajshedivy/ibmi-mcp-server",
-      "linkedin": "https://www.linkedin.com/in/adamshedivy"
+      "github": "https://github.com/ajshedivy/ibmi-mcp-server"
     }
   }
 }

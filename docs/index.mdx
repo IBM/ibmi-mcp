@@ -1,131 +1,90 @@
 ---
 title: "IBM i MCP Server"
-description: "Production-grade TypeScript MCP server for IBM i database operations with advanced SQL tools, authentication, and observability features."
+description: "Production-grade MCP server for IBM i database operations with YAML-based SQL tools, authentication, and AI agent development."
 ---
 
-<Frame>
-<img src="/images/hero-light.png" alt="IBM i MCP Server - Connecting AI agents to enterprise IBM i systems" />
-</Frame>
+# IBM i MCP Server
 
-# Build powerful AI agents with IBM i database integration
+A production-ready **Model Context Protocol (MCP) server** that enables AI agents to securely access IBM i database operations through YAML-configured SQL tools. Purpose-built for enterprise IBM i environments with comprehensive authentication, observability, and security features.
 
-The **IBM i MCP Server** is a production-grade TypeScript implementation of the Model Context Protocol (MCP) specifically designed for IBM i systems. It provides AI agents with secure, type-safe access to IBM i databases through advanced SQL tools, dynamic query execution, and comprehensive observability features.
+## Quick Start
 
 <CardGroup cols={2}>
-  <Card title="Quick Start" icon="rocket" href="/quickstart">
-    Get up and running in minutes with our comprehensive setup guide
+  <Card title="Get Started" icon="rocket" href="/quickstart">
+    Set up your server and connect AI agents in 15 minutes
   </Card>
-  <Card title="SQL Tools System" icon="database" href="/sql-tools/overview">
-    Configure powerful SQL tools using YAML definitions and dynamic queries
-  </Card>
-  <Card title="YAML Schema" icon="file-code" href="/sql-tools/yaml-configuration">
-    Full reference for sources, tools, and toolsets
+  <Card title="Build Agents" icon="robot" href="/agents/building-agents">
+    Create specialized IBM i agents using agno and filtered toolsets
   </Card>
 </CardGroup>
 
 ## Key Features
 
-<CardGroup cols={2}>
-  <Card title="🔌 MCP Protocol Support" icon="plug">
-    **Full MCP Compliance** with both `stdio` and streamable HTTP transports built on [Hono](https://hono.dev/)
-  </Card>
-  <Card title="🗄️ IBM i Integration" icon="server">
-    **Native IBM i support** with Db2 for i connectivity via [Mapepire](https://github.com/Mapepire-IBMi/mapepire-js)
-  </Card>
-  <Card title="⚙️ Advanced SQL Tools" icon="gear">
-    **YAML-configured tools** with sources, toolsets, and dynamic parameter processing
-  </Card>
-  <Card title="🔒 Enterprise Security" icon="lock">
-    **JWT & OAuth authentication**, input sanitization, and SQL restriction policies
-  </Card>
-  <Card title="🔭 Observability" icon="chart-line">
-    **OpenTelemetry integration** with distributed tracing, metrics, and structured logging
-  </Card>
-  <Card title="🐳 Container Ready" icon="docker">
-    **Docker support** with MCP Context Forge gateway integration for production deployments
-  </Card>
-</CardGroup>
+### 🔌 Core Infrastructure
+- **MCP Server**: Supports stdio and streamable HTTP transport with comprehensive tooling
+- **Observability**: Built-in OpenTelemetry tracing, metrics, and performance monitoring
+- **Type Safety & Security**: TypeScript with Zod validation, sanitization, and auth middleware
+- **Error Handling**: Consistent error categorization, detailed logging, and centralized handling
 
-## Architecture Highlights
+### 🚀 Production Ready
+- **Production Utilities**: Logging, error handling, rate limiting, and request context tracking
+- **Performance Metrics**: Automatic measurement of execution time and payload size
+- **Integration Testing**: Vitest-based testing with coverage reporting and fast feedback
+- **Interaction Logging**: Full traceability with dedicated logging for all LLM interactions
 
-<Note>
-The server implements a unique **"Logic Throws, Handler Catches"** architectural pattern that ensures clean separation of concerns, comprehensive error handling, and excellent testability.
-</Note>
+### 🤖 Agent Development
+- **Agent Ready**: Developer cheatsheet and tools tailored for LLM coding agents
+- **Services Integration**: Reusable modules for LLM and data storage with examples
+- **Utility Scripts**: Build management, permissions, directory trees, and OpenAPI specs
+- **Documentation**: Comprehensive guides, JSDoc comments, and API references
 
-### Core Components
-
-<Tabs>
-<Tab title="Transport Layer">
-- **Stdio Transport**: Direct process communication for development and testing
-- **HTTP Transport**: Production-ready streamable server with session management
-- **Authentication**: Configurable JWT, OAuth, or no-auth modes
-</Tab>
-
-<Tab title="SQL Tools System">
-- **Dynamic Tools**: Runtime SQL execution with security restrictions
-- **YAML Tools**: Predefined SQL statements with parameter templates
-- **Toolsets**: Organized collections of related tools for different use cases
-</Tab>
-
-<Tab title="IBM i Integration">
-- **Connection Pooling**: Efficient database connection management
-- **Mapepire Integration**: Modern IBM i database connectivity
-- **Security**: Built-in SQL restrictions and input validation
-</Tab>
-</Tabs>
-
-## Getting Started
-
-<Steps>
-<Step title="Install Dependencies">
-  Clone the repository and install the required Node.js packages.
-  
-  ```bash
-  git clone https://github.com/ajshedivy/ibmi-mcp-server.git
-  cd ibmi-mcp-server
-  npm install
-  ```
-</Step>
-
-<Step title="Configure IBM i Connection">
-  Set up your IBM i database connection details in the `.env` file.
-  
-  ```bash
-  cp .env.example .env
-  # Edit .env with your IBM i connection details
-  ```
-</Step>
-
-<Step title="Build and Run">
-  Build the project and start the server in your preferred transport mode.
-  
-  ```bash
-  npm run build
-  npm run start:http  # or start:stdio
-  ```
-</Step>
-</Steps>
-
-<Check>
-Your IBM i MCP Server is now ready to provide AI agents with secure database access!
-</Check>
-
-## What's Next?
+## Documentation
 
 <CardGroup cols={3}>
-  <Card title="Installation Guide" icon="download" href="/installation">
-    Detailed setup instructions and prerequisites
+  <Card title="SQL Tools Guide" icon="database" href="/sql-tools/building-tools">
+    Create and configure YAML-based SQL tools with parameters and validation
   </Card>
-  <Card title="Architecture Deep Dive" icon="sitemap" href="/concepts/architecture">
-    Understand the server's design principles and patterns
-  </Card>
-  <Card title="Build Your First Tool" icon="hammer" href="/examples/first-tool">
-    Create custom SQL tools for your specific use cases
+  <Card title="Server Architecture" icon="sitemap" href="/concepts/architecture">
+    Understand the server design and component interactions
+  </Card>  
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Environment variables and deployment configuration options
   </Card>
 </CardGroup>
 
----
+## For IBM i Professionals
 
-<Info>
-This project is built with enterprise-grade patterns and includes comprehensive testing, documentation, and observability features. It's designed to be both developer-friendly and production-ready.
-</Info>
+<Note>
+**Prerequisites**: This server requires appropriate IBM i authorities and database access. Ensure your user profile has necessary permissions for intended operations.
+</Note>
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="I'm new to MCP" icon="info">
+    Start with the [MCP Overview](/concepts/mcp-overview) to understand how the Model Context Protocol connects AI agents to IBM i systems.
+  </Accordion>
+
+  <Accordion title="I want to deploy quickly" icon="rocket">
+    Follow the [Quick Start Guide](/quickstart) to get your server running and connected to agents in 15 minutes.
+  </Accordion>
+
+  <Accordion title="I need to create SQL tools" icon="database">
+    Learn the [YAML SQL Tools system](/sql-tools/building-tools) to create database operations without writing code.
+  </Accordion>
+
+  <Accordion title="I'm building AI agents" icon="robot">
+    Explore [agent development patterns](/agents/building-agents) using agno and FilteredMCPTools for IBM i specialization.
+  </Accordion>
+</AccordionGroup>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/ajshedivy/ibmi-mcp-server">
+    Source code, issues, and community contributions
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/auth-endpoints">
+    Complete API documentation for authentication and endpoints
+  </Card>
+</CardGroup>
