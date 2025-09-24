@@ -199,3 +199,5 @@ tmp/
 # secrets directory for private keys
 secrets/
 *.pem
+
+specs/
