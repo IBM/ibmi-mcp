@@ -17,9 +17,9 @@
 import { readdirSync, statSync } from "fs";
 import { resolve, extname, relative } from "path";
 import { parseArgs } from "util";
-import { YamlParser } from "../src/utils/yaml/yamlParser.js";
-import type { YamlParsingResult } from "../src/utils/yaml/types.js";
-import { logger, type McpLogLevel } from "../src/utils/index.js";
+import { ConfigParser } from "../src/ibmi-mcp-server/utils/config/configParser.js";
+import type { ParsingResult } from "../src/ibmi-mcp-server/schemas/index.js";
+import type { SqlToolsConfig } from "../src/ibmi-mcp-server/schemas/config.js";
 
 interface ValidationReport {
   totalFiles: number;
@@ -33,7 +33,7 @@ interface FileValidationResult {
   filePath: string;
   relativePath: string;
   isValid: boolean;
-  result: YamlParsingResult;
+  result: ParsingResult;
   processingTime: number;
 }
 
@@ -43,6 +43,23 @@ interface ValidationSummary {
   totalToolsets: number;
   totalParameters: number;
   commonErrors: string[];
+}
+
+/**
+ * Type guard to check if an unknown config object is a valid SqlToolsConfig
+ */
+function isSqlToolsConfig(config: unknown): config is SqlToolsConfig {
+  return (
+    typeof config === 'object' &&
+    config !== null &&
+    (
+      'sources' in config ||
+      'tools' in config ||
+      'toolsets' in config ||
+      'typescript_tools' in config ||
+      'metadata' in config
+    )
+  );
 }
 
 /**
@@ -182,7 +199,7 @@ async function validateSingleFile(
   const relativePath = relative(process.cwd(), absolutePath);
 
   try {
-    const result = await YamlParser.parseYamlFile(absolutePath);
+    const result = await ConfigParser.parseYamlFile(absolutePath);
     const endTime = process.hrtime.bigint();
     const processingTime = Number(endTime - startTime) / 1_000_000; // Convert to milliseconds
 
@@ -198,7 +215,7 @@ async function validateSingleFile(
     const processingTime = Number(endTime - startTime) / 1_000_000;
 
     // Create a failed result for unexpected errors
-    const failedResult: YamlParsingResult = {
+    const failedResult: ParsingResult = {
       success: false,
       errors: [
         error instanceof Error ? error.message : "Unknown validation error",
@@ -310,7 +327,7 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
 
     // Verbose mode shows detailed breakdown for all files
     if (verbose) {
-      if (fileResult.result.success && fileResult.result.config) {
+      if (fileResult.result.success && fileResult.result.config && isSqlToolsConfig(fileResult.result.config)) {
         const config = fileResult.result.config;
         const stats = fileResult.result.stats!;
 
@@ -323,9 +340,12 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
         if (config.sources && Object.keys(config.sources).length > 0) {
           console.log(`      🔗 Sources:`);
           Object.entries(config.sources).forEach(([name, source]) => {
-            console.log(
-              `         • ${name}: ${source.user}@${source.host}${source.port ? `:${source.port}` : ""}`,
-            );
+            if (typeof source === 'object' && source !== null) {
+              const sourceObj = source;
+              console.log(
+                `         • ${name}: ${sourceObj.user}@${sourceObj.host}${sourceObj.port ? `:${sourceObj.port}` : ""}`,
+              );
+            }
           });
         }
 
@@ -333,43 +353,47 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
         if (config.tools && Object.keys(config.tools).length > 0) {
           console.log(`      🔧 Tools:`);
           Object.entries(config.tools).forEach(([name, tool]) => {
-            const paramCount = tool.parameters?.length || 0;
-            const hints: string[] = [];
-            if (tool.readOnlyHint) hints.push("readonly");
-            if (tool.destructiveHint) hints.push("destructive");
-            if (tool.idempotentHint) hints.push("idempotent");
-            if (tool.openWorldHint) hints.push("open-world");
-            const hintsStr = hints.length > 0 ? ` [${hints.join(", ")}]` : "";
+            if (typeof tool === 'object' && tool !== null) {
+              const toolObj = tool;
+              const paramCount = toolObj.parameters?.length || 0;
+              const hints: string[] = [];
+              if (toolObj.readOnlyHint) hints.push("readonly");
+              if (toolObj.destructiveHint) hints.push("destructive");
+              if (toolObj.idempotentHint) hints.push("idempotent");
+              if (toolObj.openWorldHint) hints.push("open-world");
+              const hintsStr = hints.length > 0 ? ` [${hints.join(", ")}]` : "";
 
-            console.log(
-              `         • ${name}: ${paramCount} param${paramCount !== 1 ? "s" : ""}, source: ${tool.source}${hintsStr}`,
-            );
+              console.log(
+                `         • ${name}: ${paramCount} param${paramCount !== 1 ? "s" : ""}, source: ${toolObj.source}${hintsStr}`,
+              );
 
-            if (tool.parameters && tool.parameters.length > 0) {
-              tool.parameters.forEach((param) => {
-                const defaultStr =
-                  param.default !== undefined ? ` = ${param.default}` : "";
-                console.log(
-                  `           - ${param.name}: ${param.type}${defaultStr}`,
-                );
-              });
-            }
+              if (toolObj.parameters && toolObj.parameters.length > 0) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                toolObj.parameters.forEach((param: any) => {
+                  const defaultStr =
+                    param.default !== undefined ? ` = ${param.default}` : "";
+                  console.log(
+                    `           - ${param.name}: ${param.type}${defaultStr}`,
+                  );
+                });
+              }
 
-            if (tool.security) {
-              const securityDetails: string[] = [];
-              if (tool.security.readOnly) securityDetails.push("read-only");
-              if (tool.security.maxQueryLength)
-                securityDetails.push(
-                  `max-length: ${tool.security.maxQueryLength}`,
-                );
-              if (tool.security.forbiddenKeywords?.length)
-                securityDetails.push(
-                  `forbidden-keywords: ${tool.security.forbiddenKeywords.length}`,
-                );
-              if (securityDetails.length > 0) {
-                console.log(
-                  `           🛡️  Security: ${securityDetails.join(", ")}`,
-                );
+              if (toolObj.security) {
+                const securityDetails: string[] = [];
+                if (toolObj.security.readOnly) securityDetails.push("read-only");
+                if (toolObj.security.maxQueryLength)
+                  securityDetails.push(
+                    `max-length: ${toolObj.security.maxQueryLength}`,
+                  );
+                if (toolObj.security.forbiddenKeywords?.length)
+                  securityDetails.push(
+                    `forbidden-keywords: ${toolObj.security.forbiddenKeywords.length}`,
+                  );
+                if (securityDetails.length > 0) {
+                  console.log(
+                    `           🛡️  Security: ${securityDetails.join(", ")}`,
+                  );
+                }
               }
             }
           });
@@ -379,9 +403,13 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
         if (config.toolsets && Object.keys(config.toolsets).length > 0) {
           console.log(`      📦 Toolsets:`);
           Object.entries(config.toolsets).forEach(([name, toolset]) => {
-            console.log(`         • ${name}: ${toolset.tools.join(", ")}`);
-            if (toolset.description) {
-              console.log(`           "${toolset.description}"`);
+            if (typeof toolset === 'object' && toolset !== null) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const toolsetObj = toolset as any;
+              console.log(`         • ${name}: ${toolsetObj.tools?.join(", ") || "No tools"}`);
+              if (toolsetObj.description) {
+                console.log(`           "${toolsetObj.description}"`);
+              }
             }
           });
         }
@@ -422,13 +450,7 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
  * Main execution function
  */
 async function main(): Promise<void> {
-  // Initialize logger early to suppress "Logger not initialized" warnings
-  // Use 'error' level to minimize output during validation
-  try {
-    await logger.initialize("error" as McpLogLevel);
-  } catch (_error) {
-    // Ignore logger initialization errors for validation script
-  }
+  // Logger is pre-configured and ready to use
 
   const args = parseCliArgs();
 
