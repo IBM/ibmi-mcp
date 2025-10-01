@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/ajshedivy/ibmi-mcp-server/src/ibmi-mcp-server/schemas/json/sql-tools-config.json",
+  "$id": "https://github.com/IBM/ibmi-mcp-server.git/src/ibmi-mcp-server/schemas/json/sql-tools-config.json",
   "$ref": "#/definitions/IBM i MCP Server SQL Tools Configuration",
   "definitions": {
     "IBM i MCP Server SQL Tools Configuration": {

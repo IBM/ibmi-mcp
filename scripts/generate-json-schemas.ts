@@ -51,7 +51,7 @@ function generateJsonSchema(
     // Add schema metadata for YAML Language Server
     const enhancedSchema = {
       $schema: "http://json-schema.org/draft-07/schema#",
-      $id: `https://github.com/ajshedivy/ibmi-mcp-server/src/ibmi-mcp-server/schemas/json/${fileName}.json`,
+      $id: `https://github.com/IBM/ibmi-mcp-server.git/src/ibmi-mcp-server/schemas/json/${fileName}.json`,
       ...jsonSchema,
       // Add additional properties for better YAML support
       additionalProperties: false,
