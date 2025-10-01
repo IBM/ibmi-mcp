@@ -11,10 +11,10 @@
 [![Coverage](https://img.shields.io/badge/Coverage-64.67%25-brightgreen?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/IBM/ibmi-mcp-server.git)
-[![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/IBM/ibmi-mcp-server)
 
 **📚 [Documentation](https://ibm-d95bab6e.mintlify.app/) | ⚠️ Docs are under active development**
-
+![alt text](images/logo.png)
 </div>
 
 <details>
