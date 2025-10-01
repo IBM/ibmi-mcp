@@ -399,7 +399,7 @@ services:
 
   ###############################################################################
   # IBM i MCP Server - SQL database operations for IBM i systems
-  # https://github.com/ajshedivy/ibmi-mcp-server.git
+  # https://github.com/IBM/ibmi-mcp-server.git
   ###############################################################################
   ibmi-mcp-server:
     image: ${IBMI_MCP_IMAGE:-ibmi-mcp-server:latest}  # Use env var or default to local image

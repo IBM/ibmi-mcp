@@ -72,7 +72,7 @@
       "anchors": [
         {
           "anchor": "GitHub Repository",
-          "href": "https://github.com/ajshedivy/ibmi-mcp-server",
+          "href": "https://github.com/IBM/ibmi-mcp-server.git",
           "icon": "github"
         },
         {
@@ -92,7 +92,7 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/ajshedivy/ibmi-mcp-server"
+        "href": "https://github.com/IBM/ibmi-mcp-server.git"
       }
     ],
     "primary": {
@@ -115,7 +115,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/ajshedivy/ibmi-mcp-server"
+      "github": "https://github.com/IBM/ibmi-mcp-server.git"
     }
   }
 }
