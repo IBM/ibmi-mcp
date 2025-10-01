@@ -14,7 +14,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/IBM/ibmi-mcp-server)
 
 **📚 [Documentation](https://ibm-d95bab6e.mintlify.app/) | ⚠️ Docs are under active development**
-![alt text](images/logo.png)
+![alt text](images/logo-2.png)
 </div>
 
 <details>
