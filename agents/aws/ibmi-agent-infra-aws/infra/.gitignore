@@ -1,0 +1,11 @@
+# ignore inputs
+inputs
+
+# ignore outputs
+output
+
+# ignore secrets
+secrets
+
+# ignore yml files
+agent-os-template-prd-api

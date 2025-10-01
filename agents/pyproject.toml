@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "agno==2.0.3",
+    "agno[infra]==2.0.11",
     "anthropic>=0.67.0",
     "fastapi[standard]>=0.116.1",
     "fastmcp>=2.12.2",
@@ -35,4 +35,5 @@ dependencies = [
     "uvicorn>=0.35.0",
     "psutil>=5.9.0",
     "python-dotenv>=1.0.0",
+    "ibm-watsonx-ai>=1.3.39",
 ]
