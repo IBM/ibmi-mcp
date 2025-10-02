@@ -18,7 +18,7 @@ from agno.models.ollama import Ollama
 from agno.db.sqlite import SqliteDb
 from dotenv import load_dotenv
 
-from ..tools.filtered_mcp_tools import FilteredMCPTools
+from ibmi_agent_sdk.agno import FilteredMCPTools
 
 # Load environment variables
 load_dotenv()

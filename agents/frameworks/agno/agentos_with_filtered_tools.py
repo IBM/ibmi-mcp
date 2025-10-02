@@ -13,7 +13,7 @@ from agno.db.sqlite import SqliteDb
 from agno.tools.mcp import MCPTools
 
 # Import our FilteredMCPTools
-from tools.filtered_mcp_tools import (
+from ibmi_agent_sdk.agno import (
     FilteredMCPTools
 )
 

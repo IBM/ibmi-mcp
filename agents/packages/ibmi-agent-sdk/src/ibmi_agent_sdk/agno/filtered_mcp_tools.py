@@ -14,6 +14,20 @@ try:
 except (ImportError, ModuleNotFoundError):
     raise ImportError("`mcp` not installed. Please install using `pip install mcp`")
 
+__all__ = [
+    "FilteredMCPTools",
+    "create_performance_tools",
+    "create_sysadmin_tools",
+    "create_multi_toolset_tools",
+    "create_custom_filtered_tools",
+    "create_annotation_filtered_tools",
+    "create_readonly_tools",
+    "create_non_destructive_tools",
+    "create_closed_world_tools",
+    "create_safe_tools",
+    "create_system_performance_tools",
+]
+
 
 class FilteredMCPToolsMeta(type):
     """Metaclass to make FilteredMCPTools report as 'MCPTools' to AgentOS."""
@@ -217,6 +231,69 @@ class FilteredMCPTools(MCPTools, metaclass=FilteredMCPToolsMeta):
 
         return True
 
+    def _coerce_parameters(self, params: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Coerce parameter types based on JSON Schema to fix type mismatches from LLM responses.
+
+        Args:
+            params: Dictionary of parameters from the LLM
+            schema: JSON Schema from the tool's inputSchema
+
+        Returns:
+            Dictionary with parameters coerced to correct types
+        """
+        if not schema or "properties" not in schema:
+            return params
+
+        coerced = {}
+        properties = schema.get("properties", {})
+
+        for key, value in params.items():
+            if key not in properties:
+                # Pass through parameters not in schema
+                coerced[key] = value
+                continue
+
+            prop_schema = properties[key]
+            prop_type = prop_schema.get("type")
+
+            # Skip if no type specified or value is None
+            if not prop_type or value is None:
+                coerced[key] = value
+                continue
+
+            try:
+                # Coerce based on schema type
+                if prop_type == "number" or prop_type == "integer":
+                    if isinstance(value, str):
+                        coerced[key] = int(value) if prop_type == "integer" else float(value)
+                    else:
+                        coerced[key] = value
+                elif prop_type == "boolean":
+                    if isinstance(value, str):
+                        coerced[key] = value.lower() in ("true", "1", "yes")
+                    else:
+                        coerced[key] = bool(value)
+                elif prop_type == "string":
+                    coerced[key] = str(value) if not isinstance(value, str) else value
+                elif prop_type == "array":
+                    coerced[key] = list(value) if not isinstance(value, list) else value
+                elif prop_type == "object":
+                    coerced[key] = dict(value) if not isinstance(value, dict) else value
+                else:
+                    # Unknown type, pass through
+                    coerced[key] = value
+
+                if self.debug_filtering and coerced[key] != value:
+                    self.log(f"Parameter coercion: {key} from {type(value).__name__}({value}) to {type(coerced[key]).__name__}({coerced[key]})")
+
+            except (ValueError, TypeError) as e:
+                # If coercion fails, log and pass through original value
+                self.log(f"Failed to coerce parameter {key}: {e}")
+                coerced[key] = value
+
+        return coerced
+
     async def initialize(self) -> None:
         """
         Override initialize to add generic annotation-based filtering before the standard filtering.
@@ -299,7 +376,37 @@ class FilteredMCPTools(MCPTools, metaclass=FilteredMCPToolsMeta):
             for tool in final_filtered_tools:
                 try:
                     # Get an entrypoint for the tool
-                    entrypoint = get_entrypoint_for_tool(tool, self.session)
+                    original_entrypoint = get_entrypoint_for_tool(tool, self.session)
+
+                    # Create a type-coercing wrapper around the entrypoint
+                    def create_coercing_entrypoint(self_ref, schema, original_fn):
+                        """Create an entrypoint that coerces parameter types based on schema."""
+                        async def coercing_entrypoint(agent=None, **kwargs):
+                            # Coerce parameters based on schema (excluding agent from tool params)
+                            coerced_kwargs = self_ref._coerce_parameters(kwargs, schema)
+                            # Call original entrypoint (which is a partial with tool_name already bound)
+                            # Pass agent if provided (agno passes it as kwarg if in signature)
+                            if agent is not None:
+                                result = original_fn(agent=agent, **coerced_kwargs)
+                            else:
+                                result = original_fn(**coerced_kwargs)
+
+                            # Handle both coroutines and async generators
+                            import inspect
+                            if inspect.isasyncgen(result):
+                                # If it's an async generator, collect all results
+                                results = []
+                                async for item in result:
+                                    results.append(item)
+                                return results
+                            else:
+                                # If it's a coroutine, await it normally
+                                return await result
+                        return coercing_entrypoint
+
+                    # Wrap the entrypoint with type coercion
+                    entrypoint = create_coercing_entrypoint(self, tool.inputSchema, original_entrypoint)
+
                     # Create a Function for the tool
                     f = Function(
                         name=tool.name,
@@ -458,90 +565,3 @@ def create_system_performance_tools(
     )
 
 
-if __name__ == "__main__":
-    # Example usage and testing
-    import asyncio
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-    async def test_filtered_mcp_tools():
-        """Test the FilteredMCPTools functionality."""
-
-        print("=== Testing FilteredMCPTools ===")
-
-        # Test 1: Legacy toolsets filtering (backward compatibility)
-        print("\n1. Testing legacy toolsets filtering (performance tools):")
-        performance_tools = create_performance_tools()
-
-        async with performance_tools:
-            print(f"   Performance tools loaded: {len(performance_tools.functions)}")
-            for name in performance_tools.functions.keys():
-                print(f"   - {name}")
-
-        # Test 2: New annotation_filters - MCP standard annotations
-        print("\n2. Testing MCP standard annotations (read-only tools):")
-        readonly_tools = create_readonly_tools()
-
-        async with readonly_tools:
-            print(f"   Read-only tools loaded: {len(readonly_tools.functions)}")
-            for name in readonly_tools.functions.keys():
-                print(f"   - {name}")
-
-        # Test 3: Combined filters (custom + standard annotations)
-        print("\n3. Testing combined annotation filters:")
-        combined_tools = create_annotation_filtered_tools(
-            {
-                "toolsets": ["performance", "sysadmin_discovery"],
-                "readOnlyHint": True,
-            }
-        )
-
-        async with combined_tools:
-            print(f"   Combined filtered tools loaded: {len(combined_tools.functions)}")
-            for name in combined_tools.functions.keys():
-                print(f"   - {name}")
-
-        # Test 4: Callable filter with annotations
-        print("\n4. Testing callable filter on title annotation:")
-        callable_tools = create_system_performance_tools()
-
-        async with callable_tools:
-            print(
-                f"   System performance tools loaded: {len(callable_tools.functions)}"
-            )
-            for name in callable_tools.functions.keys():
-                print(f"   - {name}")
-
-        # Test 5: Safe tools (multiple MCP standard annotations)
-        print("\n5. Testing safe tools (read-only, non-destructive, closed-world):")
-        safe_tools = create_safe_tools()
-
-        async with safe_tools:
-            print(f"   Safe tools loaded: {len(safe_tools.functions)}")
-            for name in safe_tools.functions.keys():
-                print(f"   - {name}")
-
-        # Test 6: Direct annotation_filters usage
-        print("\n6. Testing direct annotation_filters usage:")
-        direct_tools = FilteredMCPTools(
-            url="http://127.0.0.1:3010/mcp",
-            transport="streamable-http",
-            annotation_filters={
-                "toolsets": ["performance"],
-                "destructiveHint": False,
-                "title": lambda t: t and len(t) < 50 if t else False,
-            },
-        )
-
-        async with direct_tools:
-            print(
-                f"   Direct annotation filtered tools loaded: {len(direct_tools.functions)}"
-            )
-            for name in direct_tools.functions.keys():
-                print(f"   - {name}")
-
-        print("\n✓ All FilteredMCPTools tests completed!")
-
-    # Run the tests
-    asyncio.run(test_filtered_mcp_tools())

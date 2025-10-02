@@ -1,4 +1,4 @@
-from ibmi_agents.models import MyWatsonx as WatsonX
+from ibmi_agent_sdk.agno import MyWatsonx as WatsonX
 
 from agno.agent import Agent
 from agno.os import AgentOS
