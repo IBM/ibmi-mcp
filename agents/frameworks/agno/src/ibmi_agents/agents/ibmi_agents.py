@@ -14,6 +14,7 @@ Available agents:
 
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
+from agno.models.ollama import Ollama
 from agno.db.sqlite import SqliteDb
 from dotenv import load_dotenv
 
@@ -22,17 +23,31 @@ from ..tools.filtered_mcp_tools import FilteredMCPTools
 # Load environment variables
 load_dotenv()
 
-# Default database configuration for all agents
-def create_agent_db(agent_type: str) -> SqliteDb:
-    """Create a database configuration for a specific agent type."""
-    return SqliteDb(
-        db_file=f"tmp/ibmi_{agent_type}_agent.db",
-        memory_table=f"ibmi_{agent_type}_memory",
-        session_table=f"ibmi_{agent_type}_sessions",
-        metrics_table=f"ibmi_{agent_type}_metrics",
-        eval_table=f"ibmi_{agent_type}_evals",
-        knowledge_table=f"ibmi_{agent_type}_knowledge"
-    )
+# Shared database instance for all agents
+# Using a single database instance ensures consistent ID across all agents
+_shared_db = None
+
+def get_shared_db() -> SqliteDb:
+    """
+    Get or create the shared database instance for all agents.
+
+    This ensures all agents use the same database instance with a consistent ID,
+    preventing database ID conflicts in AgentOS.
+
+    Returns:
+        Shared SqliteDb instance
+    """
+    global _shared_db
+    if _shared_db is None:
+        _shared_db = SqliteDb(
+            db_file="tmp/ibmi_agents.db",
+            memory_table="agent_memory",
+            session_table="agent_sessions",
+            metrics_table="agent_metrics",
+            eval_table="agent_evals",
+            knowledge_table="agent_knowledge"
+        )
+    return _shared_db
 
 # Default MCP connection settings
 DEFAULT_MCP_URL = "http://127.0.0.1:3010/mcp"
@@ -93,7 +108,7 @@ def create_performance_agent(
             "Provide context for normal vs. concerning values when analyzing data.",
             "Focus on actionable insights rather than just presenting raw data."
         ],
-        db=create_agent_db("performance"),
+        db=get_shared_db(),
         tools=[performance_tools],
         markdown=True,
         enable_agentic_memory=True,
@@ -157,7 +172,7 @@ def create_sysadmin_discovery_agent(
             "understand what's available on their system and how it's organized.",
             "Use counts and categorizations to give context about system complexity."
         ],
-        db=create_agent_db("discovery"),
+        db=get_shared_db(),
         tools=[discovery_tools],
         markdown=True,
         enable_agentic_memory=True,
@@ -221,7 +236,7 @@ def create_sysadmin_browse_agent(
             "Explain technical concepts like SQL object types and release compatibility.",
             "Suggest related services or logical next steps in their exploration."
         ],
-        db=create_agent_db("browse"),
+        db=get_shared_db(),
         tools=[browse_tools],
         markdown=True,
         enable_agentic_memory=True,
@@ -286,7 +301,7 @@ def create_sysadmin_search_agent(
             "If multiple matches are found, help users understand the differences.",
             "Suggest related searches or alternative terms when searches yield few results."
         ],
-        db=create_agent_db("search"),
+        db=get_shared_db(),
         tools=[search_tools],
         markdown=True,
         enable_agentic_memory=True,
