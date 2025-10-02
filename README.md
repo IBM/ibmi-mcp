@@ -16,12 +16,10 @@
 **📚 [Documentation](https://ibm-d95bab6e.mintlify.app/) | ⚠️ Docs are under active development**
 ![alt text](images/logo-2.png)
 </div>
-
 <details>
 <summary><strong>📋 Table of Contents</strong></summary>
 
 - [ibmi-mcp-server](#ibmi-mcp-server)
-  - [✨ Key Features](#-key-features)
   - [Quick Start](#quick-start)
     - [1. Installation](#1-installation)
     - [2. Build the Project](#2-build-the-project)
@@ -31,6 +29,11 @@
       - [Run the example Agent:](#run-the-example-agent)
       - [Run the Example Scripts:](#run-the-example-scripts)
     - [6. Running Tests](#6-running-tests)
+  - [🔌 Installing in MCP Clients](#-installing-in-mcp-clients)
+    - [Prerequisites: Local Installation](#prerequisites-local-installation)
+    - [Remote Server Setup](#remote-server-setup)
+    - [Client Configurations](#client-configurations)
+    - [Troubleshooting](#troubleshooting)
   - [⚙️ Configuration](#️-configuration)
   - [IBM i HTTP Authentication (Beta)](#ibm-i-http-authentication-beta)
     - [Authentication Flow](#authentication-flow)
@@ -53,7 +56,7 @@
     - [CLI Options](#cli-options)
     - [Common Development Scenarios](#common-development-scenarios)
     - [Development Tips](#development-tips)
-    - [Troubleshooting](#troubleshooting)
+    - [Troubleshooting](#troubleshooting-1)
   - [MCP Inspector](#mcp-inspector)
   - [Docker \& Podman Deployment](#docker--podman-deployment)
     - [Prerequisites](#prerequisites)
@@ -72,6 +75,7 @@
     - [MCP Gateway UI:](#mcp-gateway-ui)
     - [Virtual Server Catalog Demo (Comming soon!!)](#virtual-server-catalog-demo-comming-soon)
   - [Architecture Overview](#architecture-overview)
+  - [✨ Key Features](#-key-features)
   - [🏗️ Project Structure](#️-project-structure)
   - [🧩 Extending the System](#-extending-the-system)
     - [The "Logic Throws, Handler Catches" Pattern](#the-logic-throws-handler-catches-pattern)
@@ -80,26 +84,6 @@
 
 </details>
 
-
-
-
-
-## ✨ Key Features
-
-| Feature Area                | Description                                                                                                                                          | Key Components / Location                                            |
-| :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
-| **🔌 MCP Server**           | A functional server with example tools and resources. Supports `stdio` and a **Streamable HTTP** transport built with [**Hono**](https://hono.dev/). | `src/mcp-server/`, `src/mcp-server/transports/`                      |
-| **🔭 Observability**        | Built-in **OpenTelemetry** for distributed tracing and metrics. Auto-instrumentation for core modules and custom tracing for all tool executions.    | `src/utils/telemetry/`                                               |
-| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                 | `src/utils/`                                                         |
-| **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                          | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
-| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                          | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
-| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references.                                                                                | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
-| **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.         | `src/utils/internal/logger.ts`                                       |
-| **🤖 Agent Ready**          | Includes a [.clinerules](./.clinerules/clinerules.md) developer cheatsheet tailored for LLM coding agents.                                           | `.clinerules/`                                                       |
-| **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                 | `scripts/`                                                           |
-| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                          | `src/services/`, `src/storage/duckdbExample.ts`                      |
-| **🧪 Integration Testing**  | Integrated with Vitest for fast and reliable integration testing. Includes example tests for core logic and a coverage reporter.                     | `vitest.config.ts`, `tests/`                                         |
-| **⏱️ Performance Metrics**  | Built-in utility to automatically measure and log the execution time and payload size of every tool call.                                            | `src/utils/internal/performance.ts`                                  |
 
 ## Quick Start
 
@@ -176,6 +160,7 @@ In another terminal, navigate to the `tests/agents` directory and follow the set
 
 ```bash
 cd tests/agents
+export OPENAI_API_KEY=your_open_ai_key
 uv run agent.py -p "What is my system status?"
 ```
 
@@ -185,11 +170,13 @@ uv run agent.py -p "What is my system status?"
 cd tests/agents
 
 # See a list of configured tools:
-uv run test_tool_annotations.py -d
+uv run test_tool_annotations.py
 
 # see a list of server resources:
 uv run test_toolset_resources.py
 ```
+
+> Note: `test_tool_annotations.py` and `run test_toolset_resources.py` DO NOT require and OpenAI API Key 
 
 ### 6. Running Tests
 
@@ -207,6 +194,797 @@ This template uses [Vitest](https://vitest.dev/) for testing, with a strong emph
   ```bash
   npm run test:coverage
   ```
+
+## 🔌 Installing in MCP Clients
+
+This server can be integrated into any MCP-compatible client using either **local** (stdio) or **remote** (HTTP) connections.
+
+### Prerequisites: Local Installation
+
+For local development, install the server globally using `npm link`:
+
+```bash
+# From the ibmi-mcp-server directory
+npm install
+npm run build
+npm link
+```
+
+This makes the `ibmi-mcp-server` command available globally on your machine. After linking, you can use `npx ibmi-mcp-server` in any client configuration.
+
+> **Note:** `TOOLS_YAML_PATH` must be an **absolute path** to your tools configuration directory (e.g., `/full/path/to/prebuiltconfigs`).
+
+### Remote Server Setup
+
+For HTTP remote connections, you need to:
+
+1. **Start the server with IBM i authentication enabled:**
+
+   ```bash
+   # Ensure your .env has these settings:
+   MCP_AUTH_MODE=ibmi
+   IBMI_HTTP_AUTH_ENABLED=true
+   IBMI_AUTH_ALLOW_HTTP=true  # For development only!
+
+   npm run start:http
+   ```
+
+2. **Obtain an access token:**
+
+   ```bash
+   # Use the token script to authenticate
+   node get-access-token.js --verbose
+
+   # Or set it directly in your environment
+   export IBMI_MCP_ACCESS_TOKEN="your-token-here"
+   ```
+
+   See [IBM i HTTP Authentication](#ibm-i-http-authentication-beta) for detailed authentication setup.
+
+3. **Configure your client** with the server URL and Bearer token (examples below).
+
+> **⚠️ Production Note:** Replace `http://localhost:3010` with your production endpoint URL and ensure HTTPS is enabled (`IBMI_AUTH_ALLOW_HTTP=false`).
+
+---
+
+### Client Configurations
+
+<details>
+<summary><strong>Claude Code</strong></summary>
+
+Claude Code supports both local (stdio) and remote (HTTP) MCP server connections. You can configure servers using the CLI or by editing `.mcp.json` directly.
+
+#### Option 1: Local Stdio Server (Recommended)
+
+**Using CLI:**
+```bash
+# Add local stdio server
+claude mcp add ibmi-mcp \
+  --env DB2i_HOST=your-ibmi-host.com \
+  --env DB2i_USER=your-username \
+  --env DB2i_PASS=your-password \
+  --env DB2i_PORT=8076 \
+  --env MCP_TRANSPORT_TYPE=stdio \
+  -- npx ibmi-mcp-server --tools /absolute/path/to/prebuiltconfigs
+```
+
+**Using `.mcp.json`:**
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "NODE_OPTIONS": "--no-deprecation"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Remote HTTP Server
+
+**Using CLI:**
+```bash
+# Add remote HTTP server with authentication
+claude mcp add --transport http ibmi-mcp http://localhost:3010/mcp \
+  --header "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
+```
+
+**Using `.mcp.json`:**
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+#### Environment Variable Expansion
+
+Claude Code supports environment variable expansion in `.mcp.json` files, allowing you to keep credentials secure:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "${IBMI_TOOLS_PATH}"],
+      "env": {
+        "DB2i_HOST": "${DB2i_HOST}",
+        "DB2i_USER": "${DB2i_USER}",
+        "DB2i_PASS": "${DB2i_PASS}",
+        "DB2i_PORT": "${DB2i_PORT:-8076}",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+**Supported syntax:**
+- `${VAR}` - Expands to the value of environment variable `VAR`
+- `${VAR:-default}` - Expands to `VAR` if set, otherwise uses `default`
+
+#### Managing Servers
+
+```bash
+# List configured servers
+claude mcp list
+
+# Get server details
+claude mcp get ibmi-mcp
+
+# Remove a server
+claude mcp remove ibmi-mcp
+
+# Check server status in Claude Code
+/mcp
+```
+
+> 📖 [Claude Code MCP Documentation](https://docs.claude.com/en/docs/claude-code/mcp)
+
+</details>
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+#### Local (Stdio)
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+#### Remote (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [Claude Desktop MCP Setup](https://modelcontextprotocol.io/quickstart/user)
+
+</details>
+
+<details>
+<summary><strong>VSCode</strong></summary>
+
+VSCode supports MCP servers through Copilot Chat. You can configure servers at the user or workspace level using configuration files or the CLI.
+
+**Prerequisites:** Ensure [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) is installed and enabled.
+
+#### Configuration File Locations
+
+- **Workspace:** `.vscode/mcp.json` (shared with team via version control)
+- **User:** `mcp.json` in your user profile directory
+  - macOS/Linux: `~/.config/Code/User/globalStorage/modelcontextprotocol.mcp/mcp.json`
+  - Windows: `%APPDATA%\Code\User\globalStorage\modelcontextprotocol.mcp\mcp.json`
+
+#### Option 1: Local Stdio Server
+
+**Using CLI:**
+```bash
+# Add local stdio server
+code --add-mcp '{
+  "name": "ibmiMcp",
+  "type": "stdio",
+  "command": "npx",
+  "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+  "env": {
+    "DB2i_HOST": "your-ibmi-host.com",
+    "DB2i_USER": "your-username",
+    "DB2i_PASS": "your-password",
+    "DB2i_PORT": "8076",
+    "MCP_TRANSPORT_TYPE": "stdio"
+  }
+}'
+```
+
+**Using `mcp.json`:**
+```json
+{
+  "servers": {
+    "ibmiMcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Remote HTTP Server
+
+**Using CLI:**
+```bash
+# Add remote HTTP server
+code --add-mcp '{
+  "name": "ibmiMcp",
+  "type": "http",
+  "url": "http://localhost:3010/mcp",
+  "headers": {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+  }
+}'
+```
+
+**Using `mcp.json`:**
+```json
+{
+  "servers": {
+    "ibmiMcp": {
+      "type": "http",
+      "url": "http://localhost:3010/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+#### Secure Credentials with Input Variables
+
+VSCode supports input variables to avoid hardcoding sensitive credentials:
+
+```json
+{
+  "inputs": [
+    {
+      "id": "db2iHost",
+      "type": "promptString",
+      "description": "IBM i DB2 host address"
+    },
+    {
+      "id": "db2iUser",
+      "type": "promptString",
+      "description": "IBM i username"
+    },
+    {
+      "id": "db2iPass",
+      "type": "promptString",
+      "description": "IBM i password",
+      "password": true
+    }
+  ],
+  "servers": {
+    "ibmiMcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "${input:db2iHost}",
+        "DB2i_USER": "${input:db2iUser}",
+        "DB2i_PASS": "${input:db2iPass}",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+VSCode will prompt for these values when the server starts, keeping credentials secure.
+
+#### Managing Servers
+
+- **View servers:** Check the Copilot Chat view in the Activity Bar
+- **Restart server:** Use Command Palette (`Cmd/Ctrl+Shift+P`) → "MCP: Restart Server"
+- **Disable server:** Remove from `mcp.json` or disable in settings
+
+> 📖 [VSCode MCP Documentation](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
+
+</details>
+
+<details>
+<summary><strong>Cursor</strong></summary>
+
+#### Local (Stdio)
+
+Add to Cursor settings or `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+#### Remote (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [Cursor MCP Documentation](https://docs.cursor.com/context/model-context-protocol)
+
+</details>
+
+<details>
+<summary><strong>Windsurf</strong></summary>
+
+#### Local (Stdio)
+
+Add to Windsurf configuration:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+#### Remote (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [Windsurf MCP Documentation](https://docs.windsurf.com/windsurf/cascade/mcp)
+
+</details>
+
+<details>
+<summary><strong>Roo Code</strong></summary>
+
+#### Local (Stdio)
+
+Configure in Roo Code settings:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+#### Remote (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [Roo Code MCP Documentation](https://docs.roocode.com/features/mcp/using-mcp-in-roo)
+
+</details>
+
+<details>
+<summary><strong>LM Studio</strong></summary>
+
+#### Local (Stdio)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "NODE_OPTIONS": "--no-deprecation"
+      }
+    }
+  }
+}
+```
+
+#### Remote (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [LM Studio MCP Support](https://lmstudio.ai/blog/lmstudio-v0.3.17)
+
+</details>
+
+<details>
+<summary><strong>OpenCode</strong></summary>
+
+#### Local (Stdio)
+
+Add local MCP servers using "type": "local" within the MCP object. Multiple MCP servers can be added. The key string for each server can be any arbitrary name.
+
+**opencode.json**:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ibmi-mcp": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "environment": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+You can also disable a server by setting enabled to false. This is useful if you want to temporarily disable a server without removing it from your config.
+
+#### Remote (HTTP)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ibmi-mcp": {
+      "type": "remote",
+      "enabled": true,
+      "url": "http://localhost:3010/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [OpenCode MCP Documentation](https://opencode.ai/docs/mcp-servers)
+
+</details>
+
+<details>
+<summary><strong>Gemini CLI</strong></summary>
+
+See [Gemini CLI Configuration](https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html) for details.
+1.  Open the Gemini CLI settings file. The location is `~/.gemini/settings.json` (where `~` is your home directory).
+2.  Add the following to the `mcpServers` object in your `settings.json` file:
+
+#### Local (Stdio)
+
+Configure in Gemini CLI settings:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+#### Remote (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [Gemini CLI MCP Documentation](https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html)
+
+</details>
+
+<details>
+<summary><strong>Cline</strong></summary>
+
+Cline supports MCP servers through both the marketplace and manual configuration.
+
+**Prerequisites:** Ensure [Cline](https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev) is installed in VSCode.
+
+#### Option 1: Manual Configuration
+
+**For Local (Stdio) Server:**
+
+1. Open **Cline**
+2. Click the hamburger menu icon (☰) → **MCP Servers**
+3. Choose **Local Servers** tab
+4. Click **Edit Configuration**
+5. Add the configuration:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    }
+  }
+}
+```
+
+**For Remote (HTTP) Server:**
+
+1. Open **Cline**
+2. Click the hamburger menu icon (☰) → **MCP Servers**
+3. Choose **Remote Servers** tab
+4. Click **Edit Configuration**
+5. Add the configuration:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "url": "http://localhost:3010/mcp",
+      "type": "streamableHttp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+> 📖 [Cline MCP Documentation](https://docs.cline.bot/mcp/mcp-overview#mcp-overview) | [Cline MCP Marketplace](https://cline.bot/mcp-marketplace)
+
+</details>
+
+<details>
+<summary><strong>Python Clients (Agno, Official MCP SDK)</strong></summary>
+
+#### Remote (HTTP) with Agno
+
+```python
+import asyncio
+import os
+from agno.agent import Agent
+from agno.tools.mcp import MCPTools, StreamableHTTPClientParams
+
+# Get access token from environment
+token = os.environ.get('IBMI_MCP_ACCESS_TOKEN')
+if not token:
+    raise ValueError("IBMI_MCP_ACCESS_TOKEN not set")
+
+url = "http://localhost:3010/mcp"
+server_params = StreamableHTTPClientParams(
+    url=url,
+    headers={"Authorization": f"Bearer {token}"}
+)
+
+async def main():
+    async with MCPTools(
+        url=url,
+        server_params=server_params,
+        transport="streamable-http"
+    ) as tools:
+        # List available tools
+        result = await tools.session.list_tools()
+        print(f"Available tools: {[t.name for t in result.tools]}")
+
+        # Create agent
+        agent = Agent(
+            model="openai:gpt-4o",  # or your preferred model
+            tools=[tools],
+            name="ibmi-agent",
+            show_tool_calls=True
+        )
+
+        # Run query
+        await agent.aprint_response("What is the system status?")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+#### Remote (HTTP) with Official MCP SDK
+
+```python
+import asyncio
+import os
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async def main():
+    token = os.environ.get('IBMI_MCP_ACCESS_TOKEN')
+    if not token:
+        raise ValueError("IBMI_MCP_ACCESS_TOKEN not set")
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with streamablehttp_client(
+        "http://localhost:3010/mcp",
+        headers=headers
+    ) as (read_stream, write_stream, _):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+
+            # List tools
+            tools = await session.list_tools()
+            print(f"Tools: {[t.name for t in tools.tools]}")
+
+            # Execute a tool
+            result = await session.call_tool("system_status", {})
+            print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+> 📖 [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) | [Agno Framework](https://github.com/agno-agi/agno)
+
+</details>
+
+---
+
+### Troubleshooting
+
+**Connection Issues:**
+- Verify `npm link` was successful: `which ibmi-mcp-server`
+- Check that `TOOLS_YAML_PATH` is an absolute path
+- Ensure IBM i credentials are correct
+
+**Authentication Failures (Remote):**
+- Confirm server is running with `IBMI_HTTP_AUTH_ENABLED=true`
+- Verify token is valid: `echo $IBMI_MCP_ACCESS_TOKEN`
+- Check server logs for authentication errors
+
+**Tool Loading Errors:**
+- Validate YAML configuration: `npm run validate -- --config prebuiltconfigs`
+- Check file permissions on tools directory
+- Review server startup logs for parsing errors
 
 ## ⚙️ Configuration
 
@@ -868,6 +1646,24 @@ This template is built on a set of architectural principles to ensure modularity
   - **Core Logic (`logic.ts`)**: This layer is responsible for pure, self-contained business logic. It **throws** a structured `McpError` on any failure.
   - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors. It is the exclusive location where errors are processed and formatted into a final response.
 - **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is passed through the entire call stack, ensuring comprehensive and structured logging.
+
+## ✨ Key Features
+
+| Feature Area                | Description                                                                                                                                          | Key Components / Location                                            |
+| :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| **🔌 MCP Server**           | A functional server with example tools and resources. Supports `stdio` and a **Streamable HTTP** transport built with [**Hono**](https://hono.dev/). | `src/mcp-server/`, `src/mcp-server/transports/`                      |
+| **🔭 Observability**        | Built-in **OpenTelemetry** for distributed tracing and metrics. Auto-instrumentation for core modules and custom tracing for all tool executions.    | `src/utils/telemetry/`                                               |
+| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                 | `src/utils/`                                                         |
+| **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                          | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
+| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                          | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
+| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references.                                                                                | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
+| **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.         | `src/utils/internal/logger.ts`                                       |
+| **🤖 Agent Ready**          | Includes a [.clinerules](./.clinerules/clinerules.md) developer cheatsheet tailored for LLM coding agents.                                           | `.clinerules/`                                                       |
+| **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                 | `scripts/`                                                           |
+| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                          | `src/services/`, `src/storage/duckdbExample.ts`                      |
+| **🧪 Integration Testing**  | Integrated with Vitest for fast and reliable integration testing. Includes example tests for core logic and a coverage reporter.                     | `vitest.config.ts`, `tests/`                                         |
+| **⏱️ Performance Metrics**  | Built-in utility to automatically measure and log the execution time and payload size of every tool call.                                            | `src/utils/internal/performance.ts`                                  |
+
 
 ## 🏗️ Project Structure
 
