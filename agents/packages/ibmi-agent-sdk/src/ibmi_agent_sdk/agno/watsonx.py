@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 from agno.models.ibm import WatsonX
 
+
 class MyWatsonx(WatsonX):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -51,4 +52,3 @@ class MyWatsonx(WatsonX):
                     tool_call_entry["function"]["arguments"] += _function_arguments
         return tool_calls 
     
-

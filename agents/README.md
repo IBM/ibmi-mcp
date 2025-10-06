@@ -11,9 +11,11 @@ agents/                        # Root directory for IBM i MCP agents
 │   └── ibmi-agent-infra-aws
 ├── docker                     # Docker-based deployment infrastructure
 │   └── ibmi-agent-infra
-└── frameworks                 # Agent framework implementations
-    ├── agno
-    └── langchain
+├── frameworks                 # Different agent framework implementations
+│   ├── agno
+│   └── langchain
+└── packages                   # Reusable packages and SDKs
+    └── ibmi-agent-sdk
 ```
 
 ## Getting Started
@@ -29,6 +31,12 @@ agents/                        # Root directory for IBM i MCP agents
 ## Frameworks
 
 The `frameworks/` directory provides different agent framework implementations, allowing you to choose the best solution for your use case.
+
+### Current Frameworks
+| Framework | Language | Description |
+|-----------|----------|-------------|
+| [Agno](./frameworks/agno) | Python | Agents built with Agno's AgentOS
+| [LangChain](./frameworks/langchain) | Python | Agents built with LangChain framework |
 
 ### Agno (AgentOS)
 
@@ -84,27 +92,35 @@ pnpm dev      # or npm run dev
 
 ## Deployment Infrastructure
 
+Deploy IBM i Agno agents using either Docker-based or AWS-based infrastructure.
+
+> More info: [Agno Deployment Documentation](https://docs.agno.com/deploy/introduction)
+
+| Option  | Description |
+|---------|-------------|
+| [Docker](./docker/ibmi-agent-infra)  | Containerized agent deployments using Docker Compose |
+| [AWS](./aws/ibmi-agent-infra-aws)   | Cloud-based deployments using AWS infrastructure (in progress) |
+
+
 ### Docker
 
 Docker-based infrastructure for containerized agent deployments.
 
-**Location:** `docker/ibmi-agent-infra/`
-
-**Documentation:** See [README](docker/ibmi-agent-infra/README.md)
+- **Location:** `docker/ibmi-agent-infra/`
+- **Documentation:** See [README](docker/ibmi-agent-infra/README.md)
 
 **Features:**
 - Containerized agent runtime
 - Docker Compose configurations
 - Isolated agent environments
-- Easy local development setup
+- Easy local development setup  
 
 ### AWS (In Progress)
 
 AWS infrastructure for cloud-based agent deployments.
 
-**Location:** `aws/ibmi-agent-infra-aws/`
-
-**Documentation:** See [README](aws/ibmi-agent-infra-aws/README.md)
+- **Location:** `aws/ibmi-agent-infra-aws/`
+- **Documentation:** See [README](aws/ibmi-agent-infra-aws/README.md)
 
 **Features:**
 - AWS deployment configurations
