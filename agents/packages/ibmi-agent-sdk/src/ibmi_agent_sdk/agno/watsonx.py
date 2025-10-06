@@ -1,7 +1,6 @@
 from typing import Any, Dict, List
 from agno.models.ibm import WatsonX
 
-__all__ = ["MyWatsonx"]
 
 class MyWatsonx(WatsonX):
     def __init__(self, **kwargs):
