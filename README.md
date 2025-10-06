@@ -20,7 +20,7 @@
 <summary><strong>📋 Table of Contents</strong></summary>
 
 - [ibmi-mcp-server](#ibmi-mcp-server)
-  - [Quick Start](#quick-start)
+  - [⚡ Quickstart](#-quickstart)
     - [1. Installation](#1-installation)
     - [2. Build the Project](#2-build-the-project)
     - [3. Create Server .env File](#3-create-server-env-file)
@@ -34,8 +34,11 @@
     - [Remote Server Setup](#remote-server-setup)
     - [Client Configurations](#client-configurations)
     - [Troubleshooting](#troubleshooting)
+  - [🤖 IBM i Agents](#-ibm-i-agents)
+    - [Key Features](#key-features)
+    - [Getting Started](#getting-started)
   - [⚙️ Configuration](#️-configuration)
-  - [IBM i HTTP Authentication (Beta)](#ibm-i-http-authentication-beta)
+  - [🔐 IBM i HTTP Authentication (Beta)](#-ibm-i-http-authentication-beta)
     - [Authentication Flow](#authentication-flow)
     - [Configuration](#configuration)
     - [Getting Access Tokens](#getting-access-tokens)
@@ -44,11 +47,11 @@
     - [Client Integration](#client-integration)
     - [Security Considerations](#security-considerations)
     - [Authentication Endpoints](#authentication-endpoints)
-  - [SQL Tool Configuration](#sql-tool-configuration)
+  - [🧩 SQL Tool Configuration](#-sql-tool-configuration)
     - [Sources](#sources)
     - [Tools](#tools)
     - [Toolsets](#toolsets)
-  - [Running the Server (Development)](#running-the-server-development)
+  - [🚀 Running the Server (Development)](#-running-the-server-development)
     - [Transport Modes](#transport-modes)
       - [HTTP Transport (Recommended for Development)](#http-transport-recommended-for-development)
       - [Stdio Transport (for CLI tools and MCP Inspector)](#stdio-transport-for-cli-tools-and-mcp-inspector)
@@ -57,7 +60,7 @@
     - [Common Development Scenarios](#common-development-scenarios)
     - [Development Tips](#development-tips)
     - [Troubleshooting](#troubleshooting-1)
-  - [MCP Inspector](#mcp-inspector)
+  - [🕵️‍♂️ MCP Inspector](#️️-mcp-inspector)
   - [Docker \& Podman Deployment](#docker--podman-deployment)
     - [Prerequisites](#prerequisites)
       - [Docker](#docker)
@@ -75,17 +78,16 @@
     - [MCP Gateway UI:](#mcp-gateway-ui)
     - [Virtual Server Catalog Demo (Comming soon!!)](#virtual-server-catalog-demo-comming-soon)
   - [Architecture Overview](#architecture-overview)
-  - [✨ Key Features](#-key-features)
-  - [🏗️ Project Structure](#️-project-structure)
-  - [🧩 Extending the System](#-extending-the-system)
+    - [Key Features](#key-features-1)
+    - [Project Structure](#project-structure)
+    - [Extending the System](#extending-the-system)
     - [The "Logic Throws, Handler Catches" Pattern](#the-logic-throws-handler-catches-pattern)
-  - [🌍 Explore More MCP Resources](#-explore-more-mcp-resources)
   - [📜 License](#-license)
 
 </details>
 
 
-## Quick Start
+## ⚡ Quickstart
 
 ### 1. Installation
 
@@ -986,6 +988,23 @@ if __name__ == "__main__":
 - Check file permissions on tools directory
 - Review server startup logs for parsing errors
 
+## 🤖 IBM i Agents
+
+IBM i Agents are specialized components designed to interact with the IBM i system, providing capabilities such as monitoring, management, and automation.
+
+### Key Features
+- **Integration with IBM i:** Seamless integration with IBM i system APIs and tools.
+- **Modular Architecture:** Easily extendable and customizable to fit specific use cases.
+- **Real-time Monitoring:** Continuous monitoring of system performance and health.
+
+### Getting Started
+
+Navigate to the `agents` directory and follow the setup instructions in the [README](./agents/README.md). This includes details on configuration, running agents, and examples. Most agent examples require the MCP server to be running in HTTP mode. Read the docs for each agent example for details.
+
+  
+
+
+
 ## ⚙️ Configuration
 
 Configure the server using these environment variables (or a `.env` file):
@@ -1032,7 +1051,7 @@ code .env
 
 Then edit the `.env` file with your IBM i connection details.
 
-## IBM i HTTP Authentication (Beta)
+## 🔐 IBM i HTTP Authentication (Beta)
 
 The server supports IBM i HTTP authentication that allows clients to obtain access tokens for authenticated SQL tool execution. This enables per-user connection pooling and secure access to IBM i resources.
 
@@ -1198,7 +1217,7 @@ When enabled (`IBMI_HTTP_AUTH_ENABLED=true`), the server provides these endpoint
 | -------------- | ------ | ------------------------------------------------------------ |
 | `/api/v1/auth` | POST   | Authenticate with IBM i credentials and receive Bearer token |
 
-## SQL Tool Configuration
+## 🧩 SQL Tool Configuration
 
 The Primary way to confgure tools used by this MCP server is through `tools.yaml` files (see `prebuiltconfigs/` for examples). There are 3 main sections to each yaml file: `sources`, `tools`, and `toolsets`. Below is a breakdown of each section
 
@@ -1256,7 +1275,7 @@ toolsets:
 
 More documentation on SQL tools coming soon!
 
-## Running the Server (Development)
+## 🚀 Running the Server (Development)
 
 The server supports multiple transport modes and session configurations for different development scenarios. Use the appropriate startup command based on your needs.
 
@@ -1372,7 +1391,7 @@ npm run start:http -- --list-toolsets --tools ./prebuiltconfigs
 npm run start:http -- --help
 ```
 
-## MCP Inspector
+## 🕵️‍♂️ MCP Inspector
 
 The MCP Inspector is a tool for exploring and debugging the MCP server's capabilities. It provides a user-friendly interface for interacting with the server, viewing available tools, and testing queries.
 
@@ -1647,7 +1666,7 @@ This template is built on a set of architectural principles to ensure modularity
   - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors. It is the exclusive location where errors are processed and formatted into a final response.
 - **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is passed through the entire call stack, ensuring comprehensive and structured logging.
 
-## ✨ Key Features
+### Key Features
 
 | Feature Area                | Description                                                                                                                                          | Key Components / Location                                            |
 | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
@@ -1665,7 +1684,7 @@ This template is built on a set of architectural principles to ensure modularity
 | **⏱️ Performance Metrics**  | Built-in utility to automatically measure and log the execution time and payload size of every tool call.                                            | `src/utils/internal/performance.ts`                                  |
 
 
-## 🏗️ Project Structure
+### Project Structure
 
 - **`src/mcp-server/`**: Contains the core MCP server, tools, resources, and transport handlers.
 - **`src/config/`**: Handles loading and validation of environment variables.
@@ -1682,7 +1701,7 @@ See the current file tree in [docs/tree.md](docs/tree.md) or generate it dynamic
 npm run tree
 ```
 
-## 🧩 Extending the System
+### Extending the System
 
 The template enforces a strict, modular pattern for adding new tools and resources, as mandated by the [Architectural Standard](./.clinerules/clinerules.md). The `echoTool` (`src/mcp-server/tools/echoTool/`) serves as the canonical example.
 
@@ -1701,12 +1720,6 @@ This is the cornerstone of the architecture:
     - The runtime handler **always** wraps the call to the logic function in a `try...catch` block. This is the **only** place where errors are caught, processed by the `ErrorHandler`, and formatted into a standardized error response.
 
 This pattern ensures that core logic remains decoupled, pure, and easily testable, while the registration layer handles all transport-level concerns, side effects, and response formatting.
-
-## 🌍 Explore More MCP Resources
-
-Looking for more examples, guides, and pre-built MCP servers? Check out the companion repository:
-
-➡️ **[cyanheads/model-context-protocol-resources](https://github.com/cyanheads/model-context-protocol-resources)**
 
 ## 📜 License
 
