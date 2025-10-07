@@ -7,6 +7,10 @@
 #     ignore-unauthorized: true
 
 tools:
+  whoami:
+    source: ibmi-system
+    description: Get current ibm i user
+    statement: values(current_user)
   describe_object:
     source: ibmi-system
     description: Describe an SQL object by generating DDL definition
@@ -305,6 +309,7 @@ toolsets:
       - count_services_by_schema
       - count_services_by_sql_object_type
       - list_categories_for_schema
+      - whoami
 
   sysadmin_browse:
     title: Sys Admin Browse

@@ -1,0 +1,5 @@
+# ngrok tunnel logs
+ngrok.log
+
+# Environment backups
+.env.backup
