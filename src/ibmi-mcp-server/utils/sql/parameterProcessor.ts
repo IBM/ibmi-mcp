@@ -332,7 +332,6 @@ export class ParameterProcessor {
             result,
           );
           break;
-        case "number":
         case "float":
           result.value = this.validateFloatParameter(value, definition, result);
           break;
