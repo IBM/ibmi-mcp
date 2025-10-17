@@ -1,0 +1,12 @@
+{
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "ibmi_performance_agent": "./src/ibmi_agents/agents/ibmi_agents.py:build_performance_graph",
+    "ibmi_discovery_agent": "./src/ibmi_agents/agents/ibmi_agents.py:build_discovery_graph",
+    "ibmi_browse_agent": "./src/ibmi_agents/agents/ibmi_agents.py:build_browse_graph",
+    "ibmi_search_agent": "./src/ibmi_agents/agents/ibmi_agents.py:build_search_graph"
+  },
+  "env": ".env"
+}
