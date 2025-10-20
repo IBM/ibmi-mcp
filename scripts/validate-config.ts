@@ -1,25 +1,55 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview YAML Configuration Validation CLI Script
+ * @fileoverview Standalone YAML Configuration Validation CLI Script
  *
- * This script provides comprehensive validation for YAML tool configurations using
- * the same Zod schemas and validation logic employed by the runtime system. It supports
- * validating individual files or entire directories of YAML configurations.
+ * This script validates YAML tool configurations against the JSON schema without
+ * importing any server source code. It uses Ajv for JSON Schema validation.
  *
  * Usage:
- *   npm run validate --tools file.yaml
- *   npm run validate --tools-dir tools/
+ *   npm run validate -- --tools file.yaml
+ *   npm run validate -- --tools-dir tools/
  *
  * @module scripts/validate-config
  */
 
-import { readdirSync, statSync } from "fs";
-import { resolve, extname, relative } from "path";
+import { readFileSync, readdirSync, statSync } from "fs";
+import { resolve, extname, relative, dirname } from "path";
+import { fileURLToPath } from "url";
 import { parseArgs } from "util";
-import { ConfigParser } from "../src/ibmi-mcp-server/utils/config/configParser.js";
-import type { ParsingResult } from "../src/ibmi-mcp-server/schemas/index.js";
-import type { SqlToolsConfig } from "../src/ibmi-mcp-server/schemas/config.js";
+import * as yaml from "js-yaml";
+import Ajv from "ajv";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Path to the JSON schema
+const SCHEMA_PATH = resolve(
+  __dirname,
+  "../server/src/ibmi-mcp-server/schemas/json/sql-tools-config.json"
+);
+
+interface ValidationResult {
+  success: boolean;
+  errors: string[];
+  config?: unknown;
+}
+
+interface FileValidationResult {
+  filePath: string;
+  relativePath: string;
+  isValid: boolean;
+  errors: string[];
+  processingTime: number;
+  stats?: ConfigStats;
+}
+
+interface ConfigStats {
+  sourceCount: number;
+  toolCount: number;
+  toolsetCount: number;
+  parameterCount: number;
+}
 
 interface ValidationReport {
   totalFiles: number;
@@ -29,37 +59,12 @@ interface ValidationReport {
   summary: ValidationSummary;
 }
 
-interface FileValidationResult {
-  filePath: string;
-  relativePath: string;
-  isValid: boolean;
-  result: ParsingResult;
-  processingTime: number;
-}
-
 interface ValidationSummary {
   totalSources: number;
   totalTools: number;
   totalToolsets: number;
   totalParameters: number;
   commonErrors: string[];
-}
-
-/**
- * Type guard to check if an unknown config object is a valid SqlToolsConfig
- */
-function isSqlToolsConfig(config: unknown): config is SqlToolsConfig {
-  return (
-    typeof config === 'object' &&
-    config !== null &&
-    (
-      'sources' in config ||
-      'tools' in config ||
-      'toolsets' in config ||
-      'typescript_tools' in config ||
-      'metadata' in config
-    )
-  );
 }
 
 /**
@@ -104,21 +109,18 @@ Usage:
 Options:
   -t, --tools <file>        Path to a single YAML file to validate
   -d, --tools-dir <dir>     Path to a directory containing YAML files
-  -v, --verbose             Enable verbose output with detailed validation results  
+  -v, --verbose             Enable verbose output with detailed validation results
   -h, --help                Show this help message
 
 Examples:
-  npm run validate -- --tools agents/configs/test.yaml
-  npm run validate -- --tools-dir agents/configs/
-  npm run validate -- --tools-dir prebuiltconfigs/ --verbose
+  npm run validate -- --tools tools/performance.yaml
+  npm run validate -- --tools-dir tools/
+  npm run validate -- --tools-dir ../tools/ --verbose
 
 Note: The "--" is required to separate npm arguments from script arguments.
 
-The script uses the same validation logic as the runtime system, including:
-- Zod schema validation for all configuration sections
-- Cross-reference validation (tool sources, toolset references)  
-- Parameter type validation
-- Comprehensive error reporting
+The script validates YAML configurations against the JSON schema located at:
+${SCHEMA_PATH}
 `);
 }
 
@@ -146,11 +148,122 @@ function parseCliArgs(): {
     };
   } catch (error) {
     console.error(
-      `❌ Invalid arguments: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `❌ Invalid arguments: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     showHelp();
     process.exit(1);
   }
+}
+
+/**
+ * Load and parse the JSON schema
+ */
+function loadJsonSchema(): any {
+  try {
+    const schemaContent = readFileSync(SCHEMA_PATH, "utf-8");
+    return JSON.parse(schemaContent);
+  } catch (error) {
+    console.error(`❌ Failed to load JSON schema from ${SCHEMA_PATH}`);
+    console.error(
+      `   Error: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    process.exit(1);
+  }
+}
+
+/**
+ * Validate a parsed YAML config against the JSON schema
+ */
+function validateAgainstSchema(
+  config: unknown,
+  ajvInstance: any
+): ValidationResult {
+  let valid: boolean;
+  let errors: any[] = [];
+
+  try {
+    // Validate using the schema - Ajv will follow the $ref
+    valid = ajvInstance.validate(
+      "https://github.com/IBM/ibmi-mcp-server.git/src/ibmi-mcp-server/schemas/json/sql-tools-config.json",
+      config
+    );
+    errors = ajvInstance.errors || [];
+  } catch (error) {
+    return {
+      success: false,
+      errors: [error instanceof Error ? error.message : "Validation error"],
+      config,
+    };
+  }
+
+  if (!valid && errors.length > 0) {
+    const formattedErrors = errors.map((err: any) => {
+      const path = err.instancePath || "root";
+      const message = err.message || "validation error";
+      const params = err.params ? ` (${JSON.stringify(err.params)})` : "";
+      return `${path}: ${message}${params}`;
+    });
+
+    return {
+      success: false,
+      errors: formattedErrors,
+      config,
+    };
+  }
+
+  return {
+    success: true,
+    errors: [],
+    config,
+  };
+}
+
+/**
+ * Calculate statistics from a valid config
+ */
+function calculateStats(config: unknown): ConfigStats {
+  const stats: ConfigStats = {
+    sourceCount: 0,
+    toolCount: 0,
+    toolsetCount: 0,
+    parameterCount: 0,
+  };
+
+  if (typeof config !== "object" || config === null) {
+    return stats;
+  }
+
+  const configObj = config as Record<string, unknown>;
+
+  // Count sources
+  if (configObj.sources && typeof configObj.sources === "object") {
+    stats.sourceCount = Object.keys(configObj.sources).length;
+  }
+
+  // Count tools and parameters
+  if (configObj.tools && typeof configObj.tools === "object") {
+    const tools = configObj.tools as Record<string, unknown>;
+    stats.toolCount = Object.keys(tools).length;
+
+    // Count parameters
+    for (const tool of Object.values(tools)) {
+      if (
+        typeof tool === "object" &&
+        tool !== null &&
+        "parameters" in tool &&
+        Array.isArray(tool.parameters)
+      ) {
+        stats.parameterCount += tool.parameters.length;
+      }
+    }
+  }
+
+  // Count toolsets
+  if (configObj.toolsets && typeof configObj.toolsets === "object") {
+    stats.toolsetCount = Object.keys(configObj.toolsets).length;
+  }
+
+  return stats;
 }
 
 /**
@@ -179,7 +292,7 @@ function getYamlFilesInDirectory(dirPath: string): string[] {
       }
     } catch (error) {
       console.warn(
-        `⚠️  Warning: Could not scan directory ${currentDir}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `⚠️  Warning: Could not scan directory ${currentDir}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
@@ -191,42 +304,48 @@ function getYamlFilesInDirectory(dirPath: string): string[] {
 /**
  * Validate a single YAML file and return detailed results
  */
-async function validateSingleFile(
+function validateSingleFile(
   filePath: string,
-): Promise<FileValidationResult> {
+  ajv: any
+): FileValidationResult {
   const startTime = process.hrtime.bigint();
   const absolutePath = resolve(filePath);
   const relativePath = relative(process.cwd(), absolutePath);
 
   try {
-    const result = await ConfigParser.parseYamlFile(absolutePath);
+    // Read and parse YAML
+    const yamlContent = readFileSync(absolutePath, "utf-8");
+    const config = yaml.load(yamlContent);
+
+    // Validate against schema
+    const validationResult = validateAgainstSchema(config, ajv);
+
     const endTime = process.hrtime.bigint();
     const processingTime = Number(endTime - startTime) / 1_000_000; // Convert to milliseconds
+
+    const stats = validationResult.success
+      ? calculateStats(config)
+      : undefined;
 
     return {
       filePath: absolutePath,
       relativePath,
-      isValid: result.success,
-      result,
+      isValid: validationResult.success,
+      errors: validationResult.errors,
       processingTime,
+      stats,
     };
   } catch (error) {
     const endTime = process.hrtime.bigint();
     const processingTime = Number(endTime - startTime) / 1_000_000;
 
-    // Create a failed result for unexpected errors
-    const failedResult: ParsingResult = {
-      success: false,
-      errors: [
-        error instanceof Error ? error.message : "Unknown validation error",
-      ],
-    };
-
     return {
       filePath: absolutePath,
       relativePath,
       isValid: false,
-      result: failedResult,
+      errors: [
+        error instanceof Error ? error.message : "Unknown validation error",
+      ],
       processingTime,
     };
   }
@@ -236,7 +355,7 @@ async function validateSingleFile(
  * Generate a comprehensive validation summary
  */
 function generateValidationSummary(
-  results: FileValidationResult[],
+  results: FileValidationResult[]
 ): ValidationSummary {
   let totalSources = 0;
   let totalTools = 0;
@@ -245,15 +364,15 @@ function generateValidationSummary(
   const errorMap: Record<string, number> = {};
 
   for (const result of results) {
-    if (result.result.success && result.result.stats) {
-      totalSources += result.result.stats.sourceCount;
-      totalTools += result.result.stats.toolCount;
-      totalToolsets += result.result.stats.toolsetCount;
-      totalParameters += result.result.stats.totalParameterCount;
+    if (result.stats) {
+      totalSources += result.stats.sourceCount;
+      totalTools += result.stats.toolCount;
+      totalToolsets += result.stats.toolsetCount;
+      totalParameters += result.stats.parameterCount;
     }
 
-    if (!result.result.success && result.result.errors) {
-      for (const error of result.result.errors) {
+    if (!result.isValid) {
+      for (const error of result.errors) {
         const normalizedError = error.split(":")[0].trim(); // Get error type
         errorMap[normalizedError] = (errorMap[normalizedError] || 0) + 1;
       }
@@ -318,114 +437,24 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
     const timeStr = fileResult.processingTime.toFixed(2);
     console.log(`   ${status} ${fileResult.relativePath} (${timeStr}ms)`);
 
-    // Always show errors for invalid files
-    if (!fileResult.result.success && fileResult.result.errors) {
-      fileResult.result.errors.forEach((error) => {
+    // Show errors for invalid files
+    if (!fileResult.isValid) {
+      fileResult.errors.forEach((error) => {
         console.log(`      ❌ ${error}`);
       });
     }
 
-    // Verbose mode shows detailed breakdown for all files
-    if (verbose) {
-      if (fileResult.result.success && fileResult.result.config && isSqlToolsConfig(fileResult.result.config)) {
-        const config = fileResult.result.config;
-        const stats = fileResult.result.stats!;
-
-        console.log(`      📊 Configuration Details:`);
-        console.log(
-          `         • Sources: ${stats.sourceCount}, Tools: ${stats.toolCount}, Toolsets: ${stats.toolsetCount}, Parameters: ${stats.totalParameterCount}`,
-        );
-
-        // Show source details
-        if (config.sources && Object.keys(config.sources).length > 0) {
-          console.log(`      🔗 Sources:`);
-          Object.entries(config.sources).forEach(([name, source]) => {
-            if (typeof source === 'object' && source !== null) {
-              const sourceObj = source;
-              console.log(
-                `         • ${name}: ${sourceObj.user}@${sourceObj.host}${sourceObj.port ? `:${sourceObj.port}` : ""}`,
-              );
-            }
-          });
-        }
-
-        // Show tool details
-        if (config.tools && Object.keys(config.tools).length > 0) {
-          console.log(`      🔧 Tools:`);
-          Object.entries(config.tools).forEach(([name, tool]) => {
-            if (typeof tool === 'object' && tool !== null) {
-              const toolObj = tool;
-              const paramCount = toolObj.parameters?.length || 0;
-              const hints: string[] = [];
-              if (toolObj.readOnlyHint) hints.push("readonly");
-              if (toolObj.destructiveHint) hints.push("destructive");
-              if (toolObj.idempotentHint) hints.push("idempotent");
-              if (toolObj.openWorldHint) hints.push("open-world");
-              const hintsStr = hints.length > 0 ? ` [${hints.join(", ")}]` : "";
-
-              console.log(
-                `         • ${name}: ${paramCount} param${paramCount !== 1 ? "s" : ""}, source: ${toolObj.source}${hintsStr}`,
-              );
-
-              if (toolObj.parameters && toolObj.parameters.length > 0) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                toolObj.parameters.forEach((param: any) => {
-                  const defaultStr =
-                    param.default !== undefined ? ` = ${param.default}` : "";
-                  console.log(
-                    `           - ${param.name}: ${param.type}${defaultStr}`,
-                  );
-                });
-              }
-
-              if (toolObj.security) {
-                const securityDetails: string[] = [];
-                if (toolObj.security.readOnly) securityDetails.push("read-only");
-                if (toolObj.security.maxQueryLength)
-                  securityDetails.push(
-                    `max-length: ${toolObj.security.maxQueryLength}`,
-                  );
-                if (toolObj.security.forbiddenKeywords?.length)
-                  securityDetails.push(
-                    `forbidden-keywords: ${toolObj.security.forbiddenKeywords.length}`,
-                  );
-                if (securityDetails.length > 0) {
-                  console.log(
-                    `           🛡️  Security: ${securityDetails.join(", ")}`,
-                  );
-                }
-              }
-            }
-          });
-        }
-
-        // Show toolset details
-        if (config.toolsets && Object.keys(config.toolsets).length > 0) {
-          console.log(`      📦 Toolsets:`);
-          Object.entries(config.toolsets).forEach(([name, toolset]) => {
-            if (typeof toolset === 'object' && toolset !== null) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const toolsetObj = toolset as any;
-              console.log(`         • ${name}: ${toolsetObj.tools?.join(", ") || "No tools"}`);
-              if (toolsetObj.description) {
-                console.log(`           "${toolsetObj.description}"`);
-              }
-            }
-          });
-        }
-      } else if (fileResult.result.success && fileResult.result.stats) {
-        // Fallback for files with stats but no config
-        const stats = fileResult.result.stats;
-        console.log(
-          `      📊 Basic Stats: Sources: ${stats.sourceCount}, Tools: ${stats.toolCount}, Toolsets: ${stats.toolsetCount}, Parameters: ${stats.totalParameterCount}`,
-        );
-      }
-    } else if (fileResult.result.success && fileResult.result.stats) {
-      // Non-verbose mode shows basic stats for valid files
-      const stats = fileResult.result.stats;
+    // Show stats for valid files
+    if (fileResult.isValid && fileResult.stats) {
+      const stats = fileResult.stats;
       console.log(
-        `      📊 Sources: ${stats.sourceCount}, Tools: ${stats.toolCount}, Toolsets: ${stats.toolsetCount}, Parameters: ${stats.totalParameterCount}`,
+        `      📊 Sources: ${stats.sourceCount}, Tools: ${stats.toolCount}, Toolsets: ${stats.toolsetCount}, Parameters: ${stats.parameterCount}`
       );
+    }
+
+    // Verbose mode can be extended here for more details
+    if (verbose && fileResult.isValid) {
+      console.log(`      ℹ️  Validation completed successfully`);
     }
   });
 
@@ -433,15 +462,15 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
   console.log("\n💡 Recommendations:");
   if (invalidFiles > 0) {
     console.log(
-      "   • Fix validation errors in invalid files before deployment",
+      "   • Fix validation errors in invalid files before deployment"
     );
-    console.log("   • Use --verbose flag for detailed error information");
+    console.log("   • Review the JSON schema for expected structure");
   }
   if (validFiles > 0) {
     console.log("   • Valid configurations are ready for use");
   }
   console.log(
-    "   • Run this script regularly during development to catch issues early",
+    "   • Run this script regularly during development to catch issues early"
   );
   console.log("═".repeat(50));
 }
@@ -450,8 +479,6 @@ function displayResults(report: ValidationReport, verbose: boolean): void {
  * Main execution function
  */
 async function main(): Promise<void> {
-  // Logger is pre-configured and ready to use
-
   const args = parseCliArgs();
 
   if (args.help) {
@@ -467,7 +494,7 @@ async function main(): Promise<void> {
 
   if (args.tools && args.toolsDir) {
     console.error(
-      "❌ Error: Cannot specify both --tools and --tools-dir at the same time",
+      "❌ Error: Cannot specify both --tools and --tools-dir at the same time"
     );
     process.exit(1);
   }
@@ -475,19 +502,25 @@ async function main(): Promise<void> {
   console.log("🔍 Starting YAML configuration validation...\n");
 
   try {
+    // Load JSON schema
+    const schema = loadJsonSchema();
+    const ajvConstructor: any = Ajv;
+    const ajv = new ajvConstructor({ strict: false, allErrors: true });
+    ajv.addSchema(schema);
+
     let filesToValidate: string[] = [];
 
     if (args.tools) {
       const resolvedPath = resolve(args.tools);
       filesToValidate = [resolvedPath];
       console.log(
-        `📁 Validating single file: ${relative(process.cwd(), resolvedPath)}`,
+        `📁 Validating single file: ${relative(process.cwd(), resolvedPath)}`
       );
     } else if (args.toolsDir) {
       const resolvedDir = resolve(args.toolsDir);
       filesToValidate = getYamlFilesInDirectory(resolvedDir);
       console.log(
-        `📁 Validating directory: ${relative(process.cwd(), resolvedDir)}`,
+        `📁 Validating directory: ${relative(process.cwd(), resolvedDir)}`
       );
       console.log(`📄 Found ${filesToValidate.length} YAML file(s)`);
     }
@@ -498,10 +531,9 @@ async function main(): Promise<void> {
     }
 
     // Validate all files
-    const validationPromises = filesToValidate.map((file) =>
-      validateSingleFile(file),
+    const results = filesToValidate.map((file) =>
+      validateSingleFile(file, ajv)
     );
-    const results = await Promise.all(validationPromises);
 
     // Generate report
     const report: ValidationReport = {
@@ -520,7 +552,7 @@ async function main(): Promise<void> {
     process.exit(exitCode);
   } catch (error) {
     console.error(
-      `❌ Validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `❌ Validation failed: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     process.exit(1);
   }
@@ -530,7 +562,7 @@ async function main(): Promise<void> {
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error) => {
     console.error(
-      `❌ Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `❌ Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     process.exit(1);
   });
