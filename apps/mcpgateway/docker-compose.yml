@@ -404,21 +404,22 @@ services:
   ibmi-mcp-server:
     image: ${IBMI_MCP_IMAGE:-ibmi-mcp-server:latest}  # Use env var or default to local image
     build:
-      context: .           # Build from current directory
-      dockerfile: ./Dockerfile  # Explicit path to Dockerfile
+      context: ../../server      # Build from server directory (monorepo root/server)
+      dockerfile: ../apps/docker/Dockerfile  # Path to Dockerfile relative to server context
     container_name: ibmi-mcp-server
     networks: [mcpnet]
     ports:
       - "3010:3010"    # Map host port 3010 to container port 3010
     restart: unless-stopped
     env_file:
-      - .env           # Load environment variables from .env file
+      - ../../.env     # Load environment variables from root .env file
     environment:
       # Enable YAML auto-reload for development (file watching)
       - YAML_AUTO_RELOAD=true
+      - TOOLS_YAML_PATH=/usr/src/app/tools
     volumes:
-      - ./prebuiltconfigs:/usr/src/app/prebuiltconfigs:rw  # Mount prebuilt configurations with read-write for auto-reload
-      - ./secrets:/usr/src/app/secrets:ro  # Mount secrets directory as read-only
+      - ../../tools:/usr/src/app/tools:rw  # Mount tools configurations with read-write for auto-reload
+      - ../../secrets:/usr/src/app/secrets:ro  # Mount secrets directory as read-only
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
       interval: 30s

@@ -141,7 +141,7 @@ Options:
   --tools <path>    Path to YAML tools configuration
                     Supports:
                       - Files: performance.yaml, config.yml
-                      - Directories: prebuiltconfigs/, tools/
+                      - Directories: tools/, custom-tools/
                       - Globs: "**/*.yaml" (quote for shell safety)
   --toolsets, -ts <list>   Comma-separated list of toolsets (e.g., "performance,system")
   --list-toolsets   List all available toolsets and exit
@@ -150,10 +150,10 @@ Options:
   -h, --help        Show this help message
 
 Examples:
-  npx ibmi-mcp-server --tools prebuiltconfigs
-  npx ibmi-mcp-server --tools prebuiltconfigs/performance.yaml
+  npx ibmi-mcp-server --tools tools
+  npx ibmi-mcp-server --tools tools/performance.yaml
   npx ibmi-mcp-server --toolsets performance,system
-  npx ibmi-mcp-server --list-toolsets --tools prebuiltconfigs
+  npx ibmi-mcp-server --list-toolsets --tools tools
   npx ibmi-mcp-server --tools ../custom-tools/
   npx ibmi-mcp-server --tools "configs/**/*.yaml"
 

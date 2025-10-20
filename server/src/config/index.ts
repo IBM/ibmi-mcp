@@ -13,7 +13,34 @@ import path, { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 
-dotenv.config();
+// Load .env from multiple possible locations for monorepo flexibility
+// Priority order: current working directory > parent directory > server directory
+const envLocations = [
+  // 1. Current working directory (for production/user deployment)
+  path.resolve(process.cwd(), ".env"),
+  // 2. Parent directory (for monorepo development)
+  path.resolve(process.cwd(), "../.env"),
+  // 3. Two levels up (if running from dist/)
+  path.resolve(process.cwd(), "../../.env"),
+];
+
+// Load from first location that exists
+let envLoaded = false;
+for (const envPath of envLocations) {
+  if (existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    envLoaded = true;
+    if (process.stdout.isTTY && process.env.MCP_LOG_LEVEL === "debug") {
+      console.log(`Loaded .env from: ${envPath}`);
+    }
+    break;
+  }
+}
+
+// Fallback: try default dotenv behavior (looks in cwd)
+if (!envLoaded) {
+  dotenv.config();
+}
 
 // --- Determine Project Root ---
 const findProjectRoot = (startDir: string): string => {

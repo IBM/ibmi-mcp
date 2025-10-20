@@ -110,7 +110,7 @@ Options:
 Examples:
   npm run validate -- --tools agents/configs/test.yaml
   npm run validate -- --tools-dir agents/configs/
-  npm run validate -- --tools-dir prebuiltconfigs/ --verbose
+  npm run validate -- --tools-dir ../tools/ --verbose
 
 Note: The "--" is required to separate npm arguments from script arguments.
 

@@ -90,8 +90,8 @@ function main(): void {
   console.log(`{
   "yaml.schemas": {
     "./src/ibmi-mcp-server/schemas/json/sql-tools-config.json": [
-      "prebuiltconfigs/*.yaml",
-      "prebuiltconfigs/*.yml",
+      "tools/*.yaml",
+      "tools/*.yml",
       "configs/*.yaml",
       "configs/*.yml"
     ]

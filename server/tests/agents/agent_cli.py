@@ -95,7 +95,7 @@ async def main():
     parser = argparse.ArgumentParser(
         description="IBM i MCP Agent Test - Query your IBM i system using natural language"
     )
-    parser.add_argument("--tools", default="../../prebuiltconfigs", help="Path to tools YAML file")
+    parser.add_argument("--tools", default="../../tools", help="Path to tools YAML file")
     print("🚀 Starting IBM i Agent")
     print("=" * 40)
 
