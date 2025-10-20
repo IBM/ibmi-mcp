@@ -49,13 +49,12 @@ function generateJsonSchema(
     });
 
     // Add schema metadata for YAML Language Server
+    // NOTE: We don't add additionalProperties or type at root level when there's a $ref
+    // because those constraints should be in the referenced definition, not at the root
     const enhancedSchema = {
       $schema: "http://json-schema.org/draft-07/schema#",
       $id: `https://github.com/IBM/ibmi-mcp-server.git/src/ibmi-mcp-server/schemas/json/${fileName}.json`,
       ...jsonSchema,
-      // Add additional properties for better YAML support
-      additionalProperties: false,
-      type: "object",
     };
 
     // Write to file

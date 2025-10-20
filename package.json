@@ -13,7 +13,7 @@
   },
   "homepage": "https://github.com/IBM/ibmi-mcp-server.git#readme",
   "scripts": {
-    "install:server": "cd server && npm install",
+    "install": "cd server && npm install",
     "build": "cd server && npm run build && npm link",
     "rebuild": "cd server && npm run rebuild",
     "start": "npm run start:http",
@@ -26,7 +26,7 @@
     "lint": "cd server && npm run lint",
     "typecheck": "cd server && npm run typecheck",
     "format": "cd server && npm run format",
-    "validate": "cd server && npm run validate",
+    "validate": "tsx scripts/validate-config.ts",
     "inspector": "cd server && npm run inspector",
     "docker:up": "cd apps/docker && docker-compose up -d",
     "docker:down": "cd apps/docker && docker-compose down",
@@ -47,5 +47,11 @@
   "license": "Apache-2.0",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.4",
+    "ajv": "^8.12.0",
+    "js-yaml": "^4.1.0",
+    "@types/js-yaml": "^4.0.9"
   }
 }

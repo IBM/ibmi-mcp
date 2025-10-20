@@ -374,7 +374,5 @@
       "additionalProperties": false,
       "description": "Root YAML configuration structure"
     }
-  },
-  "additionalProperties": false,
-  "type": "object"
+  }
 }

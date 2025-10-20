@@ -21,7 +21,7 @@
 
 ## 📁 Repository Structure
 
-This repository is organized as a **monorepo** for better code organization:
+Here is an overview of the repository structure:
 
 ```
 ibmi-mcp-server/
@@ -151,32 +151,26 @@ See more on configuration options in the [Configuration](#⚙️-configuration) 
 
 ### 4. Running the Server
 
+Once built, you can start the server in different transport modes: `http` or `stdio`. 
+
 - **Via Stdio (Default):**
   ```bash
-  npm run start:stdio
+  npx ibmi-mcp-server --transport stdio --tools ./tools
   ```
 - **Via Streamable HTTP:**
 
   ```bash
-  npm run start:http
+  npx ibmi-mcp-server --transport http --tools ./tools
   ```
 
-  By Default, the server registers SQL tools stored in the `tools` directory. This path is set in the `.env` file (`TOOLS_YAML_PATH`). You can override the SQL tools path using the CLI:
-  - CLI Option: `--tools <path>`
-    ```bash
-    npm run start:http -- --tools <path>
-    ```
-  - Transport Options: `--transport <type>`
-    ```bash
-    npm run start:http -- --transport http # or stdio
-    ```
+  > By Default, the server registers SQL tools stored in the `tools` directory. This path is set in the `.env` file (`TOOLS_YAML_PATH`). You can override the SQL tools path using the CLI
 
 ### 5. Run Example Agent
 
 Make sure that the server is running in `http` mode:
 
 ```bash
-npm run start:http
+npx ibmi-mcp-server --transport http --tools ./tools
 ```
 
 In another terminal, navigate to the `tests/agents` directory and follow the setup instructions in the [README](./tests/agents/README.md).
@@ -1001,6 +995,28 @@ if __name__ == "__main__":
 - Check that `TOOLS_YAML_PATH` is an absolute path
 - Ensure IBM i credentials are correct
 
+**MCP Server Errors:**
+If using `npx ibmi-mcp-server` does not work, use node directly:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/ibmi-mcp-server/server/dist/index.js", "--tools", "/absolute/path/to/tools"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "NODE_OPTIONS": "--no-deprecation"
+      }
+    }
+  }
+}
+```
+
 **Authentication Failures (Remote):**
 - Confirm server is running with `IBMI_HTTP_AUTH_ENABLED=true`
 - Verify token is valid: `echo $IBMI_MCP_ACCESS_TOKEN`
@@ -1326,6 +1342,8 @@ npm run start:stdio
 # Stdio with custom tools path
 npm run start:stdio -- --tools ./my-custom-tools
 ```
+
+> Make sure that to use the absolute path for tools
 
 ### Session Modes (HTTP Only)
 
