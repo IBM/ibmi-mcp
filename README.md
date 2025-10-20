@@ -1,6 +1,6 @@
 <div align="center">
 
-# ibmi-mcp-server
+# ibmi-mcp-server (⚠️ Under Active Development)
 
 **MCP server for IBM i**
 
@@ -18,6 +18,7 @@
 </div>
 
 ---
+
 
 ## 📁 Repository Structure
 
