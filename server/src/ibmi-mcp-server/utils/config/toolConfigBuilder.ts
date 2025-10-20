@@ -90,9 +90,6 @@ export class ToolConfigBuilder {
         case "string":
           zodType = z.string();
           break;
-        case "number":
-          zodType = z.number();
-          break;
         case "integer":
           zodType = z.number().int();
           break;
@@ -107,7 +104,6 @@ export class ToolConfigBuilder {
           if (param.itemType === "string") {
             zodType = z.array(z.string());
           } else if (
-            param.itemType === "number" ||
             param.itemType === "integer" ||
             param.itemType === "float"
           ) {

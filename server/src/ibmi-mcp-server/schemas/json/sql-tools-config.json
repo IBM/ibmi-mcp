@@ -83,7 +83,6 @@
                       "type": "string",
                       "enum": [
                         "string",
-                        "number",
                         "boolean",
                         "integer",
                         "float",
@@ -121,7 +120,6 @@
                       "type": "string",
                       "enum": [
                         "string",
-                        "number",
                         "boolean",
                         "integer",
                         "float"

@@ -23,7 +23,7 @@ export const SqlToolParameterSchema = z
       .min(1, "Parameter name cannot be empty")
       .describe("Parameter name used in SQL statement"),
     type: z
-      .enum(["string", "number", "boolean", "integer", "float", "array"])
+      .enum(["string", "boolean", "integer", "float", "array"])
       .describe("Parameter data type for validation"),
     description: z
       .string()
@@ -38,7 +38,7 @@ export const SqlToolParameterSchema = z
       .optional()
       .describe("Whether parameter is required (overrides default)"),
     itemType: z
-      .enum(["string", "number", "boolean", "integer", "float"])
+      .enum(["string", "boolean", "integer", "float"])
       .optional()
       .describe("Array item type (only for array parameters)"),
     min: z.number().optional().describe("Minimum value for numeric types"),
