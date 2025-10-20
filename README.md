@@ -1,21 +1,45 @@
 <div align="center">
 
-# ibmi-mcp-server
+# ibmi-mcp-server (⚠️ Under Active Development)
 
 **MCP server for IBM i**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.1-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.8.1-blue?style=flat-square)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.9.1-blue?style=flat-square)](./CHANGELOG.md)
 [![Coverage](https://img.shields.io/badge/Coverage-64.67%25-brightgreen?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/IBM/ibmi-mcp-server.git)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/IBM/ibmi-mcp-server)
 
 **📚 [Documentation](https://ibm-d95bab6e.mintlify.app/) | ⚠️ Docs are under active development**
-![alt text](images/logo-2.png)
+![alt text](docs/images/logo-2.png)
 </div>
+
+---
+
+
+## 📁 Repository Structure
+
+Here is an overview of the repository structure:
+
+```
+ibmi-mcp-server/
+├── server/          ← MCP server implementation (main package)
+├── tools/           ← SQL tool YAML configurations
+├── agents/          ← Agent implementations and examples
+└── apps/            ← Deployment configurations (Docker, Gateway, n8n)
+```
+
+### Quick Navigation
+
+- **[Server Documentation](./server/README.md)** - MCP server setup, development, and API
+- **[Tools Documentation](./tools/README.md)** - SQL tool configuration guide
+- **[Agents Documentation](./agents/README.md)** - Agent development and examples
+- **[Deployment Guide](./apps/README.md)** - Docker, Gateway, and n8n setup
+
+---
 <details>
 <summary><strong>📋 Table of Contents</strong></summary>
 
@@ -128,32 +152,26 @@ See more on configuration options in the [Configuration](#⚙️-configuration) 
 
 ### 4. Running the Server
 
+Once built, you can start the server in different transport modes: `http` or `stdio`. 
+
 - **Via Stdio (Default):**
   ```bash
-  npm run start:stdio
+  npx ibmi-mcp-server --transport stdio --tools ./tools
   ```
 - **Via Streamable HTTP:**
 
   ```bash
-  npm run start:http
+  npx ibmi-mcp-server --transport http --tools ./tools
   ```
 
-  By Default, the server registers SQL tools stored in the `prebuiltconfigs` directory. This path is set in the `.env` file (`TOOLS_YAML_PATH`). You can override the SQL tools path using the CLI:
-  - CLI Option: `--tools <path>`
-    ```bash
-    npm run start:http -- --tools <path>
-    ```
-  - Transport Options: `--transport <type>`
-    ```bash
-    npm run start:http -- --transport http # or stdio
-    ```
+  > By Default, the server registers SQL tools stored in the `tools` directory. This path is set in the `.env` file (`TOOLS_YAML_PATH`). You can override the SQL tools path using the CLI
 
 ### 5. Run Example Agent
 
 Make sure that the server is running in `http` mode:
 
 ```bash
-npm run start:http
+npx ibmi-mcp-server --transport http --tools ./tools
 ```
 
 In another terminal, navigate to the `tests/agents` directory and follow the setup instructions in the [README](./tests/agents/README.md).
@@ -214,7 +232,7 @@ npm link
 
 This makes the `ibmi-mcp-server` command available globally on your machine. After linking, you can use `npx ibmi-mcp-server` in any client configuration.
 
-> **Note:** `TOOLS_YAML_PATH` must be an **absolute path** to your tools configuration directory (e.g., `/full/path/to/prebuiltconfigs`).
+> **Note:** `TOOLS_YAML_PATH` must be an **absolute path** to your tools configuration directory (e.g., `/full/path/to/tools`).
 
 ### Remote Server Setup
 
@@ -267,7 +285,7 @@ claude mcp add ibmi-mcp \
   --env DB2i_PASS=your-password \
   --env DB2i_PORT=8076 \
   --env MCP_TRANSPORT_TYPE=stdio \
-  -- npx ibmi-mcp-server --tools /absolute/path/to/prebuiltconfigs
+  -- npx ibmi-mcp-server --tools /absolute/path/to/tools
 ```
 
 **Using `.mcp.json`:**
@@ -276,7 +294,7 @@ claude mcp add ibmi-mcp \
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -372,7 +390,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -446,7 +464,7 @@ code --add-mcp '{
     "ibmiMcp": {
       "type": "stdio",
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -517,7 +535,7 @@ VSCode supports input variables to avoid hardcoding sensitive credentials:
     "ibmiMcp": {
       "type": "stdio",
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "${input:db2iHost}",
         "DB2i_USER": "${input:db2iUser}",
@@ -554,7 +572,7 @@ Add to Cursor settings or `.cursor/mcp.json`:
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -599,7 +617,7 @@ Add to Windsurf configuration:
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -644,7 +662,7 @@ Configure in Roo Code settings:
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -687,7 +705,7 @@ Configure in Roo Code settings:
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -736,7 +754,7 @@ Add local MCP servers using "type": "local" within the MCP object. Multiple MCP 
     "ibmi-mcp": {
       "type": "local",
       "enabled": true,
-      "command": ["npx", "ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "command": ["npx", "ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "environment": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -790,7 +808,7 @@ Configure in Gemini CLI settings:
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -845,7 +863,7 @@ Cline supports MCP servers through both the marketplace and manual configuration
   "mcpServers": {
     "ibmi-mcp": {
       "command": "npx",
-      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/prebuiltconfigs"],
+      "args": ["ibmi-mcp-server", "--tools", "/absolute/path/to/tools"],
       "env": {
         "DB2i_HOST": "your-ibmi-host.com",
         "DB2i_USER": "your-username",
@@ -978,13 +996,35 @@ if __name__ == "__main__":
 - Check that `TOOLS_YAML_PATH` is an absolute path
 - Ensure IBM i credentials are correct
 
+**MCP Server Errors:**
+If using `npx ibmi-mcp-server` does not work, use node directly:
+
+```json
+{
+  "mcpServers": {
+    "ibmi-mcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/ibmi-mcp-server/server/dist/index.js", "--tools", "/absolute/path/to/tools"],
+      "env": {
+        "DB2i_HOST": "your-ibmi-host.com",
+        "DB2i_USER": "your-username",
+        "DB2i_PASS": "your-password",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "NODE_OPTIONS": "--no-deprecation"
+      }
+    }
+  }
+}
+```
+
 **Authentication Failures (Remote):**
 - Confirm server is running with `IBMI_HTTP_AUTH_ENABLED=true`
 - Verify token is valid: `echo $IBMI_MCP_ACCESS_TOKEN`
 - Check server logs for authentication errors
 
 **Tool Loading Errors:**
-- Validate YAML configuration: `npm run validate -- --config prebuiltconfigs`
+- Validate YAML configuration: `npm run validate -- --config tools`
 - Check file permissions on tools directory
 - Review server startup logs for parsing errors
 
@@ -1219,7 +1259,7 @@ When enabled (`IBMI_HTTP_AUTH_ENABLED=true`), the server provides these endpoint
 
 ## 🧩 SQL Tool Configuration
 
-The Primary way to confgure tools used by this MCP server is through `tools.yaml` files (see `prebuiltconfigs/` for examples). There are 3 main sections to each yaml file: `sources`, `tools`, and `toolsets`. Below is a breakdown of each section
+The Primary way to confgure tools used by this MCP server is through `tools.yaml` files (see `tools/` for examples). There are 3 main sections to each yaml file: `sources`, `tools`, and `toolsets`. Below is a breakdown of each section
 
 ### Sources
 
@@ -1304,6 +1344,8 @@ npm run start:stdio
 npm run start:stdio -- --tools ./my-custom-tools
 ```
 
+> Make sure that to use the absolute path for tools
+
 ### Session Modes (HTTP Only)
 
 The `MCP_SESSION_MODE` environment variable controls how the HTTP server handles client sessions:
@@ -1342,7 +1384,7 @@ Both transport modes support these command-line options:
 ```bash
 npm run start:http
 # Server: http://localhost:3010/mcp
-# Tools: prebuiltconfigs/ (from .env)
+# Tools: tools/ (from .env)
 # Session: auto-detected
 ```
 
@@ -1382,10 +1424,10 @@ npm run start:http
 
 ```bash
 # Check tools path
-npm run start:http -- --tools ./prebuiltconfigs
+npm run start:http -- --tools ./tools
 
 # List available toolsets first
-npm run start:http -- --list-toolsets --tools ./prebuiltconfigs
+npm run start:http -- --list-toolsets --tools ./tools
 
 # Get help
 npm run start:http -- --help
@@ -1417,7 +1459,7 @@ Here are the steps to run the MCP Inspector:
          "command": "node",
          "args": ["dist/index.js"],
          "env": {
-           "TOOLS_YAML_PATH": "prebuiltconfigs",
+           "TOOLS_YAML_PATH": "tools",
            "NODE_OPTIONS": "--no-deprecation",
            "DB2i_HOST": "<DB2i_HOST>",
            "DB2i_USER": "<DB2i_USER>",
@@ -1448,7 +1490,7 @@ Here are the steps to run the MCP Inspector:
     🔍 MCP Inspector is up and running at http://127.0.0.1:6274 🚀
    ```
 
-![alt text](images/inspector.png)
+![alt text](docs/images/inspector.png)
 
 5. Use the MCP Inspector to explore and test your MCP server's capabilities
    - View available tools and their parameters
@@ -1634,7 +1676,7 @@ podman compose up --build -d            # Rebuild and restart all
 
 ### MCP Gateway UI:
 
-![alt text](images/image.png)
+![alt text](docs/images/image.png)
 
 After the Containers are up and running, you can access the MCP Context Forge UI at http://localhost:4444
 
@@ -1647,11 +1689,11 @@ To Configure the IBM i MCP server is the admin ui, navigate to the "Gateways/MCP
 
 - IBM i mcp server endpoint: `http://ibmi-mcp-server:3010`
 
-![alt text](images/image-1.png)
+![alt text](docs/images/image-1.png)
 
 Once the MCP server is connect, you can then manage the tools provided by the server:
 
-![alt text](images/image-2.png)
+![alt text](docs/images/image-2.png)
 
 ### Virtual Server Catalog Demo (Comming soon!!)
 
