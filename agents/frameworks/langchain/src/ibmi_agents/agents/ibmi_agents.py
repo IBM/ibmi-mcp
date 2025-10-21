@@ -22,7 +22,27 @@ from contextlib import asynccontextmanager
 from langchain_ollama import ChatOllama
 from langgraph.prebuilt import create_react_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.tools import load_mcp_tools
+
+# Import FilteredMCPTools - use direct module import to avoid SDK __init__.py
+try:
+    import importlib.util
+    from pathlib import Path
+    
+    # Try to find the filtered_mcp_tools module directly
+    sdk_path = Path(__file__).parent.parent.parent.parent.parent.parent / "packages" / "ibmi-agent-sdk" / "src" / "ibmi_agent_sdk" / "langchain" / "filtered_mcp_tools.py"
+    
+    if sdk_path.exists():
+        spec = importlib.util.spec_from_file_location("filtered_mcp_tools", sdk_path)
+        filtered_mcp_tools = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(filtered_mcp_tools)
+        load_filtered_mcp_tools = filtered_mcp_tools.load_filtered_mcp_tools
+        load_toolset_tools = filtered_mcp_tools.load_toolset_tools
+    else:
+        # Fall back to package import if file doesn't exist
+        from ibmi_agent_sdk.langchain.filtered_mcp_tools import load_filtered_mcp_tools, load_toolset_tools
+except Exception as e:
+    raise ImportError(f"Cannot load filtered_mcp_tools: {e}")
+
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
@@ -125,8 +145,9 @@ async def create_performance_agent(
     @asynccontextmanager
     async def agent_session():
         async with client.session("ibmi_tools") as session:
-            tools = await load_mcp_tools(session)
-            print(f"✅ Loaded {len(tools)} tools for Performance Agent")
+            # Load only performance tools for this agent
+            tools = await load_toolset_tools(session, "performance", debug=True)
+            print(f"✅ Loaded {len(tools)} performance tools for Performance Agent")
             
             system_message = """You are a specialized IBM i performance monitoring assistant.
 You have access to comprehensive performance monitoring tools including:
@@ -182,8 +203,9 @@ async def create_sysadmin_discovery_agent(
     @asynccontextmanager
     async def agent_session():
         async with client.session("ibmi_tools") as session:
-            tools = await load_mcp_tools(session)
-            print(f"✅ Loaded {len(tools)} tools for Discovery Agent")
+            # Load only sysadmin discovery tools for this agent
+            tools = await load_toolset_tools(session, "sysadmin_discovery", debug=True)
+            print(f"✅ Loaded {len(tools)} sysadmin discovery tools for Discovery Agent")
             
             system_message = """You are a specialized IBM i system administration discovery assistant.
 You help administrators get high-level overviews and summaries of system components.
@@ -237,8 +259,9 @@ async def create_sysadmin_browse_agent(
     @asynccontextmanager
     async def agent_session():
         async with client.session("ibmi_tools") as session:
-            tools = await load_mcp_tools(session)
-            print(f"✅ Loaded {len(tools)} tools for Browse Agent")
+            # Load only sysadmin browse tools for this agent
+            tools = await load_toolset_tools(session, "sysadmin_browse", debug=True)
+            print(f"✅ Loaded {len(tools)} sysadmin browse tools for Browse Agent")
             
             system_message = """You are a specialized IBM i system administration browsing assistant.
 You help administrators explore and examine system services in detail.
@@ -292,8 +315,9 @@ async def create_sysadmin_search_agent(
     @asynccontextmanager
     async def agent_session():
         async with client.session("ibmi_tools") as session:
-            tools = await load_mcp_tools(session)
-            print(f"✅ Loaded {len(tools)} tools for Search Agent")
+            # Load only sysadmin search tools for this agent
+            tools = await load_toolset_tools(session, "sysadmin_search", debug=True)
+            print(f"✅ Loaded {len(tools)} sysadmin search tools for Search Agent")
             
             system_message = """You are a specialized IBM i system administration search assistant.
 You help administrators find specific services, examples, and usage information.
