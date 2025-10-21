@@ -1,0 +1,133 @@
+# IBM i Developer Tools using OBJECT_STATISTICS
+# Simple, primitive tools following IBM i documentation examples
+
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  # 1. Find recently used objects
+  find_recently_used_objects:
+    source: ibmi-system
+    responseFormat: markdown
+    description: Find objects that have been used within a specified time period, ordered by most recent first
+    statement: |
+      SELECT * FROM TABLE (
+        qsys2.object_statistics(
+          object_schema => :object_schema, objtypelist => '*ALL', object_name => '*ALL')
+      ) WHERE last_used_object = 'YES' AND (sql_object_type = 'TABLE' OR objattribute IN ('PF', 'LF')) AND
+          last_used_timestamp < current_timestamp - :months_unused MONTHS
+      ORDER BY COALESCE(last_used_timestamp, objcreated) DESC
+    parameters:
+      - name: object_schema
+        type: string
+        description: "Library name. Examples: 'MYLIB', '*LIBL', '*USRLIBL', '*ALLUSR'"
+        required: true
+      - name: sql_object_type
+        type: string
+        description: "SQL object type to find."
+        required: false
+        default: "INDEX"
+        enum: [ALIAS, FUNCTION, INDEX, PACKAGE, PROCEDURE, ROUTINE, SEQUENCE, TABLE, TRIGGER, TYPE, VARIABLE, VIEW, XSR]
+      - name: months_unused
+        type: integer
+        description: "Look back this many months. Examples: 1 (past month), 3 (past 3 months), 6 (past 6 months)"
+        required: false
+        default: 1
+        min: 1
+        max: 120
+
+  # 2. Find stale/unused objects
+  find_stale_objects:
+    source: ibmi-system
+    responseFormat: markdown
+    description: Find objects that have NOT been used in a specified time period
+    statement: |
+      SELECT * FROM TABLE (
+        qsys2.object_statistics(
+          object_schema => :object_schema, objtypelist => '*ALL', object_name => '*ALL')
+      ) WHERE last_used_object = 'YES' AND (sql_object_type = 'TABLE' OR objattribute IN ('PF', 'LF')) AND
+          last_used_timestamp < current_timestamp - :months_unused MONTHS
+      ORDER BY COALESCE(last_used_timestamp, objcreated) ASC
+    parameters:
+      - name: object_schema
+        type: string
+        description: "Library name. Examples: 'MYLIB', '*LIBL', '*USRLIBL', '*ALLUSR'"
+        required: true
+      - name: sql_object_type
+        type: string
+        description: "SQL object type to find. Examples: 'INDEX', 'TABLE', 'VIEW'"
+        required: false
+        default: "INDEX"
+        enum: [ALIAS, FUNCTION, INDEX, PACKAGE, PROCEDURE, ROUTINE, SEQUENCE, TABLE, TRIGGER, TYPE, VARIABLE, VIEW, XSR]
+      - name: months_unused
+        type: integer
+        description: "Find objects not used in this many months. Examples: 1 (1 month), 6 (6 months), 12 (1 year)"
+        required: false
+        default: 12
+        min: 1
+        max: 120
+
+  # 3. Find objects that depend on a file
+  find_dependent_objects:
+    source: ibmi-system
+    responseFormat: markdown
+    description: Find all objects that depend on a specific database file (views, triggers, indexes, logical files, etc.)
+    statement: |
+      SELECT * FROM TABLE(SYSTOOLS.RELATED_OBJECTS(
+        LIBRARY_NAME => :library_name,
+        FILE_NAME => :file_name))
+      ORDER BY SQL_OBJECT_TYPE, SQL_NAME
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library containing the file. Example: 'APPLIB', 'MYLIB'"
+        required: true
+      - name: file_name
+        type: string
+        description: "System name of the database file to analyze. Example: 'ORDERS', 'CUSTOMER'"
+        required: true
+
+  # 4. Find specific types of dependent objects
+  find_dependent_objects_by_type:
+    source: ibmi-system
+    responseFormat: markdown
+    description: Find specific types of objects that depend on a file (e.g., only indexes, only views, only triggers)
+    statement: |
+      SELECT * FROM TABLE(SYSTOOLS.RELATED_OBJECTS(
+        LIBRARY_NAME => :library_name,
+        FILE_NAME => :file_name))
+      WHERE SQL_OBJECT_TYPE = :object_type
+      ORDER BY SQL_NAME
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library containing the file"
+        required: true
+      - name: file_name
+        type: string
+        description: "System name of the database file"
+        required: true
+      - name: object_type
+        type: string
+        description: "Type of dependent object to find. Common types: INDEX, VIEW, TRIGGER, LOGICAL FILE"
+        required: false
+        default: "INDEX"
+        enum: ["ALIAS", "FOREIGN KEY", "FUNCTION", "HISTORY TABLE", "INDEX", "KEYED LOGICAL FILE", "LOGICAL FILE", "MASK", "MATERIALIZED QUERY TABLE", "PERMISSION", "PROCEDURE", "TEXT INDEX", "TRIGGER", "VARIABLE", "VIEW", "XML SCHEMA"]
+
+toolsets:
+  developer_tools:
+    tools:
+      - find_recently_used_objects
+      - find_stale_objects
+      - find_dependent_objects
+      - find_dependent_objects_by_type
+
+metadata:
+  version: "1.0.0"
+  description: "Simple IBM i developer tools using OBJECT_STATISTICS"
+  domain: "development"
