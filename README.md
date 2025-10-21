@@ -43,7 +43,11 @@ ibmi-mcp-server/
 <details>
 <summary><strong>📋 Table of Contents</strong></summary>
 
-- [ibmi-mcp-server](#ibmi-mcp-server)
+- [ibmi-mcp-server (⚠️ Under Active Development)](#ibmi-mcp-server-️-under-active-development)
+  - [📡 Setup Mapepire](#-setup-mapepire)
+    - [What is Mapepire?](#what-is-mapepire)
+    - [Why Mapepire Enables AI and MCP Workloads](#why-mapepire-enables-ai-and-mcp-workloads)
+    - [Installation](#installation)
   - [⚡ Quickstart](#-quickstart)
     - [1. Installation](#1-installation)
     - [2. Build the Project](#2-build-the-project)
@@ -62,6 +66,15 @@ ibmi-mcp-server/
     - [Key Features](#key-features)
     - [Getting Started](#getting-started)
   - [⚙️ Configuration](#️-configuration)
+    - [General Authentication](#general-authentication)
+    - [JWT Authentication](#jwt-authentication)
+    - [OAuth Authentication](#oauth-authentication)
+    - [IBM i HTTP Authentication](#ibm-i-http-authentication)
+    - [Tool Loading](#tool-loading)
+    - [Configuration Merging](#configuration-merging)
+    - [OpenRouter](#openrouter)
+    - [LLM Defaults](#llm-defaults)
+    - [Configuration Best Practices](#configuration-best-practices)
   - [🔐 IBM i HTTP Authentication (Beta)](#-ibm-i-http-authentication-beta)
     - [Authentication Flow](#authentication-flow)
     - [Configuration](#configuration)
@@ -110,6 +123,50 @@ ibmi-mcp-server/
 
 </details>
 
+---
+
+## 📡 Setup Mapepire
+
+**Before you can use the ibmi-mcp-server, you must install and configure Mapepire on your IBM i system.**
+
+### What is Mapepire?
+
+[Mapepire](https://mapepire-ibmi.github.io/) is a modern, high-performance database server for IBM i that provides SQL query execution capabilities over WebSocket connections. It acts as a gateway between modern application architectures (like MCP servers, AI agents, and REST APIs) and IBM i's Db2 for i database.
+
+### Why Mapepire Enables AI and MCP Workloads
+
+Traditional IBM i database access methods (ODBC, JDBC) don't align well with modern AI and MCP architectures that require:
+
+- **Fast, lightweight connections**: AI agents make frequent, short-lived database queries
+- **WebSocket support**: Enables real-time, bidirectional communication for streaming results
+- **Modern JSON-based protocols**: Simplifies integration with TypeScript/JavaScript ecosystems
+- **Low-latency responses**: Essential for interactive AI conversations and tool executions
+
+Mapepire bridges this gap by providing a modern, WebSocket-based SQL query interface that's optimized for the request/response patterns of AI agents and MCP tools.
+
+### Installation
+
+**Quick Install (IBM i SSH Session):**
+
+```bash
+# 1. Install Mapepire using yum
+yum install mapepire-server
+
+# 2. Install Service Commander (if not already installed)
+yum install service-commander
+
+# 3. Start Mapepire service
+sc start mapepire
+```
+
+**📚 Full Documentation:** [Mapepire System Administrator Guide](https://mapepire-ibmi.github.io/guides/sysadmin/)
+
+> **Important Notes:**
+> - By default, Mapepire runs on port `8076`. You'll need this port number when configuring the `DB2i_PORT` variable in your `.env` file.
+> - Ensure your IBM i firewall allows inbound connections on port 8076
+> - For production deployments, configure SSL/TLS certificates (see official guide)
+
+---
 
 ## ⚡ Quickstart
 
@@ -148,7 +205,7 @@ DB2i_PORT=8076
 DB2i_IGNORE_UNAUTHORIZED=true
 ```
 
-See more on configuration options in the [Configuration](#⚙️-configuration) section.
+> **📖 Configuration Guide:** See the complete [Configuration](#⚙️-configuration) section for all available settings, including [IBM i Database Connection](#🗄️-ibm-i-database-connection), [Authentication](#🔐-authentication--authorization), [HTTP Transport](#🌐-http-transport-settings), and more.
 
 ### 4. Running the Server
 
@@ -1047,49 +1104,462 @@ Navigate to the `agents` directory and follow the setup instructions in the [REA
 
 ## ⚙️ Configuration
 
-Configure the server using these environment variables (or a `.env` file):
+The server is configured using environment variables, typically set in a `.env` file at the project root. Configuration is organized into logical groups for easier management.
 
-| Variable                              | Description                                                                               | Default                                |
-| :------------------------------------ | :---------------------------------------------------------------------------------------- | :------------------------------------- |
-| `MCP_TRANSPORT_TYPE`                  | Server transport: `stdio` or `http`.                                                      | `stdio`                                |
-| `MCP_SESSION_MODE`                    | Session mode for HTTP: `stateless`, `stateful`, or `auto`.                                | `auto`                                 |
-| `MCP_HTTP_PORT`                       | Port for the HTTP server.                                                                 | `3010`                                 |
-| `MCP_HTTP_HOST`                       | Host address for the HTTP server.                                                         | `127.0.0.1`                            |
-| `MCP_ALLOWED_ORIGINS`                 | Comma-separated allowed origins for CORS.                                                 | (none)                                 |
-| `MCP_AUTH_MODE`                       | Authentication mode for HTTP: `jwt`, `oauth`, `ibmi`, or `none`.                          | `none`                                 |
-| `MCP_AUTH_SECRET_KEY`                 | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
-| `OAUTH_ISSUER_URL`                    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
-| `OAUTH_AUDIENCE`                      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |
-| `OPENROUTER_API_KEY`                  | API key for OpenRouter.ai service.                                                        | (none)                                 |
-| `OTEL_ENABLED`                        | Set to `true` to enable OpenTelemetry instrumentation.                                    | `false`                                |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`  | The OTLP endpoint for exporting traces (e.g., `http://localhost:4318/v1/traces`).         | (none; logs to file)                   |
-| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | The OTLP endpoint for exporting metrics (e.g., `http://localhost:4318/v1/metrics`).       | (none)                                 |
-| `TOOLS_YAML_PATH`                     | Path to YAML tool definitions (file or directory). Supports directories or globs.         | (none)                                 |
-| `YAML_MERGE_ARRAYS`                   | When merging multiple YAML files, merge arrays (`true`) instead of replacing them.        | `false`                                |
-| `YAML_ALLOW_DUPLICATE_TOOLS`          | Allow duplicate tool names across merged YAML files.                                      | `false`                                |
-| `YAML_ALLOW_DUPLICATE_SOURCES`        | Allow duplicate source names across merged YAML files.                                    | `false`                                |
-| `YAML_VALIDATE_MERGED`                | Validate the merged YAML configuration before use.                                        | `true`                                 |
-| `YAML_AUTO_RELOAD`                    | Enable automatic reloading of YAML tools when configuration files change.                 | `true`                                 |
-| `SELECTED_TOOLSETS`                   | Comma-separated list of toolset names to load/filter tools (overrides full load).         | (none)                                 |
-| `DB2i_HOST`                           | IBM i Db2 for i host (Mapepire daemon or gateway host).                                   | (none)                                 |
-| `DB2i_USER`                           | IBM i user profile for Db2 for i connections.                                             | (none)                                 |
-| `DB2i_PASS`                           | Password for the IBM i user profile.                                                      | (none)                                 |
-| `DB2i_PORT`                           | Port for the Mapepire daemon/gateway used for Db2 for i.                                  | `8076`                                 |
-| `DB2i_IGNORE_UNAUTHORIZED`            | If `true`, skip TLS certificate verification for Mapepire (self-signed certs, etc.).      | `true`                                 |
-| `IBMI_HTTP_AUTH_ENABLED`              | **Required for `ibmi` auth mode.** Enable IBM i HTTP authentication endpoints.            | `false`                                |
-| `IBMI_AUTH_ALLOW_HTTP`                | Allow HTTP requests for authentication (development only, use HTTPS in production).       | `false`                                |
-| `IBMI_AUTH_TOKEN_EXPIRY_SECONDS`      | Default token lifetime in seconds for IBM i authentication tokens.                        | `3600` (1 hour)                        |
-| `IBMI_AUTH_CLEANUP_INTERVAL_SECONDS`  | How often to clean expired tokens (in seconds).                                           | `300` (5 minutes)                      |
-| `IBMI_AUTH_MAX_CONCURRENT_SESSIONS`   | Maximum number of concurrent authenticated sessions allowed.                              | `100`                                  |
-
-To set the server environment variables, create a `.env` file in the root of this project:
-
+**Quick Start:**
 ```bash
 cp .env.example .env
-code .env
+code .env  # Edit with your settings
 ```
 
-Then edit the `.env` file with your IBM i connection details.
+---
+
+<details>
+<summary><strong>🖥️ MCP Server Settings</strong></summary>
+
+Core server configuration including server identity, transport mode, and logging.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MCP_SERVER_NAME` | Server name identifier for MCP protocol | Package name from `package.json` | No |
+| `MCP_SERVER_VERSION` | Server version for MCP protocol | Version from `package.json` | No |
+| `MCP_TRANSPORT_TYPE` | Transport protocol: `stdio` (local) or `http` (remote) | `stdio` | No |
+| `MCP_LOG_LEVEL` | Logging verbosity: `error`, `warn`, `info`, `debug` | `debug` | No |
+| `LOGS_DIR` | Directory for log files (relative to project root) | `logs` | No |
+| `NODE_ENV` | Node environment: `development`, `production`, `test` | `development` | No |
+
+**Examples:**
+```bash
+# Development with verbose logging
+MCP_SERVER_NAME=ibmi-mcp-dev
+MCP_TRANSPORT_TYPE=http
+MCP_LOG_LEVEL=debug
+NODE_ENV=development
+
+# Production with minimal logging
+MCP_SERVER_NAME=ibmi-mcp-prod
+MCP_TRANSPORT_TYPE=stdio
+MCP_LOG_LEVEL=warn
+NODE_ENV=production
+```
+
+</details>
+
+<details>
+<summary><strong>🌐 HTTP Transport Settings</strong></summary>
+
+Configuration for HTTP transport mode, including network settings, session management, and CORS.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MCP_HTTP_PORT` | HTTP server port | `3010` | No |
+| `MCP_HTTP_HOST` | HTTP server bind address | `127.0.0.1` | No |
+| `MCP_HTTP_ENDPOINT_PATH` | MCP endpoint path | `/mcp` | No |
+| `MCP_SESSION_MODE` | Session handling: `stateless`, `stateful`, or `auto` | `auto` | No |
+| `MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS` | Timeout for idle stateful sessions (milliseconds) | `1800000` (30 min) | No |
+| `MCP_HTTP_MAX_PORT_RETRIES` | Max attempts to find available port if default is in use | `15` | No |
+| `MCP_HTTP_PORT_RETRY_DELAY_MS` | Delay between port retry attempts (milliseconds) | `50` | No |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated CORS allowed origins | None (all origins blocked) | No |
+
+**Session Modes:**
+- **`auto`**: Automatically detects client capabilities and uses the best session mode
+- **`stateful`**: Maintains persistent sessions with connection state (best for long-running interactions)
+- **`stateless`**: Each request is independent (best for load balancing and horizontal scaling)
+
+**Examples:**
+```bash
+# Development server with CORS for local web clients
+MCP_HTTP_PORT=3010
+MCP_HTTP_HOST=0.0.0.0  # Listen on all interfaces
+MCP_SESSION_MODE=auto
+MCP_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# Production server with strict security
+MCP_HTTP_PORT=443
+MCP_HTTP_HOST=0.0.0.0
+MCP_SESSION_MODE=stateful
+MCP_ALLOWED_ORIGINS=https://app.example.com,https://dashboard.example.com
+MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS=3600000  # 1 hour
+```
+
+</details>
+
+<details>
+<summary><strong>🔐 Authentication & Authorization</strong></summary>
+
+Security configuration for protecting the MCP server and authenticating clients.
+
+### General Authentication
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MCP_AUTH_MODE` | Authentication mode: `none`, `jwt`, `oauth`, `ibmi` | `none` | No |
+
+### JWT Authentication
+
+Required when `MCP_AUTH_MODE=jwt`.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MCP_AUTH_SECRET_KEY` | Secret key for signing/verifying JWT tokens (min 32 characters) | None | ✅ Yes (for JWT mode) |
+
+### OAuth Authentication
+
+Required when `MCP_AUTH_MODE=oauth`.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OAUTH_ISSUER_URL` | OAuth authorization server issuer URL | None | ✅ Yes (for OAuth mode) |
+| `OAUTH_JWKS_URI` | OAuth JWKS endpoint for public key verification | None | No |
+| `OAUTH_AUDIENCE` | Expected audience identifier for this MCP server | None | ✅ Yes (for OAuth mode) |
+
+### IBM i HTTP Authentication
+
+Required when `MCP_AUTH_MODE=ibmi`. See [IBM i HTTP Authentication](#ibm-i-http-authentication-beta) for detailed setup.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `IBMI_HTTP_AUTH_ENABLED` | Enable IBM i authentication endpoints | `false` | ✅ Yes (for IBM i mode) |
+| `IBMI_AUTH_ALLOW_HTTP` | Allow HTTP (non-HTTPS) authentication requests | `false` | No |
+| `IBMI_AUTH_TOKEN_EXPIRY_SECONDS` | Token lifetime in seconds | `3600` (1 hour) | No |
+| `IBMI_AUTH_CLEANUP_INTERVAL_SECONDS` | How often to clean up expired tokens (seconds) | `300` (5 minutes) | No |
+| `IBMI_AUTH_MAX_CONCURRENT_SESSIONS` | Maximum concurrent authenticated sessions | `100` | No |
+| `IBMI_AUTH_PRIVATE_KEY_PATH` | Path to RSA private key for encryption | None | ✅ Yes (for IBM i mode) |
+| `IBMI_AUTH_PUBLIC_KEY_PATH` | Path to RSA public key for encryption | None | ✅ Yes (for IBM i mode) |
+| `IBMI_AUTH_KEY_ID` | Identifier for the RSA keypair | None | ✅ Yes (for IBM i mode) |
+
+**Examples:**
+```bash
+# No authentication (development only)
+MCP_AUTH_MODE=none
+
+# JWT authentication
+MCP_AUTH_MODE=jwt
+MCP_AUTH_SECRET_KEY="your-very-secret-key-at-least-32-characters-long"
+
+# OAuth authentication
+MCP_AUTH_MODE=oauth
+OAUTH_ISSUER_URL=https://auth.example.com
+OAUTH_AUDIENCE=https://api.example.com/mcp
+OAUTH_JWKS_URI=https://auth.example.com/.well-known/jwks.json
+
+# IBM i authentication (see docs for keypair generation)
+MCP_AUTH_MODE=ibmi
+IBMI_HTTP_AUTH_ENABLED=true
+IBMI_AUTH_KEY_ID=production
+IBMI_AUTH_PRIVATE_KEY_PATH=secrets/private.pem
+IBMI_AUTH_PUBLIC_KEY_PATH=secrets/public.pem
+IBMI_AUTH_ALLOW_HTTP=false  # HTTPS only in production
+IBMI_AUTH_TOKEN_EXPIRY_SECONDS=7200  # 2 hours
+```
+
+**⚠️ Security Notes:**
+- **Never** use `MCP_AUTH_MODE=none` in production
+- **Always** use `IBMI_AUTH_ALLOW_HTTP=false` in production (requires HTTPS)
+- Generate strong secret keys (32+ characters) for JWT mode
+- Rotate keys regularly for enhanced security
+
+</details>
+
+<details>
+<summary><strong>🗄️ IBM i Database Connection</strong></summary>
+
+Configuration for connecting to IBM i Db2 for i databases via Mapepire.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `DB2i_HOST` | IBM i system hostname or IP address | None | ✅ Yes (for SQL tools) |
+| `DB2i_USER` | IBM i user profile for database connections | None | ✅ Yes (for SQL tools) |
+| `DB2i_PASS` | Password for IBM i user profile | None | ✅ Yes (for SQL tools) |
+| `DB2i_PORT` | Mapepire daemon/gateway port | `8076` | No |
+| `DB2i_IGNORE_UNAUTHORIZED` | Skip TLS certificate verification (for self-signed certs) | `true` | No |
+
+**Connection Flow:**
+1. Server connects to Mapepire daemon/gateway at `DB2i_HOST:DB2i_PORT`
+2. Authenticates using `DB2i_USER` and `DB2i_PASS`
+3. Executes SQL tools through authenticated connection pool
+
+**Examples:**
+```bash
+# Development connection with self-signed certs
+DB2i_HOST=ibmi-dev.example.com
+DB2i_USER=DEVUSER
+DB2i_PASS=devpassword
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=true
+
+# Production connection with verified SSL
+DB2i_HOST=ibmi-prod.example.com
+DB2i_USER=PRODUSER
+DB2i_PASS=strongProductionPassword123
+DB2i_PORT=8076
+DB2i_IGNORE_UNAUTHORIZED=false  # Require valid SSL cert
+
+# Connecting to Mapepire gateway
+DB2i_HOST=mapepire-gateway.example.com
+DB2i_USER=APIUSER
+DB2i_PASS=apiPassword456
+DB2i_PORT=443  # Gateway on HTTPS
+DB2i_IGNORE_UNAUTHORIZED=false
+```
+
+**⚠️ Security Notes:**
+- Store credentials securely (use secrets management in production)
+- Use read-only accounts when possible
+- Set `DB2i_IGNORE_UNAUTHORIZED=false` with valid SSL certificates in production
+- Consider using IBM i authentication mode for per-user connection pooling
+
+</details>
+
+<details>
+<summary><strong>🧩 SQL YAML Tool Configuration</strong></summary>
+
+Settings for loading and managing SQL tools defined in YAML configuration files. See [Tools Documentation](./tools/README.md) for YAML tool development.
+
+### Tool Loading
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `TOOLS_YAML_PATH` | Path to YAML tool configurations (file, directory, or glob) | None | No |
+| `SELECTED_TOOLSETS` | Comma-separated list of toolsets to load (filters available tools) | None (load all) | No |
+| `YAML_AUTO_RELOAD` | Automatically reload tools when YAML files change | `true` | No |
+
+### Configuration Merging
+
+When loading multiple YAML files, these settings control merge behavior:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `YAML_MERGE_ARRAYS` | Merge arrays from multiple files (`true`) or replace them (`false`) | `false` | No |
+| `YAML_ALLOW_DUPLICATE_TOOLS` | Allow duplicate tool names across files | `false` | No |
+| `YAML_ALLOW_DUPLICATE_SOURCES` | Allow duplicate source names across files | `false` | No |
+| `YAML_VALIDATE_MERGED` | Validate merged configuration before loading tools | `true` | No |
+
+**Path Resolution:**
+- **File**: `TOOLS_YAML_PATH=tools/performance.yaml`
+- **Directory**: `TOOLS_YAML_PATH=tools/` (loads all .yaml/.yml files)
+- **Glob pattern**: `TOOLS_YAML_PATH=tools/**/*.yaml`
+- **Multiple sources**: Use CLI `--tools` to override at runtime
+
+**Examples:**
+```bash
+# Load all tools from a directory
+TOOLS_YAML_PATH=tools/
+YAML_AUTO_RELOAD=true  # Hot reload on file changes
+
+# Load specific tools file
+TOOLS_YAML_PATH=tools/performance-tools.yaml
+SELECTED_TOOLSETS=monitoring,diagnostics
+
+# Advanced merging (multiple config sources)
+TOOLS_YAML_PATH=tools/
+YAML_MERGE_ARRAYS=true  # Combine toolsets from multiple files
+YAML_ALLOW_DUPLICATE_TOOLS=false  # Enforce unique tool names
+YAML_VALIDATE_MERGED=true  # Validate after merging
+
+# Production: disable hot reload
+TOOLS_YAML_PATH=/opt/mcp-tools/production.yaml
+YAML_AUTO_RELOAD=false
+```
+
+**CLI Override:**
+```bash
+# Override TOOLS_YAML_PATH at runtime
+npx ibmi-mcp-server --tools ./my-custom-tools
+
+# Load specific toolsets only
+npx ibmi-mcp-server --toolsets performance,security
+```
+
+</details>
+
+<details>
+<summary><strong>📊 OpenTelemetry (Observability)</strong></summary>
+
+Configuration for distributed tracing and metrics using OpenTelemetry.
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OTEL_ENABLED` | Enable OpenTelemetry instrumentation | `false` | No |
+| `OTEL_SERVICE_NAME` | Service name for telemetry data | `MCP_SERVER_NAME` or package name | No |
+| `OTEL_SERVICE_VERSION` | Service version for telemetry data | `MCP_SERVER_VERSION` or package version | No |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | OTLP endpoint for trace export | None (logs to file) | No |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | OTLP endpoint for metrics export | None (not exported) | No |
+| `OTEL_TRACES_SAMPLER_ARG` | Trace sampling ratio (0.0 to 1.0, where 1.0 = sample all) | `1.0` (100%) | No |
+| `OTEL_LOG_LEVEL` | OTel internal diagnostic log level | `INFO` | No |
+
+**Supported OTEL_LOG_LEVEL values:** `NONE`, `ERROR`, `WARN`, `INFO`, `DEBUG`, `VERBOSE`, `ALL`
+
+**Examples:**
+```bash
+# Development: local file logging only
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=ibmi-mcp-dev
+OTEL_LOG_LEVEL=DEBUG
+# Traces written to logs/traces/ directory
+
+# Production: export to Jaeger
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=ibmi-mcp-prod
+OTEL_SERVICE_VERSION=1.9.1
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4318/v1/traces
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://jaeger:4318/v1/metrics
+OTEL_TRACES_SAMPLER_ARG=0.1  # Sample 10% of traces
+OTEL_LOG_LEVEL=WARN
+
+# Production: export to cloud provider
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://otlp.example.com/v1/traces
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://otlp.example.com/v1/metrics
+OTEL_TRACES_SAMPLER_ARG=1.0  # Sample all traces
+```
+
+**Instrumentation Coverage:**
+- All MCP tool executions
+- HTTP requests and responses
+- Database queries (SQL tools)
+- Authentication flows
+- Custom spans for critical operations
+
+</details>
+
+<details>
+<summary><strong>🤖 LLM Provider Integration</strong></summary>
+
+Configuration for Large Language Model providers used by the server.
+
+### OpenRouter
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OPENROUTER_API_KEY` | API key for OpenRouter.ai service | None | No |
+| `OPENROUTER_APP_URL` | Application URL for OpenRouter dashboard | `http://localhost:3000` | No |
+| `OPENROUTER_APP_NAME` | Application name for OpenRouter identification | Package name | No |
+
+### LLM Defaults
+
+Default parameters for LLM requests (applied when not specified in request):
+
+| Variable | Description | Default | Range | Required |
+|----------|-------------|---------|-------|----------|
+| `LLM_DEFAULT_MODEL` | Default model identifier | `google/gemini-2.5-flash` | - | No |
+| `LLM_DEFAULT_TEMPERATURE` | Sampling temperature (randomness) | None (provider default) | 0.0 - 2.0 | No |
+| `LLM_DEFAULT_TOP_P` | Nucleus sampling threshold | None (provider default) | 0.0 - 1.0 | No |
+| `LLM_DEFAULT_MAX_TOKENS` | Maximum tokens in response | None (provider default) | 1+ | No |
+| `LLM_DEFAULT_TOP_K` | Top-K sampling (number of candidates) | None (provider default) | 0+ | No |
+| `LLM_DEFAULT_MIN_P` | Minimum probability threshold | None (provider default) | 0.0 - 1.0 | No |
+
+**Examples:**
+```bash
+# Basic OpenRouter setup
+OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_APP_NAME=ibmi-mcp-server
+OPENROUTER_APP_URL=http://localhost:3000
+
+# Custom LLM defaults for deterministic responses
+LLM_DEFAULT_MODEL=anthropic/claude-3.5-sonnet
+LLM_DEFAULT_TEMPERATURE=0.0  # Deterministic
+LLM_DEFAULT_MAX_TOKENS=4000
+LLM_DEFAULT_TOP_P=1.0
+
+# Balanced configuration for creative responses
+LLM_DEFAULT_MODEL=google/gemini-2.5-flash
+LLM_DEFAULT_TEMPERATURE=0.7
+LLM_DEFAULT_TOP_P=0.9
+LLM_DEFAULT_MAX_TOKENS=2000
+```
+
+</details>
+
+<details>
+<summary><strong>🔌 OAuth Proxy (Advanced)</strong></summary>
+
+Configuration for OAuth proxy endpoints (advanced use cases).
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OAUTH_PROXY_AUTHORIZATION_URL` | OAuth authorization endpoint URL | None | No |
+| `OAUTH_PROXY_TOKEN_URL` | OAuth token endpoint URL | None | No |
+| `OAUTH_PROXY_REVOCATION_URL` | OAuth token revocation endpoint URL | None | No |
+| `OAUTH_PROXY_ISSUER_URL` | OAuth issuer URL for proxy | None | No |
+| `OAUTH_PROXY_SERVICE_DOCUMENTATION_URL` | Service documentation URL | None | No |
+| `OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS` | Comma-separated default redirect URIs | None | No |
+
+**Example:**
+```bash
+OAUTH_PROXY_AUTHORIZATION_URL=https://auth.example.com/oauth/authorize
+OAUTH_PROXY_TOKEN_URL=https://auth.example.com/oauth/token
+OAUTH_PROXY_REVOCATION_URL=https://auth.example.com/oauth/revoke
+OAUTH_PROXY_ISSUER_URL=https://auth.example.com
+OAUTH_PROXY_SERVICE_DOCUMENTATION_URL=https://docs.example.com/oauth
+OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS=http://localhost:3000/callback,https://app.example.com/callback
+```
+
+> **Note:** OAuth proxy features are for advanced integration scenarios. Most users should use standard OAuth authentication via `MCP_AUTH_MODE=oauth`.
+
+</details>
+
+---
+
+### Configuration Best Practices
+
+**Development:**
+```bash
+# Recommended development .env
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_PORT=3010
+MCP_SESSION_MODE=auto
+MCP_LOG_LEVEL=debug
+MCP_AUTH_MODE=none  # Or ibmi with allow HTTP
+NODE_ENV=development
+
+DB2i_HOST=ibmi-dev.local
+DB2i_USER=DEVUSER
+DB2i_PASS=devpass
+DB2i_IGNORE_UNAUTHORIZED=true
+
+TOOLS_YAML_PATH=tools/
+YAML_AUTO_RELOAD=true
+OTEL_ENABLED=true
+```
+
+**Production:**
+```bash
+# Recommended production .env
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_PORT=3010
+MCP_SESSION_MODE=auto
+MCP_LOG_LEVEL=warn
+MCP_AUTH_MODE=ibmi  # Or jwt/oauth
+NODE_ENV=production
+
+DB2i_HOST=ibmi-prod.example.com
+DB2i_USER=PRODUSER
+DB2i_PASS=${SECURE_PASSWORD_FROM_VAULT}
+DB2i_IGNORE_UNAUTHORIZED=false  # Require valid SSL
+
+TOOLS_YAML_PATH=/opt/mcp-tools/production.yaml
+YAML_AUTO_RELOAD=false
+YAML_VALIDATE_MERGED=true
+
+IBMI_HTTP_AUTH_ENABLED=true
+IBMI_AUTH_ALLOW_HTTP=false  # HTTPS only
+IBMI_AUTH_PRIVATE_KEY_PATH=/opt/secrets/private.pem
+IBMI_AUTH_PUBLIC_KEY_PATH=/opt/secrets/public.pem
+
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://otlp.example.com/v1/traces
+```
+
+**Security Checklist:**
+- ✅ Never commit `.env` files to version control
+- ✅ Use secrets management (Vault, AWS Secrets Manager, etc.) in production
+- ✅ Rotate credentials and keys regularly
+- ✅ Use HTTPS/TLS in production (`IBMI_AUTH_ALLOW_HTTP=false`)
+- ✅ Enable authentication (`MCP_AUTH_MODE != none`)
+- ✅ Use strong passwords (12+ characters, mixed case, numbers, symbols)
+- ✅ Restrict `MCP_ALLOWED_ORIGINS` to known domains
+- ✅ Set appropriate `IBMI_AUTH_MAX_CONCURRENT_SESSIONS` limits
 
 ## 🔐 IBM i HTTP Authentication (Beta)
 
