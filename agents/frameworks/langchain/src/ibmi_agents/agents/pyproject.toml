@@ -3,7 +3,7 @@ name = "ibmi-langchain-agents"
 version = "0.1.0"
 description = "LangChain agents for IBM i MCP server"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "langchain>=0.3.0",
     "langchain-ollama>=0.2.0",
@@ -14,4 +14,13 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "langmem>=0.0.20",
     "python-dotenv>=1.0.0",
+    "ibmi-agent-sdk",
+    "ibm-watsonx-ai>=1.4.1",
 ]
+
+[tool.uv]
+# Run scripts in this directory with uv run
+package = true
+
+[tool.uv.sources]
+ibmi-agent-sdk = { path = "../../../../../packages/ibmi-agent-sdk", editable = true }
