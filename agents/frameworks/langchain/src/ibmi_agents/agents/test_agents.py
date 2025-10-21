@@ -191,7 +191,6 @@ async def quick_test(model_id: str = "gpt-oss:20b"):
         except Exception as e:
             print(f"❌ Error: {e}")
             results[agent_type] = False
-            results[agent_type] = False
     
     print(f"\n{'─'*80}")
     total_passed = sum(results.values())
