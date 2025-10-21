@@ -36,6 +36,7 @@ import {
   defaultResponseFormatter,
   standardSqlToolOutputSchema,
 } from "./toolDefinitions.js";
+import { config } from "@/config/index.js";
 
 /**
  * Configuration merging options
@@ -87,33 +88,85 @@ export class ToolConfigBuilder {
 
       // Generate Zod type based on parameter type
       switch (param.type) {
-        case "string":
-          zodType = z.string();
+        case "string": {
+          let stringType = z.string();
+
+          // Apply string-specific constraints using native Zod methods
+          if (param.minLength !== undefined) {
+            stringType = stringType.min(param.minLength, `Length must be >= ${param.minLength}`);
+          }
+          if (param.maxLength !== undefined) {
+            stringType = stringType.max(param.maxLength, `Length must be <= ${param.maxLength}`);
+          }
+          if (param.pattern) {
+            stringType = stringType.regex(
+              new RegExp(param.pattern),
+              `Value does not match pattern: ${param.pattern}`
+            );
+          }
+
+          zodType = stringType;
           break;
-        case "integer":
-          zodType = z.number().int();
+        }
+        case "integer": {
+          let intType = z.number().int("Value must be an integer");
+
+          // Apply numeric constraints using native Zod methods
+          if (param.min !== undefined) {
+            intType = intType.min(param.min, `Value must be >= ${param.min}`);
+          }
+          if (param.max !== undefined) {
+            intType = intType.max(param.max, `Value must be <= ${param.max}`);
+          }
+
+          zodType = intType;
           break;
-        case "float":
-          zodType = z.number();
+        }
+        case "float": {
+          let floatType = z.number();
+
+          // Apply numeric constraints using native Zod methods
+          if (param.min !== undefined) {
+            floatType = floatType.min(param.min, `Value must be >= ${param.min}`);
+          }
+          if (param.max !== undefined) {
+            floatType = floatType.max(param.max, `Value must be <= ${param.max}`);
+          }
+
+          zodType = floatType;
           break;
+        }
         case "boolean":
           zodType = z.boolean();
           break;
-        case "array":
+        case "array": {
           // For array parameters, create array of the specified item type
+          let itemType: z.ZodTypeAny;
           if (param.itemType === "string") {
-            zodType = z.array(z.string());
-          } else if (
-            param.itemType === "integer" ||
-            param.itemType === "float"
-          ) {
-            zodType = z.array(z.number());
+            itemType = z.string();
+          } else if (param.itemType === "integer") {
+            itemType = z.number().int("Array items must be integers");
+          } else if (param.itemType === "float") {
+            itemType = z.number();
           } else if (param.itemType === "boolean") {
-            zodType = z.array(z.boolean());
+            itemType = z.boolean();
           } else {
-            zodType = z.array(z.unknown());
+            itemType = z.unknown();
           }
+
+          let arrayType = z.array(itemType);
+
+          // Apply array length constraints using native Zod methods
+          if (param.minLength !== undefined) {
+            arrayType = arrayType.min(param.minLength, `Array length must be >= ${param.minLength}`);
+          }
+          if (param.maxLength !== undefined) {
+            arrayType = arrayType.max(param.maxLength, `Array length must be <= ${param.maxLength}`);
+          }
+
+          zodType = arrayType;
           break;
+        }
         default:
           throw new McpError(
             JsonRpcErrorCode.InvalidParams,
@@ -122,14 +175,67 @@ export class ToolConfigBuilder {
           );
       }
 
-      // Add default value if provided
+      // Handle enum constraints for all types (except boolean which is already constrained)
+      if (param.enum && Array.isArray(param.enum) && param.enum.length > 0 && param.type !== "boolean") {
+        // For enums, we need to replace the base type with a union of literals
+        // This properly translates to JSON Schema with "enum" keyword
+        const enumValues = param.enum as Array<string | number>;
+
+        if (enumValues.length === 1) {
+          // Single value enum becomes a literal
+          zodType = z.literal(enumValues[0] as string | number | boolean);
+        } else if (enumValues.every(v => typeof v === "string")) {
+          // All strings: use z.enum for optimal JSON Schema generation
+          zodType = z.enum(enumValues as [string, ...string[]]);
+        } else {
+          // Mixed types or numbers: use union of literals
+          // Construct the tuple directly to satisfy TypeScript's type requirements
+          const [first, second, ...rest] = enumValues;
+          zodType = z.union([
+            z.literal(first as string | number | boolean),
+            z.literal(second as string | number | boolean),
+            ...rest.map(val => z.literal(val as string | number | boolean))
+          ] as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
+        }
+      }
+
+      // Build enhanced description with enum values for LLM clarity
+      let finalDescription = param.description || "";
+
+      // Append enum constraint to description for LLM understanding
+      if (param.enum && Array.isArray(param.enum) && param.enum.length > 0) {
+        const formattedValues = param.enum.map(v =>
+          typeof v === "string" ? `'${v}'` : String(v)
+        ).join(", ");
+
+        const enumClause = `Must be one of: ${formattedValues}`;
+
+        if (finalDescription) {
+          // Append to existing description with proper punctuation
+          finalDescription = finalDescription.trim();
+          if (!finalDescription.endsWith(".") && !finalDescription.endsWith("?") && !finalDescription.endsWith("!")) {
+            finalDescription += ".";
+          }
+          finalDescription += ` ${enumClause}`;
+        } else {
+          // Use as the sole description
+          finalDescription = enumClause;
+        }
+      }
+
+      // Add description (now includes enum info if applicable)
+      if (finalDescription) {
+        zodType = zodType.describe(finalDescription);
+      }
+
+      // Add default value if provided (must be done last)
       if (param.default !== undefined) {
         zodType = zodType.default(param.default);
       }
 
-      // Add description if provided
-      if (param.description) {
-        zodType = zodType.describe(param.description);
+      // Mark as optional if not required and no default provided
+      if (param.required === false && param.default === undefined) {
+        zodType = zodType.optional();
       }
 
       schemaShape[param.name] = zodType;
@@ -640,6 +746,7 @@ export class ToolConfigBuilder {
 
   /**
    * Merge multiple configurations
+   * Uses environment-configured merge options from config.yamlMergeOptions as defaults
    * @private
    */
   private async mergeConfigurations(
@@ -658,15 +765,16 @@ export class ToolConfigBuilder {
       return configs[0]!;
     }
 
+    // Use environment-configured merge options as defaults, allow explicit overrides
     const mergeOptions: ConfigMergeOptions = {
-      mergeArrays: true,
-      allowDuplicateTools: false,
-      allowDuplicateSources: false,
-      validateMerged: true,
+      ...config.yamlMergeOptions,
       ...options,
     };
 
-    logger.debug(context || {}, `Merging ${configs.length} configurations`);
+    logger.debug(
+      context || {},
+      `Merging ${configs.length} configurations with options: ${JSON.stringify(mergeOptions)}`,
+    );
 
     const mergedConfig: SqlToolsConfig = {
       sources: {},
@@ -676,8 +784,8 @@ export class ToolConfigBuilder {
     };
 
     // Merge each configuration
-    for (const config of configs) {
-      await this.mergeIntoTarget(mergedConfig, config, mergeOptions, context);
+    for (const configToMerge of configs) {
+      await this.mergeIntoTarget(mergedConfig, configToMerge, mergeOptions, context);
     }
 
     // Validate merged configuration if requested
