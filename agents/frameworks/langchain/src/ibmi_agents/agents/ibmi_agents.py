@@ -17,9 +17,12 @@ Based on the working ibmi_agents_prebuilt_debug.py pattern.
 import asyncio
 import os
 import json
+import getpass
 from typing import Dict, Any, List
 from contextlib import asynccontextmanager
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -94,25 +97,58 @@ def get_mcp_client(url: str = DEFAULT_MCP_URL, transport: str = DEFAULT_TRANSPOR
 # -----------------------------------------------------------------------------
 # Model Selection
 # -----------------------------------------------------------------------------
-def get_model(model_id: str = "gpt-oss:20b", temperature: float = 0.3):
+def ensure_api_keys(model_id: str):
     """
-    Get a chat model instance for Ollama.
-    
-    Supports Ollama models: "gpt-oss:20b", "llama3", "mistral", etc.
+    Ensure that the necessary API keys are available for the specified model.
     
     Args:
-        model_id: Model identifier (Ollama model name)
+        model_id: Model identifier with provider prefix
+    """
+    if model_id.startswith("openai:") and not os.environ.get("OPENAI_API_KEY"):
+        print("OpenAI API key not found in environment variables.")
+        os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter your OpenAI API key: ")
+        
+    elif model_id.startswith("anthropic:") and not os.environ.get("ANTHROPIC_API_KEY"):
+        print("Anthropic API key not found in environment variables.")
+        os.environ["ANTHROPIC_API_KEY"] = getpass.getpass("Enter your Anthropic API key: ")
+
+def get_model(model_id: str = "gpt-oss:20b", temperature: float = 0.3):
+    """
+    Get a chat model instance based on the model_id.
+    
+    Supports:
+    - Ollama models: "gpt-oss:20b", "llama3", "mistral", etc.
+    - OpenAI models: "openai:gpt-4o", "openai:gpt-3.5-turbo", etc.
+    - Anthropic models: "anthropic:claude-3-opus", "anthropic:claude-3-sonnet", etc.
+    
+    Args:
+        model_id: Model identifier with optional provider prefix
         temperature: Model temperature
         
     Returns:
-        ChatOllama instance
+        LangChain chat model instance
     """
-    # Remove 'ollama:' prefix if present
-    if model_id.startswith("ollama:"):
+    # Ensure API keys are available for the selected model
+    ensure_api_keys(model_id)
+    
+    # Handle OpenAI models
+    if model_id.startswith("openai:"):
+        model_name = model_id.split(":", 1)[1]
+        return ChatOpenAI(model=model_name, temperature=temperature)
+    
+    # Handle Anthropic models
+    elif model_id.startswith("anthropic:"):
+        model_name = model_id.split(":", 1)[1]
+        return ChatAnthropic(model=model_name, temperature=temperature)
+    
+    # Handle Ollama models
+    elif model_id.startswith("ollama:"):
         model_name = model_id.split(":", 1)[1]
         return ChatOllama(model=model_name, temperature=temperature)
+    
+    # Default to Ollama if no prefix is specified
     else:
-        return ChatOllama(model=model_id, temperature=temperature) #TODO get the right model support OpenAI , Anthropic etc 
+        return ChatOllama(model=model_id, temperature=temperature)
 
 # -----------------------------------------------------------------------------
 # Agent Creation Functions
@@ -573,6 +609,20 @@ if __name__ == "__main__":
         """Test all agent types with proper session management."""
         print("=== Testing IBM i Specialized Agents (LangGraph) ===\n")
         
+        # Define model options to demonstrate
+        model_options = [
+            "gpt-oss:20b",           # Default Ollama model
+            "ollama:llama3.1",         # Explicit Ollama model
+            "openai:gpt-4o",  # OpenAI model
+            "anthropic:claude-3.7-sonnet"  # Anthropic model
+        ]
+        
+        print("Available model options:")
+        for model in model_options:
+            print(f"  - {model}")
+        print()
+        
+        # Use default model for testing all agent types
         for agent_type in AVAILABLE_AGENTS.keys():
             print(f"Testing {agent_type} agent...")
             try:
@@ -587,5 +637,17 @@ if __name__ == "__main__":
                 
             except Exception as e:
                 print(f"✗ Failed: {e}\n")
+        
+        # Uncomment to test with specific model providers
+        # Example: Test performance agent with different model providers
+        # for model_id in model_options:
+        #     print(f"Testing performance agent with model: {model_id}")
+        #     try:
+        #         ctx = await create_agent("performance", model_id=model_id)
+        #         async with ctx as (agent, session):
+        #             print(f"✓ Agent created successfully with {model_id}")
+        #     except Exception as e:
+        #         print(f"✗ Failed with {model_id}: {e}")
+        #     print()
     
     asyncio.run(test_agents())
