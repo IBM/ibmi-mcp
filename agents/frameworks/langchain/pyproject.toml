@@ -23,4 +23,4 @@ dependencies = [
 package = true
 
 [tool.uv.sources]
-ibmi-agent-sdk = { path = "../../../../../packages/ibmi-agent-sdk", editable = true }
+ibmi-agent-sdk = { path = "../../packages/ibmi-agent-sdk", editable = true }
