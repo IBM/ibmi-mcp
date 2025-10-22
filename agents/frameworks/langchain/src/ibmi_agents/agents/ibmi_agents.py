@@ -26,25 +26,8 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-# Import FilteredMCPTools - use direct module import to avoid SDK __init__.py
-try:
-    import importlib.util
-    from pathlib import Path
-    
-    # Try to find the filtered_mcp_tools module directly
-    sdk_path = Path(__file__).parent.parent.parent.parent.parent.parent / "packages" / "ibmi-agent-sdk" / "src" / "ibmi_agent_sdk" / "langchain" / "filtered_mcp_tools.py"
-    
-    if sdk_path.exists():
-        spec = importlib.util.spec_from_file_location("filtered_mcp_tools", sdk_path)
-        filtered_mcp_tools = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(filtered_mcp_tools)
-        load_filtered_mcp_tools = filtered_mcp_tools.load_filtered_mcp_tools
-        load_toolset_tools = filtered_mcp_tools.load_toolset_tools
-    else:
-        # Fall back to package import if file doesn't exist
-        from ibmi_agent_sdk.langchain.filtered_mcp_tools import load_filtered_mcp_tools, load_toolset_tools
-except Exception as e:
-    raise ImportError(f"Cannot load filtered_mcp_tools: {e}")
+# Import MCP tools from the SDK package
+from ibmi_agent_sdk.langchain import load_filtered_mcp_tools, load_toolset_tools
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
