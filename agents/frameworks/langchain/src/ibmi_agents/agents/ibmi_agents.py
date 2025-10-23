@@ -558,10 +558,26 @@ async def chat_with_agent(agent, message: str, thread_id: str = "default", verbo
                 
                 # Print AI message content if present
                 if msg.content:
-                    if any(keyword in msg.content.lower() for keyword in ['think', 'reason', 'consider', 'analyze']):
-                        print_agent_thinking(msg.content)
-                    elif VERBOSE_LOGGING:
-                        print_message("🤖 AI MESSAGE", msg.content, "green")
+                    # Check if this is an Anthropic model response (which might have list content)
+                    is_anthropic = hasattr(msg, 'response_metadata') and isinstance(msg.response_metadata, dict) and 'model' in msg.response_metadata and 'claude' in str(msg.response_metadata.get('model', '')).lower()
+                    
+                    # Handle content based on type
+                    if isinstance(msg.content, str):
+                        # String content (normal case for OpenAI and Ollama)
+                        if any(keyword in msg.content.lower() for keyword in ['think', 'reason', 'consider', 'analyze']):
+                            print_agent_thinking(msg.content)
+                        elif VERBOSE_LOGGING:
+                            print_message("🤖 AI MESSAGE", msg.content, "green")
+                    elif isinstance(msg.content, list) and is_anthropic:
+                        # List content (possible with Anthropic models)
+                        content_str = "\n".join(str(item) for item in msg.content if item)
+                        if VERBOSE_LOGGING:
+                            print_message("🤖 AI MESSAGE (Anthropic)", content_str, "green")
+                    else:
+                        # Fallback for any other type
+                        content_str = str(msg.content)
+                        if VERBOSE_LOGGING:
+                            print_message("🤖 AI MESSAGE", content_str, "green")
                         
             elif isinstance(msg, ToolMessage):
                 if VERBOSE_LOGGING:
