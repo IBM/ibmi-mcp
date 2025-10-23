@@ -21,5 +21,3 @@ __all__ = [
     "load_closed_world_tools",
     "load_safe_tools",
 ]
-
-# Made with Bob
