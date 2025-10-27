@@ -12,7 +12,7 @@ Available agents:
 """
 
 from .ibmi_agents import (
-    create_agent,
+    create_ibmi_agent,
     create_performance_agent,
     create_sysadmin_discovery_agent,
     create_sysadmin_browse_agent,
@@ -25,7 +25,7 @@ from .ibmi_agents import (
 )
 
 __all__ = [
-    "create_agent",
+    "create_ibmi_agent",
     "create_performance_agent",
     "create_sysadmin_discovery_agent",
     "create_sysadmin_browse_agent",

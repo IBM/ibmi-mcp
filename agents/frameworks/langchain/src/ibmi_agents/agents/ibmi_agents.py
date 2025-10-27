@@ -19,11 +19,11 @@ import os
 import json
 import getpass
 from typing import Dict, Any, List
-from contextlib import asynccontextmanager
+from contextlib import _AsyncGeneratorContextManager, asynccontextmanager
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 # Import MCP tools from the SDK package
@@ -191,16 +191,15 @@ Focus on actionable insights rather than just presenting raw data."""
         
             llm = get_model(model_id)
             
-            agent = create_react_agent(
+            agent = create_agent(
                 model=llm,
                 tools=tools,
-                prompt=system_message,
+                system_prompt=system_message,
                 checkpointer=get_shared_checkpointer(),
                 store=get_shared_store(),
+                name="IBM i Performance Monitor",
                 **kwargs
             )
-            
-            agent.name = "IBM i Performance Monitor"
             yield agent, session
     
     return agent_session()
@@ -247,16 +246,15 @@ Use counts and categorizations to give context about system complexity."""
             
             llm = get_model(model_id)
             
-            agent = create_react_agent(
+            agent = create_agent(
                 model=llm,
                 tools=tools,
-                prompt=system_message,
+                system_prompt=system_message,
                 checkpointer=get_shared_checkpointer(),
                 store=get_shared_store(),
+                name="IBM i SysAdmin Discovery",
                 **kwargs
             )
-            
-            agent.name = "IBM i SysAdmin Discovery"
             yield agent, session
     
     return agent_session()
@@ -303,16 +301,15 @@ Suggest related services or logical next steps in their exploration."""
             
             llm = get_model(model_id)
             
-            agent = create_react_agent(
+            agent = create_agent(
                 model=llm,
                 tools=tools,
-                prompt=system_message,
+                system_prompt=system_message,
                 checkpointer=get_shared_checkpointer(),
                 store=get_shared_store(),
+                name="IBM i SysAdmin Browser",
                 **kwargs
             )
-            
-            agent.name = "IBM i SysAdmin Browser"
             yield agent, session
     
     return agent_session()
@@ -360,16 +357,15 @@ Suggest related searches or alternative terms when searches yield few results.""
             
             llm = get_model(model_id)
             
-            agent = create_react_agent(
+            agent = create_agent(
                 model=llm,
                 tools=tools,
-                prompt=system_message,
+                system_prompt=system_message,
                 checkpointer=get_shared_checkpointer(),
                 store=get_shared_store(),
+                name="IBM i SysAdmin Search",
                 **kwargs
             )
-            
-            agent.name = "IBM i SysAdmin Search"
             yield agent, session
     
     return agent_session()
@@ -385,7 +381,7 @@ AVAILABLE_AGENTS = {
     "search": create_sysadmin_search_agent,
 }
 
-async def create_agent(agent_type: str, **kwargs):
+async def create_ibmi_agent(agent_type: str, **kwargs) -> _AsyncGeneratorContextManager[tuple[Any, Any], None]:
     """
     Create an agent of the specified type.
     
@@ -625,7 +621,7 @@ if __name__ == "__main__":
         for agent_type in AVAILABLE_AGENTS.keys():
             print(f"Testing {agent_type} agent...")
             try:
-                ctx = await create_agent(agent_type, model_id="gpt-oss:20b")
+                ctx = await create_ibmi_agent(agent_type, model_id="gpt-oss:20b")
                 async with ctx as (agent, session):
                     print(f"✓ {agent.name} created successfully")
                     
@@ -642,7 +638,7 @@ if __name__ == "__main__":
         # for model_id in model_options:
         #     print(f"Testing performance agent with model: {model_id}")
         #     try:
-        #         ctx = await create_agent("performance", model_id=model_id)
+        #         ctx = await create_ibmi_agent("performance", model_id=model_id)
         #         async with ctx as (agent, session):
         #             print(f"✓ Agent created successfully with {model_id}")
         #     except Exception as e:
