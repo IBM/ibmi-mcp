@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "default-server": {
-      "command": "node",
-      "args": ["dist/index.js"],
+    "ibmi-mcp-server": {
+      "command": "npx",
+      "args": ["ibmi-mcp-server"],
       "env": {
-        "TOOLS_YAML_PATH": "prebuiltconfigs",
+        "TOOLS_YAML_PATH": "tools",
         "NODE_OPTIONS": "--no-deprecation",
         "DB2i_HOST": "<DB2i_HOST>",
         "DB2i_USER": "<DB2i_USER>",
