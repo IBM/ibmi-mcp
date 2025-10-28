@@ -17,7 +17,7 @@ import os
 os.environ["LANGCHAIN_TRACING_V2"] = "false"
 
 from ibmi_agents import (
-    create_agent,
+    create_ibmi_agent,
     list_available_agents,
     chat_with_agent,
     AVAILABLE_AGENTS,
@@ -42,7 +42,7 @@ async def test_single_agent(agent_type: str, model_id: str = "gpt-oss:20b"):
     try:
         # Create agent context
         print(f"🔧 Creating {agent_type} agent with model {model_id}...")
-        ctx = await create_agent(agent_type, model_id=model_id)
+        ctx = await create_ibmi_agent(agent_type, model_id=model_id)
         
         async with ctx as (agent, session):
             print(f"✅ Agent created: {agent.name}\n")
@@ -120,7 +120,7 @@ async def interactive_mode(agent_type: str, model_id: str = "gpt-oss:20b"):
     try:
         # Create agent context
         print(f"🔧 Initializing {agent_type} agent with {model_id}...\n")
-        ctx = await create_agent(agent_type, model_id=model_id)
+        ctx = await create_ibmi_agent(agent_type, model_id=model_id)
         
         async with ctx as (agent, session):
             print(f"✅ {agent.name} ready!\n")
@@ -183,7 +183,7 @@ async def quick_test(model_id: str = "gpt-oss:20b"):
     for agent_type in AVAILABLE_AGENTS.keys():
         try:
             print(f"Creating {agent_type} agent...", end=" ")
-            ctx = await create_agent(agent_type, model_id=model_id)
+            ctx = await create_ibmi_agent(agent_type, model_id=model_id)
             async with ctx as (agent, session):
                 print(f"✅ {agent.name}")
                 results[agent_type] = True
