@@ -108,6 +108,9 @@
                         {
                           "type": "array",
                           "items": {}
+                        },
+                        {
+                          "type": "null"
                         }
                       ],
                       "description": "Default value when parameter is not provided"
