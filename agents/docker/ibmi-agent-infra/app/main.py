@@ -18,10 +18,11 @@ from workflows import (
 os_config_path = str(Path(__file__).parent.joinpath("config.yaml"))
 
 watsonx_llama = "watsonx:meta-llama/llama-3-3-70b-instruct"
+anthropic_claude = "anthropic:claude-sonnet-4-5"
 
 web_agent = get_web_agent(model_id="gpt-4o")
 agno_assist = get_agno_assist(model_id="gpt-4o")
-performance_agent = get_performance_agent(model=watsonx_llama)
+performance_agent = get_performance_agent(model=anthropic_claude)
 
 # Create the AgentOS
 agent_os = AgentOS(

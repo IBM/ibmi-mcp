@@ -20,13 +20,17 @@ Example usage:
 
 from typing import Union
 
+from agno.models.base import Model
 from agno.models.openai import OpenAIChat
-
+from agno.models.anthropic import Claude
 from agents.utils.watsonx import MyWatsonx
 from infra.config import config
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-def get_model(model_spec: str | object, **kwargs) -> Union[OpenAIChat, MyWatsonx]:
+def get_model(model_spec: str | object, **kwargs) -> Union[Model]:
     """
     Get a model instance based on provider:model_id specification or direct model object.
 
@@ -79,8 +83,10 @@ def get_model(model_spec: str | object, **kwargs) -> Union[OpenAIChat, MyWatsonx
         watsonx_kwargs = config.watsonx.to_model_kwargs()
         watsonx_kwargs.update(kwargs)
         return MyWatsonx(id=model_id, **watsonx_kwargs)
+    elif provider == "anthropic":
+        return Claude(id=model_id, **kwargs)
     else:
-        supported_providers = ["openai", "watsonx"]
+        supported_providers = ["openai", "watsonx", "anthropic"]
         raise ValueError(
             f"Unsupported provider: '{provider}'. "
             f"Supported providers: {', '.join(supported_providers)}"
@@ -126,10 +132,11 @@ COMMON_MODELS = {
     "llama-3.3": "watsonx:llama-3-3-70b-instruct",
     "llama-3.1": "watsonx:llama-3-1-70b-instruct",
     "granite-3": "watsonx:granite-3-8b-instruct",
+    "claude4.5": "anthropic:claude-sonnet-4-5",
 }
 
 
-def get_model_by_alias(alias: str, **kwargs) -> Union[OpenAIChat, MyWatsonx]:
+def get_model_by_alias(alias: str, **kwargs) -> Union[Model]:
     """
     Get a model instance by alias or full specification.
 

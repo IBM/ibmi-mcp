@@ -42,7 +42,7 @@ services:
     image: ${IBMI_MCP_IMAGE:-ibmi-mcp-server:latest}
     build:
       context: ../../../server      # Build from server directory (monorepo root/server)
-      dockerfile: ../apps/docker/Dockerfile  # Path to Dockerfile relative to server context
+      dockerfile: ../Dockerfile  # Path to Dockerfile relative to server context
     container_name: ibmi-mcp-server
     restart: unless-stopped
     ports:
