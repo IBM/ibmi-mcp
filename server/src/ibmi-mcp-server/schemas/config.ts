@@ -30,7 +30,13 @@ export const SqlToolParameterSchema = z
       .optional()
       .describe("Human-readable parameter description"),
     default: z
-      .union([z.string(), z.number(), z.boolean(), z.array(z.unknown()), z.null()])
+      .union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.array(z.unknown()),
+        z.null(),
+      ])
       .optional()
       .describe("Default value when parameter is not provided"),
     required: z
