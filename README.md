@@ -44,6 +44,8 @@ ibmi-mcp-server/
 <summary><strong>📋 Table of Contents</strong></summary>
 
 - [ibmi-mcp-server (⚠️ Under Active Development)](#ibmi-mcp-server-️-under-active-development)
+  - [📁 Repository Structure](#-repository-structure)
+    - [Quick Navigation](#quick-navigation)
   - [📡 Setup Mapepire](#-setup-mapepire)
     - [What is Mapepire?](#what-is-mapepire)
     - [Why Mapepire Enables AI and MCP Workloads](#why-mapepire-enables-ai-and-mcp-workloads)
@@ -54,13 +56,39 @@ ibmi-mcp-server/
     - [3. Create Server .env File](#3-create-server-env-file)
     - [4. Running the Server](#4-running-the-server)
     - [5. Run Example Agent](#5-run-example-agent)
-      - [Run the example Agent:](#run-the-example-agent)
       - [Run the Example Scripts:](#run-the-example-scripts)
+      - [Run the example Agent:](#run-the-example-agent)
     - [6. Running Tests](#6-running-tests)
   - [🔌 Installing in MCP Clients](#-installing-in-mcp-clients)
     - [Prerequisites: Local Installation](#prerequisites-local-installation)
     - [Remote Server Setup](#remote-server-setup)
     - [Client Configurations](#client-configurations)
+      - [Option 1: Local Stdio Server (Recommended)](#option-1-local-stdio-server-recommended)
+      - [Option 2: Remote HTTP Server](#option-2-remote-http-server)
+      - [Environment Variable Expansion](#environment-variable-expansion)
+      - [Managing Servers](#managing-servers)
+      - [Local (Stdio)](#local-stdio)
+      - [Remote (HTTP)](#remote-http)
+      - [Configuration File Locations](#configuration-file-locations)
+      - [Option 1: Local Stdio Server](#option-1-local-stdio-server)
+      - [Option 2: Remote HTTP Server](#option-2-remote-http-server-1)
+      - [Secure Credentials with Input Variables](#secure-credentials-with-input-variables)
+      - [Managing Servers](#managing-servers-1)
+      - [Local (Stdio)](#local-stdio-1)
+      - [Remote (HTTP)](#remote-http-1)
+      - [Local (Stdio)](#local-stdio-2)
+      - [Remote (HTTP)](#remote-http-2)
+      - [Local (Stdio)](#local-stdio-3)
+      - [Remote (HTTP)](#remote-http-3)
+      - [Local (Stdio)](#local-stdio-4)
+      - [Remote (HTTP)](#remote-http-4)
+      - [Local (Stdio)](#local-stdio-5)
+      - [Remote (HTTP)](#remote-http-5)
+      - [Local (Stdio)](#local-stdio-6)
+      - [Remote (HTTP)](#remote-http-6)
+      - [Option 1: Manual Configuration](#option-1-manual-configuration)
+      - [Remote (HTTP) with Agno](#remote-http-with-agno)
+      - [Remote (HTTP) with Official MCP SDK](#remote-http-with-official-mcp-sdk)
     - [Troubleshooting](#troubleshooting)
   - [🤖 IBM i Agents](#-ibm-i-agents)
     - [Key Features](#key-features)
@@ -231,20 +259,21 @@ Make sure that the server is running in `http` mode:
 npx ibmi-mcp-server --transport http --tools ./tools
 ```
 
-In another terminal, navigate to the `tests/agents` directory and follow the setup instructions in the [README](./tests/agents/README.md).
+#### Run the Example Scripts:
+In another terminal, navigate to the `server/tests/agents` directory and follow the setup instructions in the [README](./tests/agents/README.md).
 
-#### Run the example Agent:
+
+Run an example MCP Client script to list available tools:
 
 ```bash
-cd tests/agents
-export OPENAI_API_KEY=your_open_ai_key
-uv run agent.py -p "What is my system status?"
+cd server/tests/agents
+uv run mcp_client.py
 ```
 
-#### Run the Example Scripts:
+List Configured tool annotations and server resources:
 
 ```bash
-cd tests/agents
+cd server/tests/agents
 
 # See a list of configured tools:
 uv run test_tool_annotations.py
@@ -254,6 +283,14 @@ uv run test_toolset_resources.py
 ```
 
 > Note: `test_tool_annotations.py` and `run test_toolset_resources.py` DO NOT require and OpenAI API Key 
+
+#### Run the example Agent:
+
+```bash
+cd server/tests/agents
+export OPENAI_API_KEY=your_open_ai_key
+uv run agent.py -p "What is my system status?"
+```
 
 ### 6. Running Tests
 
