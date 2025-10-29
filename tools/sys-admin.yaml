@@ -1,10 +1,10 @@
-# sources:
-#   ibmi-system:
-#     host: ${DB2i_HOST}
-#     user: ${DB2i_USER}
-#     password: ${DB2i_PASS}
-#     port: 8076
-#     ignore-unauthorized: true
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
 
 tools:
   describe_object:
