@@ -328,7 +328,9 @@ Array parameters accept lists of values and require an `itemType` to specify the
 > Array parameters must be passed as **JSON arrays**, not as strings containing SQL syntax.
 >
 > ✅ **Correct:**   `{"project_ids": ["MA2100", "AD3100"]}`
+> 
 > ❌ **Incorrect:** `{"project_ids": "('MA2100', 'AD3100')"}`
+> 
 > ❌ **Incorrect:** `{"project_ids": "MA2100,AD3100"}`
 
 **Available Constraints:**
