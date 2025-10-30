@@ -228,7 +228,11 @@ const EnvSchema = z.object({
     .min(1, "DB2i_PASS is required for IBM i connections.")
     .optional(),
   /** Ignore unauthorized SSL certificates for Mapepire. From `DB2i_IGNORE_UNAUTHORIZED`. Default: true. */
-  DB2i_IGNORE_UNAUTHORIZED: z.coerce.boolean().default(true),
+  DB2i_IGNORE_UNAUTHORIZED: z
+    .string()
+    .optional()
+    .default("true")
+    .transform((val) => val === "true" || val === "1"),
 
   /** Path to YAML tools configuration file. From `TOOLS_YAML_PATH`. */
   TOOLS_YAML_PATH: z
@@ -237,14 +241,38 @@ const EnvSchema = z.object({
     .optional(),
 
   /** YAML merge options configuration. From `YAML_MERGE_*` environment variables. */
-  YAML_MERGE_ARRAYS: z.coerce.boolean().default(false),
-  YAML_ALLOW_DUPLICATE_TOOLS: z.coerce.boolean().default(false),
-  YAML_ALLOW_DUPLICATE_SOURCES: z.coerce.boolean().default(false),
-  YAML_VALIDATE_MERGED: z.coerce.boolean().default(true),
+  YAML_MERGE_ARRAYS: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true"),
+  YAML_ALLOW_DUPLICATE_TOOLS: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true"),
+  YAML_ALLOW_DUPLICATE_SOURCES: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true"),
+  YAML_VALIDATE_MERGED: z
+    .string()
+    .optional()
+    .default("true")
+    .transform((val) => val === "true"),
 
   /** IBM i HTTP Authentication configuration. From `IBMI_AUTH_*` environment variables. */
-  IBMI_HTTP_AUTH_ENABLED: z.coerce.boolean().default(false),
-  IBMI_AUTH_ALLOW_HTTP: z.coerce.boolean().default(false),
+  IBMI_HTTP_AUTH_ENABLED: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true" || val === "1"),
+  IBMI_AUTH_ALLOW_HTTP: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true" || val === "1"),
   IBMI_AUTH_TOKEN_EXPIRY_SECONDS: z.coerce
     .number()
     .int()
@@ -265,7 +293,11 @@ const EnvSchema = z.object({
   IBMI_AUTH_KEY_ID: z.string().min(1).optional(),
 
   /** Enable automatic reloading of YAML tools when configuration files change. From `YAML_AUTO_RELOAD`. Default: true. */
-  YAML_AUTO_RELOAD: z.coerce.boolean().default(true),
+  YAML_AUTO_RELOAD: z
+    .string()
+    .optional()
+    .default("true")
+    .transform((val) => val === "true" || val === "1"),
 
   SELECTED_TOOLSETS: z.string().optional(),
 });

@@ -41,10 +41,19 @@ Ensure the IBM i MCP server is running:
 
 ```bash
 # From the main project directory
+cd ibmi-mcp-server
 npm run start:http
 ```
 
-### 4. Run the Agent
+### 4. Run MCP Client Script
+
+In another terminal, navigate to the `server/tests/agents` directory and run:
+
+```bash
+uv run mcp_client.py
+```
+
+### 5. Run the Agent
 
 ```bash
 # Use a custom prompt
