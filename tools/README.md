@@ -339,7 +339,7 @@ Array parameters accept lists of values and require an `itemType` to specify the
 - `maxLength`: Maximum number of items
 
 > **💡 TIP - Array Parameters for IN Clauses**
-> Array parameters are the recommended way to handle SQL IN clauses with variable-length lists. The server automatically expands array parameters into the correct number of placeholders, so you don't need to use `UNNEST()` or other workarounds.
+> Array parameters are the recommended way to handle SQL IN clauses with variable-length lists. The server automatically expands array parameters into the correct number of placeholders, so you don't need to use other workarounds.
 
 **Example 1: String Array**
 ```yaml
@@ -387,7 +387,16 @@ statement: |
 - ✅ **Variable-length arrays** - Works with any array size (within constraints)
 - ✅ **Simple syntax** - Just use `IN (:array_param)` in your SQL
 - ✅ **Type validation** - Each array element is validated against `itemType`
-- ✅ **No DB2-specific workarounds needed** - Works like standard JDBC parameter binding
+- ✅ **No Db2-specific workarounds needed** - Works like standard JDBC parameter binding
+
+> **📝 NOTE - SQL IN Clause Behavior**
+> The `IN` clause uses **OR logic** - it matches records where the column equals **ANY** value in the list, not ALL values.
+>
+> ```sql
+> WHERE PROJNO IN ('MA2100', 'AD3100')  -- Matches records with PROJNO = 'MA2100' OR 'AD3100'
+> ```
+>
+> If you need **AND logic** (matching ALL values), you'll need different SQL patterns like subqueries or aggregation.
 
 ---
 
@@ -659,10 +668,16 @@ get_employee_details:
 - SQL uses LEFT JOINs to handle cases where department or manager might not exist
 - The self-join on EMPLOYEE (aliased as M) retrieves manager information
 
-**Usage Example:**
+**MCP Tool Call Example:**
 ```json
 {
-  "employee_id": "000010"
+  "method": "tools/call",
+  "params": {
+    "name": "get_employee_details",
+    "arguments": {
+      "employee_id": "000010"
+    }
+  }
 }
 ```
 
@@ -705,10 +720,16 @@ find_employees_by_department:
 - The description is automatically enhanced: "Must be one of: 'A00', 'B01', 'C01', 'D01', 'E01'"
 - This prevents invalid department queries and provides autocomplete-like guidance to the LLM
 
-**Usage Example:**
+**MCP Tool Call Example:**
 ```json
 {
-  "department_id": "A00"
+  "method": "tools/call",
+  "params": {
+    "name": "find_employees_by_department",
+    "arguments": {
+      "department_id": "A00"
+    }
+  }
 }
 ```
 
@@ -806,14 +827,26 @@ get_employee_projects:
 ```json
 // Get all projects (completed and active)
 {
-  "employee_id": "000010",
-  "include_completed": true
+  "method": "tools/call",
+  "params": {
+    "name": "get_employee_projects",
+    "arguments": {
+      "employee_id": "000010",
+      "include_completed": true
+    },
+  }
 }
 
 // Get only active projects
 {
-  "employee_id": "000010",
-  "include_completed": false
+  "method": "tools/call",
+  "params": {
+    "name": "get_employee_projects",
+    "arguments": {
+      "employee_id": "000010",
+      "include_completed": false
+    },
+  }
 }
 ```
 
@@ -856,35 +889,49 @@ get_department_salary_stats:
       default: "*ALL"
     - name: min_salary
       type: integer
-      description: "Minimum salary filter (optional)"
+      description: "Minimum salary filter (required)"
       min: 0
       max: 100000
+      default: 0
     - name: max_salary
       type: integer
-      description: "Maximum salary filter (optional)"
+      description: "Maximum salary filter (required)"
       min: 0
       max: 100000
+      default: 100000
 ```
 
 **Key Learning Points:**
-- Optional parameters use `IS NULL` checks in SQL
-- The `*ALL` pattern is a common IBM i convention for "all values"
 - Integer constraints (`min: 0`, `max: 100000`) prevent invalid salary ranges
 - GROUP BY with aggregations provides statistical summaries
-- No `required: false` needed when parameter has a default value
+- No `required: false` needed when parameter has a default value (`deptartment_id`)
 
 **Usage Examples:**
 ```json
 // All departments, no salary filter
 {
-  "department_id": "*ALL"
+  "method": "tools/call",
+  "params": {
+    "name": "get_department_salary_stats",
+    "arguments": {
+      "department_id": "*ALL",
+      "min_salary": 0,
+      "max_salary": 100000
+    },
+  }
 }
 
 // Specific department with salary range
 {
-  "department_id": "A00",
-  "min_salary": 50000,
-  "max_salary": 80000
+  "method": "tools/call",
+  "params": {
+    "name": "get_department_salary_stats",
+    "arguments": {
+      "department_id": "A00",
+      "min_salary": 20000,
+      "max_salary": 40000
+    },
+  }
 }
 ```
 
@@ -940,10 +987,16 @@ find_project_team_members:
 - Array parameters are automatically expanded: `IN (:project_ids)` becomes `IN (?, ?, ?)`
 - Description includes example array format to guide the LLM
 
-**Usage Example:**
+**MCP Tool Call Example:**
 ```json
 {
-  "project_ids": ["MA2100", "AD3100", "PL2100"]
+  "method": "tools/call",
+  "params": {
+    "name": "find_project_team_members",
+    "arguments": {
+      "project_ids": ["MA2100", "AD3100", "PL2100"]
+    }
+  }
 }
 ```
 
@@ -996,13 +1049,29 @@ calculate_employee_bonus:
 ```json
 // 10% bonus (default)
 {
-  "employee_id": "000010"
+  "method": "tools/call",
+  "params": {
+    "name": "calculate_employee_bonus",
+    "arguments": {
+      "employee_id": "000010",
+      "performance_multiplier": 0.1
+    },
+  }
 }
 
 // 25% bonus
 {
-  "employee_id": "000010",
-  "performance_multiplier": 0.25
+  "method": "tools/call",
+  "params": {
+    "name": "calculate_employee_bonus",
+    "arguments": {
+      "employee_id": "000010",
+      "performance_multiplier": 0.25
+    },
+    "_meta": {
+      "progressToken": 3
+    }
+  }
 }
 ```
 
@@ -1067,16 +1136,28 @@ search_employees:
 ```json
 // First page of results
 {
-  "name_search": "Smith",
-  "page_size": 10,
-  "page_number": 1
+  "method": "tools/call",
+  "params": {
+    "name": "search_employees",
+    "arguments": {
+      "name_search": "Smith",
+      "page_size": 10,
+      "page_number": 1
+    },
+  }
 }
 
 // Second page with custom page size
 {
-  "name_search": "Jo",
-  "page_size": 25,
-  "page_number": 2
+  "method": "tools/call",
+  "params": {
+    "name": "search_employees",
+    "arguments": {
+      "name_search": "JO",
+      "page_size": 25,
+      "page_number": 2
+    },
+  }
 }
 ```
 

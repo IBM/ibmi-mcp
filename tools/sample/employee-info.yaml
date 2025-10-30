@@ -177,11 +177,13 @@ tools:
         description: "Minimum salary filter (optional)"
         min: 0
         max: 100000
+        default: 0
       - name: max_salary
         type: integer
         description: "Maximum salary filter (optional)"
         min: 0
         max: 100000
+        default: 100000
     security:
       readOnly: true
     annotations:
