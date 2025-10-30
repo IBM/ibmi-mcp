@@ -6,6 +6,7 @@
         "configs/*.yaml",
         "configs/*.yml",
         "tools*/*.yaml",
+        "tools/*/*.yaml"
       ]
     }
   }
